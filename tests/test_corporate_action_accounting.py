@@ -228,3 +228,56 @@ def test_share_mutation_cannot_apply_before_effective_date():
             positions=positions,
             applied_at=datetime(2026, 5, 31),
         )
+
+
+def test_capital_reduction_cash_entitlement_uses_explicit_share_basis():
+    cash = CashAccount(settled_cash=1000.0)
+    accounting = CorporateActionAccounting(cash)
+    event = CorporateActionEvent(
+        event_id="CA-CASH-REDUCE",
+        ticker="2330",
+        event_type=CorporateActionType.CAPITAL_REDUCTION,
+        effective_at=datetime(2026, 6, 1),
+        payment_at=None,
+        cash_per_share=2.0,
+        share_multiplier=0.5,
+        source="official",
+    )
+
+    receivable = accounting.accrue_cash_entitlement(
+        event=event,
+        shares_entitled=100,
+        accrued_at=datetime(2026, 6, 1),
+        component="CAPITAL_REDUCTION_REFUND",
+    )
+
+    assert receivable.amount == 200.0
+    assert receivable.shares_entitled == 100
+    assert cash.pending_receivables == 200.0
+    assert cash.settled_cash == 1000.0
+
+    with pytest.raises(ValueError, match="UNKNOWN"):
+        accounting.pay_cash_entitlement(
+            "CA-CASH-REDUCE",
+            paid_at=datetime(2026, 7, 1),
+        )
+
+
+def test_cash_entitlement_requires_declared_component():
+    cash = CashAccount(settled_cash=1000.0)
+    accounting = CorporateActionAccounting(cash)
+    event = CorporateActionEvent(
+        event_id="CA-COMPONENT",
+        ticker="2330",
+        event_type=CorporateActionType.CAPITAL_REDUCTION,
+        effective_at=datetime(2026, 6, 1),
+        cash_per_share=2.0,
+    )
+
+    with pytest.raises(ValueError, match="component"):
+        accounting.accrue_cash_entitlement(
+            event=event,
+            shares_entitled=100,
+            accrued_at=datetime(2026, 6, 1),
+            component="",
+        )
