@@ -30,9 +30,24 @@ Likewise, `known_at` may remain unknown in the source record. That limits PIT re
 
 ## Remaining corporate-action work
 
-- stock dividends / splits and share-count reconciliation;
+- source-backed stock-dividend/split/reduction replay and reconciliation;
 - rights issues;
 - capital reductions;
 - merger/security mapping;
 - integration with the portfolio replay service;
 - event-level reconciliation back to the canonical source ledger.
+
+
+## Share-multiplier events
+
+For a supported non-cash corporate action with an explicit `share_multiplier`:
+
+`new_quantity = old_quantity × share_multiplier`
+
+`new_avg_cost = old_total_cost / new_quantity`
+
+This preserves total historical cost basis across the exogenous share-count mutation.
+
+Examples include official split/par-value-change ratios and capital-reduction replacement-share ratios. The system does not infer a multiplier from adjusted prices.
+
+The same real-world event may legitimately have both a cash component and a share component; those accounting components are tracked separately under the event ID.
