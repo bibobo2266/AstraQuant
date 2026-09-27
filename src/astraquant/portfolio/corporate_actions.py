@@ -44,6 +44,19 @@ class CorporateActionEvent:
 
 
 @dataclass
+class CorporateActionCashReceivable:
+    event_id: str
+    ticker: str
+    component: str
+    shares_entitled: float
+    cash_per_share: float
+    amount: float
+    accrued_at: datetime
+    payment_at: datetime | None
+    paid_at: datetime | None = None
+
+
+@dataclass
 class DividendReceivable:
     event_id: str
     ticker: str
@@ -68,6 +81,8 @@ class CorporateActionAccounting:
         self.dividend_receivables: dict[str, DividendReceivable] = {}
         self.completed_dividends: dict[str, DividendReceivable] = {}
         self.share_mutations: dict[str, PositionShareMutation] = {}
+        self.cash_entitlement_receivables: dict[str, CorporateActionCashReceivable] = {}
+        self.completed_cash_entitlements: dict[str, CorporateActionCashReceivable] = {}
 
     def accrue_cash_dividend(
         self,
@@ -151,3 +166,63 @@ class CorporateActionAccounting:
         positions.apply_share_mutation(mutation)
         self.share_mutations[event.event_id] = mutation
         return mutation
+
+
+    def accrue_cash_entitlement(
+        self,
+        *,
+        event: CorporateActionEvent,
+        shares_entitled: float,
+        accrued_at: datetime,
+        component: str,
+    ) -> CorporateActionCashReceivable:
+        """Accrue a non-dividend corporate-action cash receivable.
+
+        The caller must supply the economically correct entitlement share basis.
+        AstraQuant does not infer pre/post-mutation share basis from adjusted prices.
+        """
+
+        if not component.strip():
+            raise ValueError("component must be declared")
+        if shares_entitled < 0:
+            raise ValueError("shares_entitled must be non-negative")
+        if accrued_at < event.effective_at:
+            raise ValueError("cannot accrue before corporate-action effective date")
+        if event.event_id in self.cash_entitlement_receivables or event.event_id in self.completed_cash_entitlements:
+            raise ValueError(f"duplicate cash-entitlement event id: {event.event_id}")
+        if event.cash_per_share is None:
+            raise ValueError("cash entitlement requires cash_per_share")
+
+        amount = shares_entitled * event.cash_per_share
+        receivable = CorporateActionCashReceivable(
+            event_id=event.event_id,
+            ticker=event.ticker,
+            component=component,
+            shares_entitled=shares_entitled,
+            cash_per_share=event.cash_per_share,
+            amount=amount,
+            accrued_at=accrued_at,
+            payment_at=event.payment_at,
+        )
+        self.cash_entitlement_receivables[event.event_id] = receivable
+        self.cash.pending_receivables += amount
+        return receivable
+
+    def pay_cash_entitlement(
+        self,
+        event_id: str,
+        *,
+        paid_at: datetime,
+    ) -> CorporateActionCashReceivable:
+        receivable = self.cash_entitlement_receivables[event_id]
+        if receivable.payment_at is None:
+            raise ValueError("payment_at is UNKNOWN; cannot guess settlement date")
+        if paid_at < receivable.payment_at:
+            raise ValueError("cannot pay cash entitlement before declared payment date")
+
+        self.cash_entitlement_receivables.pop(event_id)
+        self.cash.pending_receivables -= receivable.amount
+        self.cash.settled_cash += receivable.amount
+        receivable.paid_at = paid_at
+        self.completed_cash_entitlements[event_id] = receivable
+        return receivable
