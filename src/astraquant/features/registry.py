@@ -1,7 +1,16 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from enum import Enum
 from typing import Sequence
+
+from astraquant.data.market_coordinates import SignalPriceSemantics
+
+
+class CAWindowRequirement(str, Enum):
+    CONSISTENT_ADJUSTMENT_WITHIN_LOOKBACK = "CONSISTENT_ADJUSTMENT_WITHIN_LOOKBACK"
+    EVENT_AWARE = "EVENT_AWARE"
+    NONE = "NONE"
 
 
 @dataclass(frozen=True)
@@ -13,6 +22,8 @@ class FeatureDefinition:
     dependencies: tuple[str, ...] = field(default_factory=tuple)
     point_in_time_safe: bool = False
     availability_rule: str | None = None
+    price_semantics: SignalPriceSemantics | None = None
+    ca_window_requirement: CAWindowRequirement | None = None
 
 
 class FeatureRegistry:
