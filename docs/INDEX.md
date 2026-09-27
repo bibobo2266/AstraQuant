@@ -30,8 +30,13 @@
 - `DATA_PHASE_PLAN.md` — small-task plan for inventory, execution semantics, and canonical PIT work
 - `DATA_INVENTORY.md` — frozen source readiness and initial static source map
 - `DATA_CONTRACT.md` — canonical RAW / adjusted / corporate-action / PIT-provenance contract
+- `DATA_AUDIT.md` — frozen Phase-1 audit summary, limitations, and remaining execution blocker
+- `CANONICAL_PARQUET_INVENTORY.md` — runtime parquet metadata inventory
+- `RAW_ADJ_QUALITY_AUDIT.md` — RAW/adjusted key and duplicate checks
+- `PIT_REFERENCE_AUDIT.md` — corporate-action, industry PIT, snapshot, and tradability integrity
+- `FUNDAMENTAL_PIT_AUDIT.md` — PIT-bearing fundamental availability checks
 
-Runtime parquet inspection and execution-semantics validation are now active. Performance research remains gated.
+Phase-1 runtime/data audit is complete with explicit limitations. Phase-2 execution/accounting repair is active. Performance research remains gated.
 
 ## Audit and persistence
 
