@@ -30,3 +30,22 @@ A settlement contains:
 - actual settlement time
 
 Taiwan-specific settlement rules will be added only after execution assumptions are explicitly frozen.
+
+
+## Fill preflight atomicity
+
+Before any order, position, cash, or settlement state is mutated, `PortfolioEngine.apply_fill` preflights:
+
+- duplicate fill ID
+- duplicate settlement ID
+- order existence and fillable status
+- ticker/side match
+- positive quantity and price
+- remaining order quantity
+- non-negative fees
+- sufficient position quantity for sells
+- sell fees not exceeding gross proceeds
+
+Known validation failures therefore occur before mutation. Duplicate fill IDs are rejected globally within the engine instance.
+
+This is not a database transaction, but it closes the previously identified partial-mutation path for the engine's known validation failures.
