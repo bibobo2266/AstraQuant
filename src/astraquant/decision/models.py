@@ -6,6 +6,7 @@ from pydantic import BaseModel, Field
 
 
 class DecisionPacket(BaseModel):
+    packet_id: str
     symbol: str
     as_of: datetime
     market_context: dict[str, Any] = Field(default_factory=dict)
