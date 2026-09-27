@@ -4,36 +4,28 @@
 
 Continue building framework components that do not require source data:
 
-1. compose human approval + generic risk checks into one pre-order gate
-2. add immutable review/result persistence format
-3. add research-to-decision audit trail IDs across experiment/run/packet/review/intent
-4. connect artifact index to run orchestration
-5. add package-level facade/API cleanup
-6. harden CI based on current workflow results
+1. add additional generic risk constraints: cash, position size, concentration interfaces
+2. extend audit links from OrderIntent to Order/Fill/Settlement
+3. connect artifact index and persistence to research orchestration outputs
+4. add a top-level AstraQuant service/facade to compose research, decision, review, risk, and portfolio flows
+5. harden CI and fix any failing tests on current head
+6. keep all data-dependent work blocked until the source dataset is declared final
 
 ## COMPLETED DURING DATA-FREEZE PERIOD
 
-- read-only SourceDataAdapter boundary
-- feature and experiment registries
-- Newey-West / BH-FDR / parameter-plateau primitives
-- validation ladder and promotion policy
-- walk-forward temporal contracts and locked-OOS guard
-- placebo/permutation hooks
-- dataset/run manifests
-- research run orchestration
-- research result summary schema
-- DecisionPacket contract and builder
+- immutable source boundary and SourceDataAdapter
+- PIT/data contracts
+- feature, experiment, and execution-assumption registries
+- validation statistics, ladder, walk-forward, falsification, and promotion policy
+- preregistration, run lineage, research orchestration, and result summaries
+- DecisionPacket builder and stable packet IDs
 - append-only human review history
-- explicit human-approval guard before OrderIntent creation
-- generic risk-constraint interface
-- fill-only position mutation
-- order lifecycle
-- portfolio fill/cash/settlement orchestration
-- execution-assumption interfaces and version registry
-- cash and settlement domain
-- experiment preregistration
-- artifact store and run artifact index
-- documentation index
+- combined human-approval + risk pre-order gate
+- end-to-end experiment/run/dataset/packet/review/intent audit chain
+- append-only JSONL governance persistence
+- generic risk-constraint framework
+- order/fill/position/cash/settlement domain
+- artifact store and index
 - GitHub Actions pytest workflow
 - Complexity Lab protocol
 
