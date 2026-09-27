@@ -2,52 +2,40 @@
 
 ## NOW
 
-Continue building framework components that do not require source data:
+The data-remediation layer is frozen. Continue in small, recoverable tasks:
 
-1. add additional generic risk constraints: cash, position size, concentration interfaces
-2. extend audit links from OrderIntent to Order/Fill/Settlement
-3. connect artifact index and persistence to research orchestration outputs
-4. add a top-level AstraQuant service/facade to compose research, decision, review, risk, and portfolio flows
-5. harden CI and fix any failing tests on current head
-6. keep all data-dependent work blocked until the source dataset is declared final
+1. verify Astra/local runtime can read the external source root without write access
+2. run parquet-level inventory: schemas, rows, dates, tickers, nulls, duplicates, PIT fields
+3. freeze the canonical inventory
+4. begin Execution Semantics Validation
+5. audit active workflows/scripts and trace all signal/execution/accounting price sources
+6. enforce the canonical RAW/ADJ/CA/PIT contract before any portfolio-performance retest
 
-## COMPLETED DURING DATA-FREEZE PERIOD
+## CURRENT GATE
 
-- immutable source boundary and SourceDataAdapter
-- PIT/data contracts
-- feature, experiment, and execution-assumption registries
-- validation statistics, ladder, walk-forward, falsification, and promotion policy
-- preregistration, run lineage, research orchestration, and result summaries
-- DecisionPacket builder and stable packet IDs
-- append-only human review history
-- combined human-approval + risk pre-order gate
-- end-to-end experiment/run/dataset/packet/review/intent audit chain
-- append-only JSONL governance persistence
-- generic risk-constraint framework
-- order/fill/position/cash/settlement domain
-- artifact store and index
-- GitHub Actions pytest workflow
-- Complexity Lab protocol
+- RAW history: READY, 100.0000% eligible coverage
+- Adjusted history: READY for research coordinate
+- Corporate actions: READY_WITH_LIMITATION
+- PIT industry: READY_WITH_LIMITATION; uncovered periods remain excluded
+- Tradability: READY_WITH_LIMITATION
+- source repository remains immutable/read-only
 
-## BLOCKED UNTIL DATA FREEZE
+## PERFORMANCE LOCK
 
-- actual source inventory
-- schema/null/duplicate audit
-- corporate-action reconciliation
-- point-in-time financial audit
-- canonical research dataset
-- feature calculation
-- backtests
-- ML training
-- strategy recommendations
+Do not use CAGR, Sharpe, MAR, MDD, or strategy ranking as acceptance criteria until:
 
-The source repository must remain untouched. It may later be exposed to AstraQuant as a read-only checkout or mount.
+- entry/stop/exit/sizing/mark all use RAW
+- no adjusted execution fallback exists
+- share count reconciles
+- cash and receivables reconcile
+- corporate actions reconcile
+- NAV reconciles
+- signal source semantics are declared
 
-## AFTER DATA FREEZE
+## RESEARCH AFTER DATA/ACCOUNTING GATES
 
-1. connect SourceDataAdapter to the cleaned source-data root
-2. execute Phase 1 inventory
-3. execute Phase 2 data audit
-4. validate corporate actions and PIT semantics
-5. construct canonical research dataset
-6. begin EXP-R001 only after data gates pass
+1. construct canonical PIT dataset
+2. materialize feature registry
+3. preregister EXP-R001
+4. run EXP-R001 only after all required gates pass
+5. proceed to EXP-R002 / Complexity Lab only through the promotion protocol
