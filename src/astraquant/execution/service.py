@@ -160,3 +160,54 @@ class CanonicalExecutionService:
             fill=fill,
             raw_decision=decision,
         )
+
+
+    def execute_stop(
+        self,
+        *,
+        intent: OrderIntent,
+        signal: SignalDeclaration,
+        order_id: str,
+        fill_id: str,
+        submitted_at: datetime,
+        session_date: date | datetime,
+        stop_price: float,
+        settlement: SettlementInstruction,
+    ) -> ExecutedOrder:
+        """Execute a long-position sell stop from RAW trigger/fill semantics."""
+
+        _ = signal
+        if intent.side.lower() != "sell":
+            raise ValueError("stop execution currently supports sell intents only")
+
+        decision = self.market_data.resolve_stop_fill(
+            ticker=intent.ticker,
+            session_date=session_date,
+            stop_price=stop_price,
+            side="sell",
+        )
+        if decision.availability is not ExecutionAvailability.EXECUTABLE:
+            raise NotExecutableError(
+                f"intent {intent.intent_id} stop is not executable: {decision.reason}"
+            )
+
+        fill = self.fill_factory.create_fill(
+            fill_id=fill_id,
+            order_id=order_id,
+            ticker=intent.ticker,
+            side=intent.side,
+            quantity=intent.quantity,
+            filled_at=submitted_at,
+            decision=decision,
+        )
+
+        self.portfolio.orders.create_from_intent(intent, order_id)
+        self.portfolio.orders.submit(order_id, submitted_at)
+        self.portfolio.apply_fill(fill, settlement)
+
+        return ExecutedOrder(
+            intent_id=intent.intent_id,
+            order_id=order_id,
+            fill=fill,
+            raw_decision=decision,
+        )
