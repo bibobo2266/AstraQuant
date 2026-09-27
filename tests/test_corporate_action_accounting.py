@@ -3,6 +3,8 @@ from datetime import datetime
 import pytest
 
 from astraquant.portfolio.cash import CashAccount
+from astraquant.portfolio.ledger import PortfolioLedger
+from astraquant.portfolio.models import Fill
 from astraquant.portfolio.corporate_actions import (
     CorporateActionAccounting,
     CorporateActionEvent,
@@ -107,4 +109,122 @@ def test_duplicate_event_cannot_double_accrue():
             event=event,
             shares_entitled=100,
             accrued_at=datetime(2026, 6, 1),
+        )
+
+
+def test_share_multiplier_preserves_total_cost_basis():
+    cash = CashAccount(settled_cash=1000.0)
+    accounting = CorporateActionAccounting(cash)
+    positions = PortfolioLedger()
+    positions.apply_fill(
+        Fill(
+            fill_id="seed",
+            order_id="seed-order",
+            ticker="2330",
+            side="buy",
+            quantity=100,
+            price=1000,
+            filled_at=datetime(2026, 5, 1),
+        )
+    )
+    event = CorporateActionEvent(
+        event_id="CA-SPLIT",
+        ticker="2330",
+        event_type=CorporateActionType.SPLIT,
+        effective_at=datetime(2026, 6, 1),
+        share_multiplier=2.0,
+        source="official",
+    )
+
+    accounting.apply_share_multiplier(
+        event=event,
+        positions=positions,
+        applied_at=datetime(2026, 6, 1),
+    )
+
+    pos = positions.positions["2330"]
+    assert pos.quantity == 200
+    assert pos.avg_cost == 500
+    assert pos.quantity * pos.avg_cost == 100000
+
+
+def test_capital_reduction_multiplier_reduces_quantity_and_preserves_cost_basis():
+    cash = CashAccount(settled_cash=1000.0)
+    accounting = CorporateActionAccounting(cash)
+    positions = PortfolioLedger()
+    positions.apply_fill(
+        Fill(
+            fill_id="seed2",
+            order_id="seed-order2",
+            ticker="2330",
+            side="buy",
+            quantity=100,
+            price=1000,
+            filled_at=datetime(2026, 5, 1),
+        )
+    )
+    event = CorporateActionEvent(
+        event_id="CA-REDUCE",
+        ticker="2330",
+        event_type=CorporateActionType.CAPITAL_REDUCTION,
+        effective_at=datetime(2026, 6, 1),
+        share_multiplier=0.5,
+        source="official",
+    )
+
+    accounting.apply_share_multiplier(
+        event=event,
+        positions=positions,
+        applied_at=datetime(2026, 6, 1),
+    )
+
+    pos = positions.positions["2330"]
+    assert pos.quantity == 50
+    assert pos.avg_cost == 2000
+    assert pos.quantity * pos.avg_cost == 100000
+
+
+def test_duplicate_share_mutation_is_rejected():
+    cash = CashAccount(settled_cash=1000.0)
+    accounting = CorporateActionAccounting(cash)
+    positions = PortfolioLedger()
+    event = CorporateActionEvent(
+        event_id="CA-DUP",
+        ticker="2330",
+        event_type=CorporateActionType.SPLIT,
+        effective_at=datetime(2026, 6, 1),
+        share_multiplier=2.0,
+    )
+
+    accounting.apply_share_multiplier(
+        event=event,
+        positions=positions,
+        applied_at=datetime(2026, 6, 1),
+    )
+
+    with pytest.raises(ValueError, match="duplicate"):
+        accounting.apply_share_multiplier(
+            event=event,
+            positions=positions,
+            applied_at=datetime(2026, 6, 1),
+        )
+
+
+def test_share_mutation_cannot_apply_before_effective_date():
+    cash = CashAccount(settled_cash=1000.0)
+    accounting = CorporateActionAccounting(cash)
+    positions = PortfolioLedger()
+    event = CorporateActionEvent(
+        event_id="CA-EARLY",
+        ticker="2330",
+        event_type=CorporateActionType.SPLIT,
+        effective_at=datetime(2026, 6, 1),
+        share_multiplier=2.0,
+    )
+
+    with pytest.raises(ValueError, match="before effective"):
+        accounting.apply_share_multiplier(
+            event=event,
+            positions=positions,
+            applied_at=datetime(2026, 5, 31),
         )
