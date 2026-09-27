@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from datetime import datetime
 
 from .cash import CashAccount, Settlement, SettlementDirection, SettlementLedger
+from .corporate_actions import CorporateActionAccounting
 from .ledger import PortfolioLedger
 from .models import Fill
 from .orders import OrderBook
@@ -27,6 +28,7 @@ class PortfolioEngine:
         self.positions = PortfolioLedger()
         self.cash = CashAccount(settled_cash=opening_cash)
         self.settlements = SettlementLedger(self.cash)
+        self.corporate_actions = CorporateActionAccounting(self.cash)
 
     def apply_fill(
         self,
