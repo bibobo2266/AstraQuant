@@ -49,3 +49,16 @@ Before any order, position, cash, or settlement state is mutated, `PortfolioEngi
 Known validation failures therefore occur before mutation. Duplicate fill IDs are rejected globally within the engine instance.
 
 This is not a database transaction, but it closes the previously identified partial-mutation path for the engine's known validation failures.
+
+
+## Buy-fee cost basis
+
+Buy-side fees are capitalized into position average cost.
+
+For a buy fill:
+
+`acquisition_cost = fill_price × quantity + buy_fees`
+
+and the weighted average cost uses that full acquisition cost.
+
+Sell-side fees continue to reduce realized P&L at disposal. This prevents buy fees from disappearing from economic P&L.
