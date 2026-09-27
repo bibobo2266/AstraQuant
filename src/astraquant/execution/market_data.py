@@ -59,10 +59,25 @@ class ExecutionMarketData:
     tradability at an intended fill returns NOT_EXECUTABLE.
     """
 
-    def __init__(self, source: SourceDataAdapter) -> None:
+    def __init__(
+        self,
+        source: SourceDataAdapter,
+        *,
+        ticker_scope: set[str] | None = None,
+    ) -> None:
         self.source = source
+        self.ticker_scope = None if ticker_scope is None else {str(x) for x in ticker_scope}
+        if self.ticker_scope is not None and not self.ticker_scope:
+            raise ValueError("ticker_scope must not be empty")
         self._raw_cache: dict[int, pd.DataFrame] = {}
         self._tradability_cache: pd.DataFrame | None = None
+
+    def _ticker_filters(self) -> list[tuple[str, str, object]] | None:
+        if self.ticker_scope is None:
+            return None
+        if len(self.ticker_scope) == 1:
+            return [("stock_id", "==", next(iter(self.ticker_scope)))]
+        return [("stock_id", "in", sorted(self.ticker_scope))]
 
     @staticmethod
     def _normalize_day(value: date | datetime | pd.Timestamp) -> pd.Timestamp:
@@ -102,6 +117,7 @@ class ExecutionMarketData:
                 self.source.read_parquet(
                     rel,
                     columns=["date", "stock_id", "open", "max", "min", "close"],
+                    filters=self._ticker_filters(),
                 )
             )
         return self._unique_indexed_row(
