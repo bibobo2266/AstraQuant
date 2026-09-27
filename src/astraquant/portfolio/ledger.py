@@ -15,8 +15,9 @@ class PortfolioLedger:
 
         if side == "buy":
             new_qty = pos.quantity + fill.quantity
+            acquisition_cost = (fill.price * fill.quantity) + fill.fees
             pos.avg_cost = (
-                (pos.avg_cost * pos.quantity) + (fill.price * fill.quantity)
+                (pos.avg_cost * pos.quantity) + acquisition_cost
             ) / new_qty
             pos.quantity = new_qty
 
