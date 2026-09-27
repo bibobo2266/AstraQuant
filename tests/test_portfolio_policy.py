@@ -1,5 +1,7 @@
 from datetime import date
 
+import pandas as pd
+
 from astraquant.data.market_coordinates import PriceUse
 from astraquant.execution.market_data import (
     ExecutionAvailability,
