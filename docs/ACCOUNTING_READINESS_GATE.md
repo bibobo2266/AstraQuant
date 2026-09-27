@@ -20,7 +20,7 @@ AstraQuant now has an explicit accounting-readiness gate. Performance metrics ma
 | corporate actions reconcile | PASS for tested split, cash-dividend, and capital-reduction share+cash components; broader event/security-mapping coverage remains limited | `docs/SOURCE_CA_SHARE_REPLAY.md`, `docs/SOURCE_CA_CASH_REPLAY.md`, `docs/SOURCE_CAPITAL_REDUCTION_REPLAY.md` |
 | NAV reconciles | PASS in RAW accounting replay | `docs/SOURCE_ACCOUNTING_SMOKE_REPLAY.md` |
 | no adjusted execution fallback | PASS in canonical components | coordinate guard + execution gateway tests |
-| canonical execution path active for portfolio backtest | **FAIL / NOT YET** | canonical execution service and multi-event replay pass, but a full historical portfolio simulation runner has not yet replaced the legacy adjusted-price backtest |
+| canonical execution path active for portfolio backtest | **PARTIAL / NOT YET** | canonical historical runner now passes a 2015–2026 full-history accounting probe, but the legacy strategy's actual signal/order-intent generation has not yet been migrated into that runner |
 
 ## Latest integration evidence
 
@@ -28,11 +28,15 @@ AstraQuant now has an explicit accounting-readiness gate. Performance metrics ma
 - `docs/SOURCE_MULTI_EVENT_REPLAY.md` — continuous real-source split + dividend replay passes.
 - `docs/SOURCE_CAPITAL_REDUCTION_REPLAY.md` — real-source capital-reduction share+cash accounting passes with source limitations.
 
+## Full-history evidence
+
+`docs/SOURCE_FULL_HISTORY_PROBE.md` passes a 2,859-session 2015–2026 RAW accounting replay for 2330 with daily RAW NAV snapshots and 28 canonical cash-dividend events. This proves the canonical historical runtime/accounting path can span the full frozen history range.
+
 ## Performance lock
 
 The active legacy `minervini_picks/scripts/portfolio_backtest.py` remains read-only and is not accounting-valid. AstraQuant will not modify that repository.
 
-The AstraQuant canonical service and event-driven replay path now pass real-source integration tests, including corporate-action components. Performance nevertheless remains locked until a full historical portfolio simulation is run through that canonical path rather than the legacy adjusted-price simulator.
+The AstraQuant canonical service, event-driven replay, and a 2015–2026 full-history accounting probe now pass real-source integration tests. Performance nevertheless remains locked until the legacy strategy's actual signal/order-intent generation is migrated into this canonical path under declared PIT signal semantics.
 
 The unlock condition is:
 
