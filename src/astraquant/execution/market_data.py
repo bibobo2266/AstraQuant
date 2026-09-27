@@ -68,23 +68,47 @@ class ExecutionMarketData:
     def _normalize_day(value: date | datetime | pd.Timestamp) -> pd.Timestamp:
         return pd.Timestamp(value).normalize()
 
+    @staticmethod
+    def _index_market_frame(df: pd.DataFrame) -> pd.DataFrame:
+        indexed = df.copy()
+        indexed["_date_key"] = pd.to_datetime(
+            indexed["date"], errors="coerce"
+        ).dt.normalize()
+        indexed["_stock_key"] = indexed["stock_id"].astype(str)
+        return indexed.set_index(["_date_key", "_stock_key"], drop=False).sort_index()
+
+    @staticmethod
+    def _unique_indexed_row(
+        df: pd.DataFrame,
+        *,
+        day: pd.Timestamp,
+        ticker: str,
+    ) -> pd.Series | None:
+        try:
+            hit = df.loc[(day, str(ticker))]
+        except KeyError:
+            return None
+        if isinstance(hit, pd.DataFrame):
+            return None
+        return hit
+
     def _raw_row(self, ticker: str, session_date: date | datetime | pd.Timestamp) -> pd.Series | None:
         day = self._normalize_day(session_date)
         rel = f"raw/prices_raw_{day.year}.parquet"
         if not self.source.exists(rel):
             return None
         if day.year not in self._raw_cache:
-            self._raw_cache[day.year] = self.source.read_parquet(
-                rel,
-                columns=["date", "stock_id", "open", "max", "min", "close"],
+            self._raw_cache[day.year] = self._index_market_frame(
+                self.source.read_parquet(
+                    rel,
+                    columns=["date", "stock_id", "open", "max", "min", "close"],
+                )
             )
-        df = self._raw_cache[day.year]
-        d = pd.to_datetime(df["date"], errors="coerce").dt.normalize()
-        sid = df["stock_id"].astype(str)
-        hit = df.loc[d.eq(day) & sid.eq(str(ticker))]
-        if len(hit) != 1:
-            return None
-        return hit.iloc[0]
+        return self._unique_indexed_row(
+            self._raw_cache[day.year],
+            day=day,
+            ticker=str(ticker),
+        )
 
     def _tradability_row(
         self,
@@ -95,26 +119,26 @@ class ExecutionMarketData:
         if not self.source.exists(rel):
             return None
         if self._tradability_cache is None:
-            self._tradability_cache = self.source.read_parquet(
-                rel,
-                columns=[
-                    "date",
-                    "stock_id",
-                    "observed_trade",
-                    "valid_ohlc",
-                    "buy_blocked",
-                    "sell_blocked",
-                    "reason",
-                ],
+            self._tradability_cache = self._index_market_frame(
+                self.source.read_parquet(
+                    rel,
+                    columns=[
+                        "date",
+                        "stock_id",
+                        "observed_trade",
+                        "valid_ohlc",
+                        "buy_blocked",
+                        "sell_blocked",
+                        "reason",
+                    ],
+                )
             )
-        df = self._tradability_cache
         day = self._normalize_day(session_date)
-        d = pd.to_datetime(df["date"], errors="coerce").dt.normalize()
-        sid = df["stock_id"].astype(str)
-        hit = df.loc[d.eq(day) & sid.eq(str(ticker))]
-        if len(hit) != 1:
-            return None
-        return hit.iloc[0]
+        return self._unique_indexed_row(
+            self._tradability_cache,
+            day=day,
+            ticker=str(ticker),
+        )
 
     @staticmethod
     def _bar_from_row(ticker: str, session_date: pd.Timestamp, row: pd.Series) -> RawExecutionBar | None:
