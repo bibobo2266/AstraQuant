@@ -3,8 +3,13 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
+from typing import TYPE_CHECKING
 
 from astraquant.portfolio.cash import CashAccount
+from astraquant.portfolio.models import PositionShareMutation
+
+if TYPE_CHECKING:
+    from astraquant.portfolio.ledger import PortfolioLedger
 
 
 class CorporateActionType(str, Enum):
@@ -62,6 +67,7 @@ class CorporateActionAccounting:
         self.cash = cash
         self.dividend_receivables: dict[str, DividendReceivable] = {}
         self.completed_dividends: dict[str, DividendReceivable] = {}
+        self.share_mutations: dict[str, PositionShareMutation] = {}
 
     def accrue_cash_dividend(
         self,
@@ -113,3 +119,35 @@ class CorporateActionAccounting:
         receivable.paid_at = paid_at
         self.completed_dividends[event_id] = receivable
         return receivable
+
+
+    def apply_share_multiplier(
+        self,
+        *,
+        event: CorporateActionEvent,
+        positions: "PortfolioLedger",
+        applied_at: datetime,
+    ) -> PositionShareMutation:
+        """Apply an explicit corporate-action share multiplier.
+
+        Quantity changes only through this exogenous economic-event path, never
+        from signals, recommendations, or human decisions.
+        """
+
+        if event.share_multiplier is None:
+            raise ValueError("corporate action requires share_multiplier")
+        if applied_at < event.effective_at:
+            raise ValueError("cannot apply share mutation before effective date")
+        if event.event_id in self.share_mutations:
+            raise ValueError(f"duplicate share-mutation event id: {event.event_id}")
+
+        mutation = PositionShareMutation(
+            event_id=event.event_id,
+            ticker=event.ticker,
+            share_multiplier=event.share_multiplier,
+            effective_at=event.effective_at,
+            source=event.source,
+        )
+        positions.apply_share_mutation(mutation)
+        self.share_mutations[event.event_id] = mutation
+        return mutation
