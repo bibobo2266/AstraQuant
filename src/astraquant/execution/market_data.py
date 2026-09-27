@@ -147,6 +147,7 @@ class ExecutionMarketData:
                         "sell_blocked",
                         "reason",
                     ],
+                    filters=self._ticker_filters(),
                 )
             )
         day = self._normalize_day(session_date)
