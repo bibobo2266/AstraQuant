@@ -22,6 +22,8 @@
 
 - `ORDER_LIFECYCLE.md` — intent/order/fill state model
 - `EXECUTION_ASSUMPTIONS.md` — fee/slippage/execution contracts
+- `EXECUTION_MARKET_DATA.md` — RAW-only execution data access and tradability enforcement
+- `PRICE_COORDINATES.md` — hard RAW/adjusted coordinate boundary
 - `PORTFOLIO_ACCOUNTING.md` — positions, cash, settlement
 - `ARTIFACTS.md` — retained outputs and Git policy
 
