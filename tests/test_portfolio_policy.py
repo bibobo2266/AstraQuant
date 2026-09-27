@@ -7,6 +7,7 @@ from astraquant.execution.market_data import (
     RawExecutionBar,
     TradabilityState,
 )
+from astraquant.portfolio.corporate_actions import CorporateActionEvent, CorporateActionType
 from astraquant.portfolio.policy import (
     EntryCandidate,
     PortfolioIntentPolicy,
@@ -178,3 +179,66 @@ def test_non_executable_sizing_is_skipped():
 
     assert planned == []
     assert skipped["2330"] == "NOT_EXECUTABLE_SIZING"
+
+
+def test_policy_stop_is_adjusted_for_split_and_cash_entitlement():
+    policy = PortfolioIntentPolicy(
+        PortfolioPolicyConfig(
+            position_fraction=0.10,
+            max_positions=10,
+            stop_fraction=0.12,
+        )
+    )
+    policy.register_entry(
+        ticker="2330",
+        quantity=100,
+        fill_price=100.0,
+        session_index=1,
+    )
+
+    policy.apply_corporate_action(
+        CorporateActionEvent(
+            event_id="CA1",
+            ticker="2330",
+            event_type=CorporateActionType.CAPITAL_REDUCTION,
+            effective_at=pd.Timestamp("2026-01-05").to_pydatetime(),
+            share_multiplier=0.5,
+            cash_per_share=10.0,
+        )
+    )
+
+    state = policy.managed_positions["2330"]
+    assert state.quantity == 50
+    assert state.entry_price == 200.0
+    assert state.stop_price == 156.0
+
+
+def test_policy_cash_dividend_reduces_raw_stop_without_changing_quantity():
+    policy = PortfolioIntentPolicy(
+        PortfolioPolicyConfig(
+            position_fraction=0.10,
+            max_positions=10,
+            stop_fraction=0.12,
+        )
+    )
+    policy.register_entry(
+        ticker="2330",
+        quantity=100,
+        fill_price=100.0,
+        session_index=1,
+    )
+
+    policy.apply_corporate_action(
+        CorporateActionEvent(
+            event_id="DIV1",
+            ticker="2330",
+            event_type=CorporateActionType.CASH_DIVIDEND,
+            effective_at=pd.Timestamp("2026-01-05").to_pydatetime(),
+            cash_per_share=5.0,
+        )
+    )
+
+    state = policy.managed_positions["2330"]
+    assert state.quantity == 100
+    assert state.entry_price == 100.0
+    assert state.stop_price == 83.0
