@@ -44,7 +44,7 @@ def test_simple_breakout_matches_prior_high_rule():
     dates = pd.to_datetime(
         ["2026-01-02", "2026-01-05", "2026-01-06", "2026-01-07", "2026-01-08"]
     )
-    closes = [10.0, 11.0, 12.0, 13.0, 13.5]
+    closes = [10.0, 12.0, 11.0, 11.5, 13.0]
     rows = []
     for d, close in zip(dates, closes):
         rows.append(
@@ -66,7 +66,7 @@ def test_simple_breakout_matches_prior_high_rule():
     )
 
     assert signals["stock_id"].tolist() == ["2330"]
-    assert signals["signal_date"].tolist() == [pd.Timestamp("2026-01-07")]
+    assert signals["signal_date"].tolist() == [pd.Timestamp("2026-01-08")]
     assert signals["adjusted_close"].tolist() == [13.0]
     assert signals["price_semantics"].tolist() == ["SCALE_SENSITIVE"]
 
