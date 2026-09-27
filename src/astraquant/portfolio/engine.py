@@ -29,15 +29,35 @@ class PortfolioEngine:
         self.cash = CashAccount(settled_cash=opening_cash)
         self.settlements = SettlementLedger(self.cash)
         self.corporate_actions = CorporateActionAccounting(self.cash)
+        self._applied_fill_ids: set[str] = set()
 
     def apply_fill(
         self,
         fill: Fill,
         settlement: SettlementInstruction,
     ) -> None:
+        """Apply a fill only after all known failure conditions pass preflight."""
+
+        if fill.fill_id in self._applied_fill_ids:
+            raise ValueError(f"duplicate fill id: {fill.fill_id}")
+        if settlement.settlement_id in self.settlements.pending or settlement.settlement_id in self.settlements.completed:
+            raise ValueError(f"duplicate settlement id: {settlement.settlement_id}")
+        if fill.order_id not in self.orders.orders:
+            raise KeyError(fill.order_id)
+
         order = self.orders.orders[fill.order_id]
-        self.orders.apply_fill(fill)
-        self.positions.apply_fill(fill)
+        if order.status.value not in {"SUBMITTED", "PARTIALLY_FILLED"}:
+            raise ValueError(f"cannot fill order from status {order.status}")
+        if fill.ticker != order.ticker or fill.side.lower() != order.side:
+            raise ValueError("fill does not match order ticker/side")
+        if fill.quantity <= 0:
+            raise ValueError("fill quantity must be positive")
+        if fill.quantity > order.remaining_quantity:
+            raise ValueError("fill exceeds remaining order quantity")
+        if fill.price <= 0:
+            raise ValueError("fill price must be positive")
+        if fill.fees < 0:
+            raise ValueError("fill fees must be non-negative")
 
         gross = fill.quantity * fill.price
         side = order.side.lower()
@@ -46,6 +66,10 @@ class PortfolioEngine:
             direction = SettlementDirection.PAYABLE
             amount = gross + fill.fees
         elif side == "sell":
+            current = self.positions.positions.get(fill.ticker)
+            current_qty = current.quantity if current is not None else 0.0
+            if fill.quantity > current_qty:
+                raise ValueError("Cannot sell more than current position")
             direction = SettlementDirection.RECEIVABLE
             amount = gross - fill.fees
             if amount < 0:
@@ -53,12 +77,15 @@ class PortfolioEngine:
         else:
             raise ValueError(f"unsupported side: {order.side}")
 
-        self.settlements.schedule(
-            Settlement(
-                settlement_id=settlement.settlement_id,
-                amount=amount,
-                direction=direction,
-                due_at=settlement.due_at,
-                source_fill_id=fill.fill_id,
-            )
+        pending_settlement = Settlement(
+            settlement_id=settlement.settlement_id,
+            amount=amount,
+            direction=direction,
+            due_at=settlement.due_at,
+            source_fill_id=fill.fill_id,
         )
+
+        self.orders.apply_fill(fill)
+        self.positions.apply_fill(fill)
+        self.settlements.schedule(pending_settlement)
+        self._applied_fill_ids.add(fill.fill_id)
