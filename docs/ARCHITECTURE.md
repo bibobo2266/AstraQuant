@@ -109,3 +109,15 @@ Fill
 ```
 
 Projected cash is not treated as identical to settled cash.
+
+
+## Position mutation invariant
+
+Portfolio holdings may change only through explicit economic ledger events:
+
+- trade `Fill` events; or
+- exogenous corporate-action share mutations with an explicit official/share-multiplier basis.
+
+Signals, model scores, recommendations, DecisionPackets, human approvals, and research outputs never mutate holdings directly.
+
+This refines the earlier fill-only invariant so that stock splits, stock dividends, and capital reductions can be represented economically without fabricating synthetic trades.
