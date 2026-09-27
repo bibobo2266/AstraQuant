@@ -33,3 +33,20 @@ def test_only_fill_changes_position_state():
     position = ledger.apply_fill(fill)
     assert position.quantity == 100
     assert position.avg_cost == 1000
+
+
+def test_buy_fees_are_capitalized_into_cost_basis():
+    ledger = PortfolioLedger()
+    fill = Fill(
+        fill_id="f-fee",
+        order_id="o-fee",
+        ticker="2330",
+        side="buy",
+        quantity=100,
+        price=1000,
+        fees=100,
+        filled_at=datetime(2026, 1, 1),
+    )
+    position = ledger.apply_fill(fill)
+    assert position.quantity == 100
+    assert position.avg_cost == 1001
