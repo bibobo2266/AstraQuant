@@ -61,6 +61,8 @@ class ExecutionMarketData:
 
     def __init__(self, source: SourceDataAdapter) -> None:
         self.source = source
+        self._raw_cache: dict[int, pd.DataFrame] = {}
+        self._tradability_cache: pd.DataFrame | None = None
 
     @staticmethod
     def _normalize_day(value: date | datetime | pd.Timestamp) -> pd.Timestamp:
@@ -71,10 +73,12 @@ class ExecutionMarketData:
         rel = f"raw/prices_raw_{day.year}.parquet"
         if not self.source.exists(rel):
             return None
-        df = self.source.read_parquet(
-            rel,
-            columns=["date", "stock_id", "open", "max", "min", "close"],
-        )
+        if day.year not in self._raw_cache:
+            self._raw_cache[day.year] = self.source.read_parquet(
+                rel,
+                columns=["date", "stock_id", "open", "max", "min", "close"],
+            )
+        df = self._raw_cache[day.year]
         d = pd.to_datetime(df["date"], errors="coerce").dt.normalize()
         sid = df["stock_id"].astype(str)
         hit = df.loc[d.eq(day) & sid.eq(str(ticker))]
@@ -90,18 +94,20 @@ class ExecutionMarketData:
         rel = "reference/tradability.parquet"
         if not self.source.exists(rel):
             return None
-        df = self.source.read_parquet(
-            rel,
-            columns=[
-                "date",
-                "stock_id",
-                "observed_trade",
-                "valid_ohlc",
-                "buy_blocked",
-                "sell_blocked",
-                "reason",
-            ],
-        )
+        if self._tradability_cache is None:
+            self._tradability_cache = self.source.read_parquet(
+                rel,
+                columns=[
+                    "date",
+                    "stock_id",
+                    "observed_trade",
+                    "valid_ohlc",
+                    "buy_blocked",
+                    "sell_blocked",
+                    "reason",
+                ],
+            )
+        df = self._tradability_cache
         day = self._normalize_day(session_date)
         d = pd.to_datetime(df["date"], errors="coerce").dt.normalize()
         sid = df["stock_id"].astype(str)
