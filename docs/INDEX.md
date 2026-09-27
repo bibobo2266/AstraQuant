@@ -15,6 +15,8 @@
 - `VALIDATION_LADDER.md` — evidence levels 1–11
 - `COMPLEXITY_LAB.md` — complexity and black-box challenge protocol
 - `RESEARCH_LIFECYCLE.md` — preregistration through human review
+- `HUMAN_REVIEW.md` — append-only review history and approval guardrail
+- `RISK_CONSTRAINTS.md` — generic risk-check architecture
 
 ## Execution and portfolio
 
