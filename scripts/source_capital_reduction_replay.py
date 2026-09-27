@@ -276,6 +276,8 @@ def main() -> None:
     REPORT_PATH.write_text("\n".join(lines) + "\n", encoding="utf-8")
 
     if not all(checks.values()):
+        failed = [name for name, ok in checks.items() if not ok]
+        print("FAILED_CHECKS=" + ",".join(failed))
         raise SystemExit("FAIL: capital-reduction replay gate failed")
 
 
