@@ -26,7 +26,7 @@ Likewise, `known_at` may remain unknown in the source record. That limits PIT re
 - duplicate event IDs cannot accrue twice;
 - accrual cannot occur before the effective date;
 - payment cannot occur before the declared payment date;
-- non-cash corporate actions are represented in the event type enum but their share/security mutations are not implemented yet.
+- supported share-multiplier corporate actions use explicit position-share mutations; unsupported security mappings remain unimplemented.
 
 ## Remaining corporate-action work
 
@@ -51,3 +51,16 @@ This preserves total historical cost basis across the exogenous share-count muta
 Examples include official split/par-value-change ratios and capital-reduction replacement-share ratios. The system does not infer a multiplier from adjusted prices.
 
 The same real-world event may legitimately have both a cash component and a share component; those accounting components are tracked separately under the event ID.
+
+
+## Generic cash entitlements
+
+Corporate actions other than ordinary cash dividends may also carry an explicit cash component, for example a capital-reduction refund.
+
+AstraQuant supports this through an explicit cash-entitlement receivable:
+
+`shares_entitled × cash_per_share → pending receivable`
+
+The caller must declare the economic component (for example `CAPITAL_REDUCTION_REFUND`) and the correct entitlement-share basis. AstraQuant does not infer that basis from adjusted prices.
+
+If the source does not provide a trustworthy payment date, the receivable remains outstanding and cannot be moved to settled cash by guessing a date.
