@@ -195,3 +195,38 @@ def test_invalid_raw_ohlc_is_not_executable(tmp_path):
 
     assert decision.availability is ExecutionAvailability.NOT_EXECUTABLE
     assert decision.reason == "RAW_INVALID_OHLC"
+
+
+def test_mark_can_observe_raw_close_on_side_blocked_day(tmp_path):
+    source = _write_source(
+        tmp_path,
+        raw_rows=[{
+            "date": "2026-09-24",
+            "stock_id": "2330",
+            "open": 100.0,
+            "max": 110.0,
+            "min": 100.0,
+            "close": 110.0,
+        }],
+        trad_rows=[{
+            "date": "2026-09-24",
+            "stock_id": "2330",
+            "observed_trade": True,
+            "valid_ohlc": True,
+            "buy_blocked": True,
+            "sell_blocked": False,
+            "reason": "LOCKED_LIMIT_UP",
+        }],
+    )
+    market = ExecutionMarketData(source)
+
+    decision = market.resolve(
+        ticker="2330",
+        session_date=date(2026, 9, 24),
+        side="buy",
+        use=PriceUse.MARK,
+        field="close",
+    )
+
+    assert decision.availability is ExecutionAvailability.EXECUTABLE
+    assert decision.price == 110.0
