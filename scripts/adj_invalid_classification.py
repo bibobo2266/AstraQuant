@@ -44,7 +44,7 @@ def main():
             "trad_missing":int((bad["_merge"]!="both").sum()),
             "buy_blocked":int(bad["buy_blocked"].fillna(False).sum()),
             "sell_blocked":int(bad["sell_blocked"].fillna(False).sum()),
-            "observed_trade_false":int((~bad["observed_trade"].fillna(False)).sum()),
+            "observed_trade_false":int((~bad["observed_trade"].fillna(False).astype(bool)).sum()),
             "trad_valid_true":int(bad["valid_ohlc"].fillna(False).sum()),
         })
     unresolved=sum(r["trad_valid_true"] for r in rows)
