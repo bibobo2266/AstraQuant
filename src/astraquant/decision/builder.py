@@ -10,6 +10,7 @@ from .models import DecisionPacket
 
 def build_decision_packet(
     *,
+    packet_id: str,
     symbol: str,
     as_of: datetime,
     result: ResearchResultSummary,
@@ -32,6 +33,7 @@ def build_decision_packet(
     unresolved.extend(result.limitations)
 
     return DecisionPacket(
+        packet_id=packet_id,
         symbol=symbol,
         as_of=as_of,
         market_context=market_context or {},
