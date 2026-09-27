@@ -12,6 +12,8 @@ class OrderIntent:
     quantity: float
     created_at: datetime
     rationale: str
+    source_packet_id: str | None = None
+    source_review_id: str | None = None
 
 
 @dataclass(frozen=True)
