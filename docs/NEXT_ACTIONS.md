@@ -4,32 +4,33 @@
 
 Continue building framework components that do not require source data:
 
-1. run orchestration: preregistration -> run manifest -> validation report -> promotion result
-2. portfolio orchestration connecting Order fills, Position, Cash, and Settlement without violating fill-only mutation
-3. versioned execution-assumption registry
-4. research result summary schema for evidence/support/limitations
-5. CI hardening after observing the first workflow run
-6. package-level API cleanup and documentation index
+1. DecisionPacket builder from ResearchResultSummary + portfolio/risk context
+2. human review record and immutable review history
+3. order-intent guard that requires explicit human approval before execution path
+4. generic risk-constraint interfaces without strategy-specific thresholds
+5. artifact indexing for run outputs
+6. CI hardening after workflow results are available
 
 ## COMPLETED DURING DATA-FREEZE PERIOD
 
 - read-only SourceDataAdapter boundary
 - feature and experiment registries
 - Newey-West / BH-FDR / parameter-plateau primitives
-- validation ladder
-- walk-forward temporal contracts
-- locked future OOS overlap guard
+- validation ladder and promotion policy
+- walk-forward temporal contracts and locked-OOS guard
 - placebo/permutation hooks
-- dataset and run manifests
-- explicit validation-result schema
-- DecisionPacket
+- dataset/run manifests
+- research run orchestration
+- research result summary schema
+- DecisionPacket contract
 - fill-only position mutation
+- order lifecycle
+- portfolio fill/cash/settlement orchestration
+- execution-assumption interfaces and version registry
 - cash and settlement domain
-- order lifecycle with partial-fill controls
-- fee/slippage/execution-assumption interfaces
-- validation-to-promotion policy wiring
-- experiment preregistration schema
+- experiment preregistration
 - artifact store conventions
+- documentation index
 - GitHub Actions pytest workflow
 - Complexity Lab protocol
 
