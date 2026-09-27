@@ -169,6 +169,9 @@ def main() -> None:
     replay.apply_share_mutation(event=event, applied_at=dt(event_day, 0))
 
     new_position = portfolio.positions.positions[ticker]
+    qty_after_event = new_position.quantity
+    avg_cost_after_event = new_position.avg_cost
+    total_cost_after_event = qty_after_event * avg_cost_after_event
     expected_qty = qty_before * multiplier
     expected_refund = qty_before * cash_per_share
     post_snapshot = replay.snapshot(at=dt(post_day, 15))
@@ -179,7 +182,7 @@ def main() -> None:
             intent_id="capred-exit-intent",
             ticker=ticker,
             side="sell",
-            quantity=new_position.quantity,
+            quantity=qty_after_event,
             created_at=exit_at,
             rationale="source capital-reduction accounting replay exit",
         ),
@@ -212,8 +215,8 @@ def main() -> None:
         "raw_entry": entry.raw_decision.use is PriceUse.ENTRY,
         "refund_uses_pre_mutation_share_basis": abs(refund.shares_entitled - qty_before) < 1e-9,
         "refund_reconciles": abs(refund.amount - expected_refund) < 1e-9,
-        "share_quantity_reconciles": abs(new_position.quantity - expected_qty) < 1e-9,
-        "cost_basis_preserved": abs(new_position.quantity * new_position.avg_cost - old_total_cost) < 1e-6,
+        "share_quantity_reconciles": abs(qty_after_event - expected_qty) < 1e-9,
+        "cost_basis_preserved": abs(total_cost_after_event - old_total_cost) < 1e-6,
         "cash_unchanged_at_event": abs(portfolio.cash.settled_cash - (
             settled_before_event + exit_result.fill.quantity * exit_result.fill.price
         )) < 1e-6,
@@ -248,7 +251,9 @@ def main() -> None:
         f"- pre-event RAW entry session: {pre_day.date()}",
         f"- entry RAW open: {entry.fill.price}",
         f"- pre-event shares: {qty_before}",
-        f"- post-event shares: {new_position.quantity}",
+        f"- post-event shares: {qty_after_event}",
+        f"- post-event average cost: {avg_cost_after_event}",
+        f"- post-event total cost basis: {total_cost_after_event}",
         f"- cash refund receivable: {refund.amount}",
         f"- post-event RAW mark session: {post_day.date()}",
         f"- post-event RAW market value: {post_snapshot.valuation.market_value}",
