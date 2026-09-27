@@ -2,24 +2,33 @@
 
 ## NOW
 
-1. Complete the minimal package skeleton.
-2. Add domain contracts for point-in-time data.
-3. Add experiment and trial registry models.
-4. Add fill-driven portfolio state.
-5. Add baseline tests.
+Continue building framework components that do not require source data:
 
-## NEXT
+1. time-respecting walk-forward split contracts
+2. placebo / permutation validation hooks
+3. dataset and run manifest models
+4. validation result schema and ladder enforcement
+5. portfolio cash and settlement domain
 
-- Build data inventory tooling.
-- Audit source schemas when data becomes accessible.
-- Freeze EXP-R001: RS vs RS + Persistence/FIP.
+## BLOCKED UNTIL DATA FREEZE
 
-## BLOCKED
+- actual source inventory
+- schema/null/duplicate audit
+- corporate-action reconciliation
+- point-in-time financial audit
+- canonical research dataset
+- feature calculation
+- backtests
+- ML training
+- strategy recommendations
 
-- Data-level audit cannot begin until source parquet paths are accessible to this repository/runtime.
+The source repository must remain untouched. It may later be exposed to AstraQuant as a read-only checkout or mount.
 
-## LATER
+## AFTER DATA FREEZE
 
-- Complexity Lab.
-- KBar execution realism.
-- ML shadow-model experiments.
+1. connect SourceDataAdapter to the cleaned source-data root
+2. execute Phase 1 inventory
+3. execute Phase 2 data audit
+4. validate corporate actions and PIT semantics
+5. construct canonical research dataset
+6. begin EXP-R001 only after data gates pass
