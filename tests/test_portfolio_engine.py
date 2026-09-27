@@ -121,3 +121,109 @@ def test_portfolio_engine_dividend_receivable_shares_cash_account():
 
     assert engine.cash.pending_receivables == 0.0
     assert engine.cash.settled_cash == 100500.0
+
+
+def test_duplicate_settlement_preflight_preserves_state():
+    engine = PortfolioEngine(opening_cash=100000.0)
+    intent = OrderIntent(
+        intent_id="I1",
+        ticker="2330",
+        side="buy",
+        quantity=20,
+        created_at=datetime(2026, 1, 1, 9, 0),
+        rationale="test",
+    )
+    engine.orders.create_from_intent(intent, "O1")
+    engine.orders.submit("O1", datetime(2026, 1, 1, 9, 1))
+
+    engine.apply_fill(
+        Fill(
+            fill_id="F1",
+            order_id="O1",
+            ticker="2330",
+            side="buy",
+            quantity=10,
+            price=1000,
+            filled_at=datetime(2026, 1, 1, 9, 2),
+        ),
+        SettlementInstruction("S1", datetime(2026, 1, 3)),
+    )
+
+    before_qty = engine.positions.positions["2330"].quantity
+    before_filled = engine.orders.orders["O1"].filled_quantity
+    before_payables = engine.cash.pending_payables
+
+    import pytest
+    with pytest.raises(ValueError, match="duplicate settlement id"):
+        engine.apply_fill(
+            Fill(
+                fill_id="F2",
+                order_id="O1",
+                ticker="2330",
+                side="buy",
+                quantity=10,
+                price=1000,
+                filled_at=datetime(2026, 1, 1, 9, 3),
+            ),
+            SettlementInstruction("S1", datetime(2026, 1, 3)),
+        )
+
+    assert engine.positions.positions["2330"].quantity == before_qty
+    assert engine.orders.orders["O1"].filled_quantity == before_filled
+    assert engine.cash.pending_payables == before_payables
+
+
+def test_duplicate_fill_id_is_rejected_without_mutation():
+    engine = PortfolioEngine(opening_cash=100000.0)
+    first = OrderIntent(
+        intent_id="I1",
+        ticker="2330",
+        side="buy",
+        quantity=10,
+        created_at=datetime(2026, 1, 1, 9, 0),
+        rationale="first",
+    )
+    engine.orders.create_from_intent(first, "O1")
+    engine.orders.submit("O1", datetime(2026, 1, 1, 9, 1))
+    engine.apply_fill(
+        Fill(
+            fill_id="F1",
+            order_id="O1",
+            ticker="2330",
+            side="buy",
+            quantity=10,
+            price=1000,
+            filled_at=datetime(2026, 1, 1, 9, 2),
+        ),
+        SettlementInstruction("S1", datetime(2026, 1, 3)),
+    )
+
+    second = OrderIntent(
+        intent_id="I2",
+        ticker="2317",
+        side="buy",
+        quantity=10,
+        created_at=datetime(2026, 1, 2, 9, 0),
+        rationale="second",
+    )
+    engine.orders.create_from_intent(second, "O2")
+    engine.orders.submit("O2", datetime(2026, 1, 2, 9, 1))
+
+    import pytest
+    with pytest.raises(ValueError, match="duplicate fill id"):
+        engine.apply_fill(
+            Fill(
+                fill_id="F1",
+                order_id="O2",
+                ticker="2317",
+                side="buy",
+                quantity=10,
+                price=100,
+                filled_at=datetime(2026, 1, 2, 9, 2),
+            ),
+            SettlementInstruction("S2", datetime(2026, 1, 4)),
+        )
+
+    assert "2317" not in engine.positions.positions
+    assert engine.orders.orders["O2"].filled_quantity == 0
+    assert "S2" not in engine.settlements.pending
