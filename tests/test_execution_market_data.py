@@ -293,3 +293,137 @@ def test_ticker_scope_preserves_execution_behavior(tmp_path):
 
     assert decision.availability is ExecutionAvailability.EXECUTABLE
     assert outside.availability is ExecutionAvailability.NOT_EXECUTABLE
+
+
+def test_stop_fill_uses_raw_open_on_gap_down(tmp_path):
+    source = _write_source(
+        tmp_path,
+        raw_rows=[{
+            "date": "2026-09-24",
+            "stock_id": "2330",
+            "open": 90.0,
+            "max": 95.0,
+            "min": 88.0,
+            "close": 92.0,
+        }],
+        trad_rows=[{
+            "date": "2026-09-24",
+            "stock_id": "2330",
+            "observed_trade": True,
+            "valid_ohlc": True,
+            "buy_blocked": False,
+            "sell_blocked": False,
+            "reason": "OBSERVED",
+        }],
+    )
+    market = ExecutionMarketData(source)
+
+    decision = market.resolve_stop_fill(
+        ticker="2330",
+        session_date=date(2026, 9, 24),
+        stop_price=95.0,
+    )
+
+    assert decision.availability is ExecutionAvailability.EXECUTABLE
+    assert decision.use is PriceUse.STOP_FILL
+    assert decision.price == 90.0
+
+
+def test_stop_fill_uses_stop_level_when_touched_intraday(tmp_path):
+    source = _write_source(
+        tmp_path,
+        raw_rows=[{
+            "date": "2026-09-24",
+            "stock_id": "2330",
+            "open": 100.0,
+            "max": 102.0,
+            "min": 94.0,
+            "close": 98.0,
+        }],
+        trad_rows=[{
+            "date": "2026-09-24",
+            "stock_id": "2330",
+            "observed_trade": True,
+            "valid_ohlc": True,
+            "buy_blocked": False,
+            "sell_blocked": False,
+            "reason": "OBSERVED",
+        }],
+    )
+    market = ExecutionMarketData(source)
+
+    decision = market.resolve_stop_fill(
+        ticker="2330",
+        session_date=date(2026, 9, 24),
+        stop_price=95.0,
+    )
+
+    assert decision.availability is ExecutionAvailability.EXECUTABLE
+    assert decision.price == 95.0
+
+
+def test_stop_fill_not_triggered_returns_not_executable(tmp_path):
+    source = _write_source(
+        tmp_path,
+        raw_rows=[{
+            "date": "2026-09-24",
+            "stock_id": "2330",
+            "open": 100.0,
+            "max": 105.0,
+            "min": 96.0,
+            "close": 102.0,
+        }],
+        trad_rows=[{
+            "date": "2026-09-24",
+            "stock_id": "2330",
+            "observed_trade": True,
+            "valid_ohlc": True,
+            "buy_blocked": False,
+            "sell_blocked": False,
+            "reason": "OBSERVED",
+        }],
+    )
+    market = ExecutionMarketData(source)
+
+    decision = market.resolve_stop_fill(
+        ticker="2330",
+        session_date=date(2026, 9, 24),
+        stop_price=95.0,
+    )
+
+    assert decision.availability is ExecutionAvailability.NOT_EXECUTABLE
+    assert decision.reason == "STOP_NOT_TRIGGERED"
+    assert decision.price is None
+
+
+def test_stop_fill_respects_sell_block(tmp_path):
+    source = _write_source(
+        tmp_path,
+        raw_rows=[{
+            "date": "2026-09-24",
+            "stock_id": "2330",
+            "open": 90.0,
+            "max": 95.0,
+            "min": 88.0,
+            "close": 92.0,
+        }],
+        trad_rows=[{
+            "date": "2026-09-24",
+            "stock_id": "2330",
+            "observed_trade": True,
+            "valid_ohlc": True,
+            "buy_blocked": False,
+            "sell_blocked": True,
+            "reason": "SELL_BLOCKED",
+        }],
+    )
+    market = ExecutionMarketData(source)
+
+    decision = market.resolve_stop_fill(
+        ticker="2330",
+        session_date=date(2026, 9, 24),
+        stop_price=95.0,
+    )
+
+    assert decision.availability is ExecutionAvailability.NOT_EXECUTABLE
+    assert decision.reason == "SELL_BLOCKED"
