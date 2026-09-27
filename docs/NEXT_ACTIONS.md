@@ -4,12 +4,12 @@
 
 Continue building framework components that do not require source data:
 
-1. DecisionPacket builder from ResearchResultSummary + portfolio/risk context
-2. human review record and immutable review history
-3. order-intent guard that requires explicit human approval before execution path
-4. generic risk-constraint interfaces without strategy-specific thresholds
-5. artifact indexing for run outputs
-6. CI hardening after workflow results are available
+1. compose human approval + generic risk checks into one pre-order gate
+2. add immutable review/result persistence format
+3. add research-to-decision audit trail IDs across experiment/run/packet/review/intent
+4. connect artifact index to run orchestration
+5. add package-level facade/API cleanup
+6. harden CI based on current workflow results
 
 ## COMPLETED DURING DATA-FREEZE PERIOD
 
@@ -22,14 +22,17 @@ Continue building framework components that do not require source data:
 - dataset/run manifests
 - research run orchestration
 - research result summary schema
-- DecisionPacket contract
+- DecisionPacket contract and builder
+- append-only human review history
+- explicit human-approval guard before OrderIntent creation
+- generic risk-constraint interface
 - fill-only position mutation
 - order lifecycle
 - portfolio fill/cash/settlement orchestration
 - execution-assumption interfaces and version registry
 - cash and settlement domain
 - experiment preregistration
-- artifact store conventions
+- artifact store and run artifact index
 - documentation index
 - GitHub Actions pytest workflow
 - Complexity Lab protocol
