@@ -69,3 +69,34 @@ No factor calculation, backtest, ML training, or strategy recommendation will be
 ### Consequences
 
 Framework and validation infrastructure may continue to be developed independently of source data.
+
+
+## DEC-004 — Corporate actions are explicit economic position mutations
+
+**Status:** Accepted
+
+### Problem
+
+The original fill-only position invariant is correct for discretionary/system decisions but incomplete for exogenous economic events such as stock splits, stock dividends, and capital reductions. Treating those events as synthetic trades would corrupt order/fill semantics and realized P&L.
+
+### Decision
+
+Position quantity may change through exactly two governed paths:
+
+1. executed trade `Fill` events; and
+2. explicit corporate-action share mutations carrying an event ID, effective time, share multiplier, and provenance.
+
+Signals, research results, recommendations, DecisionPackets, and human approvals still cannot mutate positions.
+
+Corporate-action quantity mutations preserve total cost basis by inversely adjusting average cost.
+
+### Consequences
+
+- no synthetic trade is invented for a split/reduction;
+- share-count reconciliation becomes possible on RAW economic coordinates;
+- duplicate corporate-action event IDs are rejected;
+- source events without interpretable share-mutation fields remain unsupported rather than inferred from adjusted prices.
+
+### Revisit condition
+
+Only if a different accounting representation is explicitly adopted and preserves equivalent economic/audit semantics.
