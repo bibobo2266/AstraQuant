@@ -6,6 +6,7 @@ from enum import Enum
 import numpy as np
 
 from astraquant.execution.market_data import ExecutionAvailability, ExecutionPriceDecision
+from astraquant.portfolio.corporate_actions import CorporateActionEvent
 
 
 class ExitReason(str, Enum):
@@ -197,3 +198,40 @@ class PortfolioIntentPolicy:
     def max_hold_due(self, ticker: str, session_index: int) -> bool:
         state = self.managed_positions[str(ticker)]
         return session_index - state.entry_session_index >= self.config.max_hold_sessions
+
+
+    def apply_corporate_action(
+        self,
+        event: CorporateActionEvent,
+    ) -> ManagedPosition | None:
+        """Adjust managed stop state for an exogenous economic event.
+
+        The portfolio ledger performs the actual share/cash accounting. This
+        method keeps policy state on the same RAW economic coordinate.
+
+        For an event with pre-event cash entitlement c and share multiplier m,
+        an economically equivalent post-event stop S' satisfies:
+
+            m * S' + c = S
+
+        therefore S' = (S - c) / m.
+        """
+
+        state = self.managed_positions.get(str(event.ticker))
+        if state is None:
+            return None
+
+        multiplier = event.share_multiplier if event.share_multiplier is not None else 1.0
+        cash_component = event.cash_per_share if event.cash_per_share is not None else 0.0
+        if multiplier <= 0:
+            raise ValueError("share multiplier must be positive")
+
+        if event.share_multiplier is not None:
+            state.quantity *= multiplier
+            state.entry_price /= multiplier
+
+        state.stop_price = max(
+            1e-12,
+            (state.stop_price - cash_component) / multiplier,
+        )
+        return state
