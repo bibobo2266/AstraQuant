@@ -28,3 +28,8 @@
 ## Data-dependent work
 
 Actual inventory, data audit, PIT reconciliation, factor calculation, backtests, and ML remain blocked until the source dataset is declared final.
+
+## Audit and persistence
+
+- `AUDIT_TRAIL.md` — research-to-order-intent identity chain
+- `PERSISTENCE.md` — append-only governance persistence conventions
