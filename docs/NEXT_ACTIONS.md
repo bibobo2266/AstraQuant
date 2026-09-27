@@ -2,30 +2,38 @@
 
 ## NOW
 
-The data-remediation layer is frozen. Continue in small, recoverable tasks:
+Phase-1 data/runtime audit is complete. Source remediation stays frozen.
 
-1. verify Astra/local runtime can read the external source root without write access
-2. run parquet-level inventory: schemas, rows, dates, tickers, nulls, duplicates, PIT fields
-3. freeze the canonical inventory
-4. begin Execution Semantics Validation
-5. audit active workflows/scripts and trace all signal/execution/accounting price sources
-6. enforce the canonical RAW/ADJ/CA/PIT contract before any portfolio-performance retest
+Proceed with Phase-2 execution/accounting repair in small, recoverable tasks:
+
+1. define an AstraQuant-owned dual-coordinate market-data interface
+2. require declared signal price semantics
+3. require RAW for entry, stop observation/fill, exit, sizing, and mark-to-market
+4. enforce tradability before every intended fill
+5. remove reverse-engineered pseudo-RAW from adjusted/dividend factors
+6. route corporate actions through explicit economic events
+7. reconcile share count, cash, receivables, and NAV
+8. run an accounting-only dry replay
+9. unlock portfolio-performance inspection only if every accounting gate passes
 
 ## CURRENT GATE
 
-- RAW history: READY, 100.0000% eligible coverage
-- Adjusted history: READY for research coordinate
-- Corporate actions: READY_WITH_LIMITATION
-- PIT industry: READY_WITH_LIMITATION; uncovered periods remain excluded
-- Tradability: READY_WITH_LIMITATION
+- RAW history: READY on the frozen eligible denominator
+- Adjusted history: READY_WITH_LIMITATION for research only; canonical masking required
+- Corporate actions: READY_WITH_LIMITATION; unknown known_date remains unknown
+- PIT industry: READY_WITH_LIMITATION; uncovered history remains excluded
+- Tradability: READY_WITH_LIMITATION; block states must be enforced
+- PIT-bearing fundamentals: PASS_WITH_LIMITATIONS under declared availability rules
 - source repository remains immutable/read-only
+- Phase-1 summary: `docs/DATA_AUDIT.md`
 
 ## PERFORMANCE LOCK
 
-Do not use CAGR, Sharpe, MAR, MDD, or strategy ranking as acceptance criteria until:
+Do not use CAGR, Sharpe, MAR, MDD, strategy rankings, or model comparisons as acceptance criteria until:
 
 - entry/stop/exit/sizing/mark all use RAW
 - no adjusted execution fallback exists
+- tradability is enforced
 - share count reconciles
 - cash and receivables reconcile
 - corporate actions reconcile
