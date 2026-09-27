@@ -17,16 +17,22 @@ AstraQuant now has an explicit accounting-readiness gate. Performance metrics ma
 | share count reconciles | PASS for plain lifecycle and source split replay | `docs/SOURCE_ACCOUNTING_SMOKE_REPLAY.md`, `docs/SOURCE_CA_SHARE_REPLAY.md` |
 | cash reconciles | PASS | `docs/SOURCE_ACCOUNTING_SMOKE_REPLAY.md` |
 | receivables reconcile | PASS for cash-dividend accrual with unknown payment retained | `docs/SOURCE_CA_CASH_REPLAY.md` |
-| corporate actions reconcile | PASS for tested split and cash-dividend components; broader event coverage remains limited | `docs/SOURCE_CA_SHARE_REPLAY.md`, `docs/SOURCE_CA_CASH_REPLAY.md` |
+| corporate actions reconcile | PASS for tested split, cash-dividend, and capital-reduction share+cash components; broader event/security-mapping coverage remains limited | `docs/SOURCE_CA_SHARE_REPLAY.md`, `docs/SOURCE_CA_CASH_REPLAY.md`, `docs/SOURCE_CAPITAL_REDUCTION_REPLAY.md` |
 | NAV reconciles | PASS in RAW accounting replay | `docs/SOURCE_ACCOUNTING_SMOKE_REPLAY.md` |
 | no adjusted execution fallback | PASS in canonical components | coordinate guard + execution gateway tests |
-| canonical execution path active for portfolio backtest | **FAIL / NOT YET** | legacy source backtest still executes adjusted-price accounting |
+| canonical execution path active for portfolio backtest | **FAIL / NOT YET** | canonical execution service and multi-event replay pass, but a full historical portfolio simulation runner has not yet replaced the legacy adjusted-price backtest |
+
+## Latest integration evidence
+
+- `docs/SOURCE_CANONICAL_EXECUTION_SMOKE.md` — real-source canonical execution service path passes.
+- `docs/SOURCE_MULTI_EVENT_REPLAY.md` — continuous real-source split + dividend replay passes.
+- `docs/SOURCE_CAPITAL_REDUCTION_REPLAY.md` — real-source capital-reduction share+cash accounting passes with source limitations.
 
 ## Performance lock
 
 The active legacy `minervini_picks/scripts/portfolio_backtest.py` remains read-only and is not accounting-valid. AstraQuant will not modify that repository.
 
-Therefore performance remains locked even though the new AstraQuant accounting components pass their targeted tests.
+The AstraQuant canonical service and event-driven replay path now pass real-source integration tests, including corporate-action components. Performance nevertheless remains locked until a full historical portfolio simulation is run through that canonical path rather than the legacy adjusted-price simulator.
 
 The unlock condition is:
 
