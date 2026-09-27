@@ -225,18 +225,25 @@ class ExecutionMarketData:
                 tradability=trad,
             )
 
-        blocked = trad.buy_blocked if side_norm == "buy" else trad.sell_blocked
-        if blocked:
-            return ExecutionPriceDecision(
-                availability=ExecutionAvailability.NOT_EXECUTABLE,
-                use=use,
-                side=side_norm,
-                field=field,
-                price=None,
-                reason=trad.reason or f"{side_norm.upper()}_BLOCKED",
-                bar=bar,
-                tradability=trad,
-            )
+        block_sensitive_uses = {
+            PriceUse.ENTRY,
+            PriceUse.STOP_FILL,
+            PriceUse.EXIT,
+            PriceUse.SIZING,
+        }
+        if use in block_sensitive_uses:
+            blocked = trad.buy_blocked if side_norm == "buy" else trad.sell_blocked
+            if blocked:
+                return ExecutionPriceDecision(
+                    availability=ExecutionAvailability.NOT_EXECUTABLE,
+                    use=use,
+                    side=side_norm,
+                    field=field,
+                    price=None,
+                    reason=trad.reason or f"{side_norm.upper()}_BLOCKED",
+                    bar=bar,
+                    tradability=trad,
+                )
 
         return ExecutionPriceDecision(
             availability=ExecutionAvailability.EXECUTABLE,
