@@ -81,3 +81,31 @@ Backtests may only consume records satisfying:
 ```text
 available_at <= simulation_time
 ```
+
+
+## Lineage spine
+
+```text
+SourceArtifact
+→ DatasetManifest
+→ RunManifest
+→ ValidationReport
+→ Promotion Gate
+→ DecisionPacket
+```
+
+Every meaningful research attempt is trial-accounted. Dataset and run manifests preserve the exact source/code/config/feature lineage needed to interpret a result.
+
+## Cash and settlement
+
+Portfolio accounting distinguishes settled cash from pending receivables and payables. Settlement timing is explicit rather than hard-coded into the core engine.
+
+```text
+Fill
+→ Settlement scheduled
+→ Pending cash state
+→ Settlement completed
+→ Settled cash state
+```
+
+Projected cash is not treated as identical to settled cash.
