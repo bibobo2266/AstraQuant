@@ -4,12 +4,12 @@
 
 Continue building framework components that do not require source data:
 
-1. order lifecycle contracts: OrderIntent → Order → Fill
-2. explicit fee/slippage/execution-assumption interfaces
-3. validation-to-promotion policy wiring
-4. research artifact/result store conventions
-5. experiment pre-registration schema
-6. test/CI bootstrap so framework tests can run automatically
+1. run orchestration: preregistration -> run manifest -> validation report -> promotion result
+2. portfolio orchestration connecting Order fills, Position, Cash, and Settlement without violating fill-only mutation
+3. versioned execution-assumption registry
+4. research result summary schema for evidence/support/limitations
+5. CI hardening after observing the first workflow run
+6. package-level API cleanup and documentation index
 
 ## COMPLETED DURING DATA-FREEZE PERIOD
 
@@ -25,6 +25,12 @@ Continue building framework components that do not require source data:
 - DecisionPacket
 - fill-only position mutation
 - cash and settlement domain
+- order lifecycle with partial-fill controls
+- fee/slippage/execution-assumption interfaces
+- validation-to-promotion policy wiring
+- experiment preregistration schema
+- artifact store conventions
+- GitHub Actions pytest workflow
 - Complexity Lab protocol
 
 ## BLOCKED UNTIL DATA FREEZE
