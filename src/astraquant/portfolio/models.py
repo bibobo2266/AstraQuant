@@ -35,3 +35,16 @@ class Position:
     avg_cost: float = 0.0
     realized_pnl: float = 0.0
     fills: list[Fill] = field(default_factory=list)
+
+
+@dataclass(frozen=True)
+class PositionShareMutation:
+    event_id: str
+    ticker: str
+    share_multiplier: float
+    effective_at: datetime
+    source: str = ""
+
+    def __post_init__(self) -> None:
+        if self.share_multiplier <= 0:
+            raise ValueError("share_multiplier must be positive")
