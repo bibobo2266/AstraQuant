@@ -62,3 +62,24 @@ The following cannot be considered verified until AstraQuant has direct read-onl
 - cross-file key consistency
 
 Until then, this document is an initial source map rather than the final canonical inventory.
+
+## Runtime representative probe — 2026-09-27
+
+GitHub Actions successfully checked out the private source repository transiently with the fine-grained read-only token and read representative parquet metadata from all ten canonical source families.
+
+Highlights:
+
+- RAW 2026: 421,888 rows; 11 columns; date range 2026-01-02 to 2026-09-24; source field present.
+- Adjusted 2026: 488,425 rows; 8 columns; date range 2026-01-02 to 2026-09-24.
+- Corporate-action ledger: 41,224 rows; 13 columns; known_date present; source_url/source_name present.
+- Tradability: 5,236,790 rows; 20 columns; date range 2015-01-05 to 2026-09-24.
+- Financials: 1,408,596 rows; available_date present.
+- Monthly revenue: 267,093 rows; available_date present.
+- Margin: 4,856,840 rows; available_date present.
+- Institutional 2026: 3,728,223 rows.
+- KBar 2026: 3,526,949 rows.
+- All ten representative files were readable.
+
+Evidence: `docs/RUNTIME_SOURCE_PROBE.md`.
+
+This probe used parquet footer/metadata reads only. Full canonical inventory, null profiles, duplicate-key checks, and cross-file reconciliation remain pending.
