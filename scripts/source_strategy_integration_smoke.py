@@ -84,6 +84,11 @@ def build_supported_ca(
         & ~d["event_type"].astype(str).eq("dividend")
     ]
     unsupported_count = len(unsupported_cash)
+    unsupported_summary = (
+        unsupported_cash.groupby("event_type").size().sort_values(ascending=False).to_dict()
+        if unsupported_count
+        else {}
+    )
 
     instructions: list[HistoricalCorporateActionInstruction] = []
 
@@ -145,7 +150,7 @@ def build_supported_ca(
         )
 
     instructions.sort(key=lambda x: (x.event.effective_at, x.event.event_id))
-    return instructions, unsupported_count
+    return instructions, unsupported_count, unsupported_summary
 
 
 def main() -> None:
@@ -172,14 +177,15 @@ def main() -> None:
     session_set = set(sim_sessions)
 
     candidate_tickers = set(signals["stock_id"].astype(str))
-    ca_instructions, unsupported_ca_cash = build_supported_ca(
+    ca_instructions, unsupported_ca_cash, unsupported_ca_summary = build_supported_ca(
         candidate_tickers=candidate_tickers,
         sessions=session_set,
     )
     if unsupported_ca_cash:
         raise SystemExit(
             f"BLOCKED: {unsupported_ca_cash} non-dividend cash CA source rows "
-            "need explicit runtime entitlement basis before strategy smoke"
+            f"need explicit runtime entitlement basis before strategy smoke; "
+            f"event_types={unsupported_ca_summary}"
         )
 
     portfolio = PortfolioEngine(opening_cash=10_000_000.0)
