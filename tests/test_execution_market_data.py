@@ -230,3 +230,66 @@ def test_mark_can_observe_raw_close_on_side_blocked_day(tmp_path):
 
     assert decision.availability is ExecutionAvailability.EXECUTABLE
     assert decision.price == 110.0
+
+
+def test_ticker_scope_preserves_execution_behavior(tmp_path):
+    source = _write_source(
+        tmp_path,
+        raw_rows=[
+            {
+                "date": "2026-09-24",
+                "stock_id": "2330",
+                "open": 100.0,
+                "max": 110.0,
+                "min": 99.0,
+                "close": 108.0,
+            },
+            {
+                "date": "2026-09-24",
+                "stock_id": "2317",
+                "open": 50.0,
+                "max": 52.0,
+                "min": 49.0,
+                "close": 51.0,
+            },
+        ],
+        trad_rows=[
+            {
+                "date": "2026-09-24",
+                "stock_id": "2330",
+                "observed_trade": True,
+                "valid_ohlc": True,
+                "buy_blocked": False,
+                "sell_blocked": False,
+                "reason": "OBSERVED",
+            },
+            {
+                "date": "2026-09-24",
+                "stock_id": "2317",
+                "observed_trade": True,
+                "valid_ohlc": True,
+                "buy_blocked": False,
+                "sell_blocked": False,
+                "reason": "OBSERVED",
+            },
+        ],
+    )
+    market = ExecutionMarketData(source, ticker_scope={"2330"})
+
+    decision = market.resolve(
+        ticker="2330",
+        session_date=date(2026, 9, 24),
+        side="buy",
+        use=PriceUse.ENTRY,
+        field="open",
+    )
+    outside = market.resolve(
+        ticker="2317",
+        session_date=date(2026, 9, 24),
+        side="buy",
+        use=PriceUse.ENTRY,
+        field="open",
+    )
+
+    assert decision.availability is ExecutionAvailability.EXECUTABLE
+    assert outside.availability is ExecutionAvailability.NOT_EXECUTABLE
