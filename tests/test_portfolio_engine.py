@@ -2,6 +2,7 @@ from datetime import datetime
 
 from astraquant.portfolio.engine import PortfolioEngine, SettlementInstruction
 from astraquant.portfolio.models import Fill, OrderIntent
+from astraquant.portfolio.corporate_actions import CorporateActionEvent, CorporateActionType
 
 
 def test_buy_fill_changes_position_and_schedules_payable():
@@ -91,3 +92,32 @@ def test_sell_fill_schedules_receivable_net_of_fees():
 
     assert engine.positions.positions["2330"].quantity == 0
     assert engine.cash.pending_receivables == 9970
+
+
+def test_portfolio_engine_dividend_receivable_shares_cash_account():
+    engine = PortfolioEngine(opening_cash=100000.0)
+    event = CorporateActionEvent(
+        event_id="CA1",
+        ticker="2330",
+        event_type=CorporateActionType.CASH_DIVIDEND,
+        effective_at=datetime(2026, 6, 1),
+        payment_at=datetime(2026, 7, 1),
+        cash_per_share=5.0,
+    )
+
+    engine.corporate_actions.accrue_cash_dividend(
+        event=event,
+        shares_entitled=100,
+        accrued_at=datetime(2026, 6, 1),
+    )
+
+    assert engine.cash.pending_receivables == 500.0
+    assert engine.cash.projected_cash == 100500.0
+
+    engine.corporate_actions.pay_cash_dividend(
+        "CA1",
+        paid_at=datetime(2026, 7, 1),
+    )
+
+    assert engine.cash.pending_receivables == 0.0
+    assert engine.cash.settled_cash == 100500.0
