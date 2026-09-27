@@ -82,5 +82,10 @@ class SourceDataAdapter:
         relative_path: str | Path,
         *,
         columns: list[str] | None = None,
+        filters: list[tuple[str, str, object]] | None = None,
     ) -> pd.DataFrame:
-        return pd.read_parquet(self._resolve(relative_path), columns=columns)
+        return pd.read_parquet(
+            self._resolve(relative_path),
+            columns=columns,
+            filters=filters,
+        )
