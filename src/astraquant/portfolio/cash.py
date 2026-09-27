@@ -24,6 +24,14 @@ class CashAccount:
     def available_settled_cash(self) -> float:
         return self.settled_cash
 
+    @property
+    def available_to_commit_cash(self) -> float:
+        """Settled cash not already committed to pending payables.
+
+        Pending receivables are excluded until they actually settle.
+        """
+        return max(0.0, self.settled_cash - self.pending_payables)
+
 
 @dataclass
 class Settlement:
