@@ -161,3 +161,87 @@ def test_signal_source_must_be_declared():
             source="",
             price_semantics=SignalPriceSemantics.SCALE_INVARIANT,
         )
+
+
+def test_buy_overcommit_is_blocked_before_state_mutation(tmp_path):
+    service, portfolio = _service(tmp_path)
+    intent = OrderIntent(
+        intent_id="I-CASH",
+        ticker="2330",
+        side="buy",
+        quantity=2000,
+        created_at=datetime(2026, 9, 24, 9, 0),
+        rationale="cash guard",
+    )
+
+    with pytest.raises(NotExecutableError, match="available_to_commit"):
+        service.execute(
+            intent=intent,
+            signal=_signal(),
+            order_id="O-CASH",
+            fill_id="F-CASH",
+            submitted_at=datetime(2026, 9, 24, 9, 0),
+            session_date=date(2026, 9, 24),
+            use=PriceUse.ENTRY,
+            field="open",
+            settlement=SettlementInstruction(
+                settlement_id="S-CASH",
+                due_at=datetime(2026, 9, 26),
+            ),
+        )
+
+    assert "O-CASH" not in portfolio.orders.orders
+    assert "2330" not in portfolio.positions.positions
+    assert portfolio.cash.pending_payables == 0.0
+
+
+def test_canonical_service_executes_raw_stop_fill(tmp_path):
+    service, portfolio = _service(tmp_path)
+    entry_intent = OrderIntent(
+        intent_id="I-ENTRY",
+        ticker="2330",
+        side="buy",
+        quantity=10,
+        created_at=datetime(2026, 9, 24, 9, 0),
+        rationale="seed position",
+    )
+    service.execute(
+        intent=entry_intent,
+        signal=_signal(),
+        order_id="O-ENTRY",
+        fill_id="F-ENTRY",
+        submitted_at=datetime(2026, 9, 24, 9, 0),
+        session_date=date(2026, 9, 24),
+        use=PriceUse.ENTRY,
+        field="open",
+        settlement=SettlementInstruction(
+            settlement_id="S-ENTRY",
+            due_at=datetime(2026, 9, 26),
+        ),
+    )
+
+    stop_intent = OrderIntent(
+        intent_id="I-STOP",
+        ticker="2330",
+        side="sell",
+        quantity=10,
+        created_at=datetime(2026, 9, 24, 13, 0),
+        rationale="raw stop",
+    )
+    out = service.execute_stop(
+        intent=stop_intent,
+        signal=_signal(),
+        order_id="O-STOP",
+        fill_id="F-STOP",
+        submitted_at=datetime(2026, 9, 24, 13, 0),
+        session_date=date(2026, 9, 24),
+        stop_price=97.0,
+        settlement=SettlementInstruction(
+            settlement_id="S-STOP",
+            due_at=datetime(2026, 9, 26),
+        ),
+    )
+
+    assert out.raw_decision.use is PriceUse.STOP_FILL
+    assert out.fill.price == 97.0
+    assert portfolio.positions.positions["2330"].quantity == 0
