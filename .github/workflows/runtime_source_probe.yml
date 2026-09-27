@@ -1,0 +1,81 @@
+name: Runtime source probe
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/runtime_source_probe.yml"
+      - "scripts/runtime_source_probe.py"
+
+permissions:
+  contents: write
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout AstraQuant
+        uses: actions/checkout@v4
+        with:
+          path: AstraQuant
+
+      - name: Checkout immutable source
+        uses: actions/checkout@v4
+        with:
+          repository: bibobo2266/minervini_picks
+          token: ${{ secrets.MINERVINI_READ_TOKEN }}
+          path: source_runtime/minervini_picks
+          persist-credentials: false
+
+      - name: Make source checkout filesystem read-only
+        run: chmod -R a-w source_runtime/minervini_picks
+
+      - name: Verify source layout
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -d source_runtime/minervini_picks/data/raw
+          test -d source_runtime/minervini_picks/data/adj
+          test -d source_runtime/minervini_picks/data/reference
+          test -d source_runtime/minervini_picks/data/fundamentals
+          test -d source_runtime/minervini_picks/data/inst
+          test -d source_runtime/minervini_picks/data/kbar
+          echo "source layout READY"
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install metadata probe dependency
+        run: python -m pip install --quiet pyarrow
+
+      - name: Run representative parquet metadata probe
+        working-directory: AstraQuant
+        env:
+          SOURCE_ROOT: ../source_runtime/minervini_picks/data
+          REPORT_PATH: docs/RUNTIME_SOURCE_PROBE.md
+        run: python scripts/runtime_source_probe.py
+
+      - name: Show report
+        working-directory: AstraQuant
+        run: cat docs/RUNTIME_SOURCE_PROBE.md >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Commit probe report to AstraQuant only
+        working-directory: AstraQuant
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add docs/RUNTIME_SOURCE_PROBE.md
+          if git diff --cached --quiet; then
+            echo "No report changes to commit."
+            exit 0
+          fi
+          git commit -m "audit: record runtime source probe"
+          git pull --rebase origin main
+          git push origin HEAD:main
