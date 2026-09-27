@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from .models import Fill, Position
+from .models import Fill, Position, PositionShareMutation
 
 
 class PortfolioLedger:
@@ -8,6 +8,7 @@ class PortfolioLedger:
 
     def __init__(self) -> None:
         self.positions: dict[str, Position] = {}
+        self.applied_share_mutation_ids: set[str] = set()
 
     def apply_fill(self, fill: Fill) -> Position:
         pos = self.positions.setdefault(fill.ticker, Position(ticker=fill.ticker))
@@ -35,4 +36,31 @@ class PortfolioLedger:
             raise ValueError(f"Unsupported side: {fill.side}")
 
         pos.fills.append(fill)
+        return pos
+
+
+    def apply_share_mutation(self, mutation: PositionShareMutation) -> Position:
+        """Apply an explicit exogenous corporate-action share mutation.
+
+        Signals, recommendations, and decisions still cannot mutate holdings.
+        This path exists only for economic corporate actions with an explicit
+        share multiplier.
+        """
+
+        if mutation.event_id in self.applied_share_mutation_ids:
+            raise ValueError(f"duplicate share mutation event id: {mutation.event_id}")
+
+        pos = self.positions.setdefault(
+            mutation.ticker,
+            Position(ticker=mutation.ticker),
+        )
+        if pos.quantity < 0:
+            raise ValueError("negative positions are unsupported")
+
+        if pos.quantity > 0:
+            old_total_cost = pos.avg_cost * pos.quantity
+            pos.quantity *= mutation.share_multiplier
+            pos.avg_cost = old_total_cost / pos.quantity
+
+        self.applied_share_mutation_ids.add(mutation.event_id)
         return pos
