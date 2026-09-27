@@ -296,3 +296,96 @@ class ExecutionMarketData:
             bar=bar,
             tradability=trad,
         )
+
+
+    def resolve_stop_fill(
+        self,
+        *,
+        ticker: str,
+        session_date: date | datetime | pd.Timestamp,
+        stop_price: float,
+        side: str = "sell",
+    ) -> ExecutionPriceDecision:
+        """Resolve a long-position stop fill from RAW OHLC.
+
+        For a sell stop:
+        - RAW low must touch/breach the stop;
+        - if RAW open gaps below/equal to the stop, fill reference is RAW open;
+        - otherwise fill reference is the stop level inside the observed RAW bar;
+        - sell-side tradability must permit execution.
+
+        No adjusted price participates in trigger observation or fill pricing.
+        """
+
+        if stop_price <= 0:
+            raise ValueError("stop_price must be positive")
+        if side.lower() != "sell":
+            raise ValueError("only sell stops for long positions are currently supported")
+
+        observation = self.resolve(
+            ticker=ticker,
+            session_date=session_date,
+            side="sell",
+            use=PriceUse.STOP_OBSERVATION,
+            field="low",
+        )
+        if observation.availability is not ExecutionAvailability.EXECUTABLE:
+            return ExecutionPriceDecision(
+                availability=ExecutionAvailability.NOT_EXECUTABLE,
+                use=PriceUse.STOP_FILL,
+                side="sell",
+                field="stop",
+                price=None,
+                reason=observation.reason,
+                bar=observation.bar,
+                tradability=observation.tradability,
+            )
+
+        assert observation.bar is not None
+        if observation.bar.low > stop_price:
+            return ExecutionPriceDecision(
+                availability=ExecutionAvailability.NOT_EXECUTABLE,
+                use=PriceUse.STOP_FILL,
+                side="sell",
+                field="stop",
+                price=None,
+                reason="STOP_NOT_TRIGGERED",
+                bar=observation.bar,
+                tradability=observation.tradability,
+            )
+
+        executable_open = self.resolve(
+            ticker=ticker,
+            session_date=session_date,
+            side="sell",
+            use=PriceUse.STOP_FILL,
+            field="open",
+        )
+        if executable_open.availability is not ExecutionAvailability.EXECUTABLE:
+            return ExecutionPriceDecision(
+                availability=ExecutionAvailability.NOT_EXECUTABLE,
+                use=PriceUse.STOP_FILL,
+                side="sell",
+                field="stop",
+                price=None,
+                reason=executable_open.reason,
+                bar=executable_open.bar,
+                tradability=executable_open.tradability,
+            )
+
+        assert executable_open.bar is not None
+        fill_price = (
+            executable_open.bar.open
+            if executable_open.bar.open <= stop_price
+            else stop_price
+        )
+        return ExecutionPriceDecision(
+            availability=ExecutionAvailability.EXECUTABLE,
+            use=PriceUse.STOP_FILL,
+            side="sell",
+            field="stop",
+            price=float(fill_price),
+            reason="OK",
+            bar=executable_open.bar,
+            tradability=executable_open.tradability,
+        )
