@@ -25,9 +25,13 @@
 - `PORTFOLIO_ACCOUNTING.md` — positions, cash, settlement
 - `ARTIFACTS.md` — retained outputs and Git policy
 
-## Data-dependent work
+## Data phase
 
-Actual inventory, data audit, PIT reconciliation, factor calculation, backtests, and ML remain blocked until the source dataset is declared final.
+- `DATA_PHASE_PLAN.md` — small-task plan for inventory, execution semantics, and canonical PIT work
+- `DATA_INVENTORY.md` — frozen source readiness and initial static source map
+- `DATA_CONTRACT.md` — canonical RAW / adjusted / corporate-action / PIT-provenance contract
+
+Runtime parquet inspection and execution-semantics validation are now active. Performance research remains gated.
 
 ## Audit and persistence
 
