@@ -27,3 +27,45 @@ No other repository may be modified.
 ### Revisit condition
 
 Only if the user explicitly changes this boundary.
+
+
+## DEC-002 — External source data remains immutable
+
+**Status:** Accepted
+
+### Problem
+
+The source parquet data is currently being cleaned in another repository and must not be changed by AstraQuant.
+
+### Decision
+
+AstraQuant will use a read-only `SourceDataAdapter` when source data is eventually connected. The adapter exposes inspection and read operations only and rejects paths outside its configured root.
+
+AstraQuant-owned derived datasets are separate from source data.
+
+### Consequences
+
+- no source-data copying is required by the architecture
+- no write/update/delete/rename API exists on the source adapter
+- source-dependent research remains blocked until the user declares the dataset final
+- framework development can continue without accessing the source repository
+
+### Revisit condition
+
+Only if the user explicitly changes the source-data boundary.
+
+## DEC-003 — Do not research on moving data
+
+**Status:** Accepted
+
+### Problem
+
+Running factor research, ML, or backtests while the source dataset is still changing would create unstable evidence and unnecessary reruns.
+
+### Decision
+
+No factor calculation, backtest, ML training, or strategy recommendation will begin until the user declares the cleaned source dataset ready and the data audit gates pass.
+
+### Consequences
+
+Framework and validation infrastructure may continue to be developed independently of source data.
