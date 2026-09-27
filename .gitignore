@@ -1,0 +1,14 @@
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.venv/
+venv/
+.env
+.DS_Store
+
+# Source/derived data should not be committed by default
+data/
+data_derived/
+outputs/
+artifacts/
+*.parquet
