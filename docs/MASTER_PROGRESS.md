@@ -8,5 +8,6 @@ Allowed statuses: `TODO`, `IN_PROGRESS`, `BLOCKED`, `DONE`, `FAILED`, `REJECTED`
 |---|---|---|---|---|---|---|---|---|---|
 | P0-001 | 0 | Lock repository scope | DONE | User authorization | Only `bibobo2266/AstraQuant` may be modified | Explicit user instruction | ACCEPT | README.md, docs/* | Keep all work isolated here |
 | P0-002 | 0 | Initialize governance docs | DONE | Project specification | Core documentation created | Repository files | ACCEPT | docs/* | Bootstrap architecture |
-| P0-003 | 0 | Bootstrap package skeleton | IN_PROGRESS | Architecture plan | Minimal domain modules | Pending | ACCEPT | src/*, tests/* | Add contracts and tests |
-| P1-001 | 1 | Build source data inventory | TODO | Repo data paths | Not started | — | — | — | Wait for accessible data paths |
+| P0-003 | 0 | Bootstrap package skeleton | DONE | Architecture plan | Minimal PIT, research, portfolio, and test modules created | Repository files and commits | ACCEPT | pyproject.toml, src/*, tests/* | Add data inventory tooling |
+| P0-004 | 0 | Establish core invariants | DONE | Architecture rules | PIT availability contract and fill-only position mutation encoded in tests | tests/test_core_invariants.py | ACCEPT | src/astraquant/data/contracts.py, src/astraquant/portfolio/*, tests/test_core_invariants.py | Run tests when CI/runtime is available |
+| P1-001 | 1 | Build source data inventory | TODO | Repo data paths | Not started | — | — | — | Add inventory tooling and connect data |
