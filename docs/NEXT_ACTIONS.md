@@ -4,11 +4,28 @@
 
 Continue building framework components that do not require source data:
 
-1. time-respecting walk-forward split contracts
-2. placebo / permutation validation hooks
-3. dataset and run manifest models
-4. validation result schema and ladder enforcement
-5. portfolio cash and settlement domain
+1. order lifecycle contracts: OrderIntent → Order → Fill
+2. explicit fee/slippage/execution-assumption interfaces
+3. validation-to-promotion policy wiring
+4. research artifact/result store conventions
+5. experiment pre-registration schema
+6. test/CI bootstrap so framework tests can run automatically
+
+## COMPLETED DURING DATA-FREEZE PERIOD
+
+- read-only SourceDataAdapter boundary
+- feature and experiment registries
+- Newey-West / BH-FDR / parameter-plateau primitives
+- validation ladder
+- walk-forward temporal contracts
+- locked future OOS overlap guard
+- placebo/permutation hooks
+- dataset and run manifests
+- explicit validation-result schema
+- DecisionPacket
+- fill-only position mutation
+- cash and settlement domain
+- Complexity Lab protocol
 
 ## BLOCKED UNTIL DATA FREEZE
 
