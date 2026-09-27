@@ -141,6 +141,15 @@ class CanonicalExecutionService:
             decision=decision,
         )
 
+        if fill.side.lower() == "buy":
+            required_cash = fill.quantity * fill.price + fill.fees
+            available_cash = self.portfolio.cash.available_to_commit_cash
+            if required_cash > available_cash:
+                raise NotExecutableError(
+                    f"intent {intent.intent_id} requires {required_cash:.6f} cash; "
+                    f"available_to_commit={available_cash:.6f}"
+                )
+
         self.portfolio.orders.create_from_intent(intent, order_id)
         self.portfolio.orders.submit(order_id, submitted_at)
         self.portfolio.apply_fill(fill, settlement)
