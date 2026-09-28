@@ -71,6 +71,7 @@ class ExecutionMarketData:
             raise ValueError("ticker_scope must not be empty")
         self._raw_cache: dict[int, pd.DataFrame] = {}
         self._tradability_cache: pd.DataFrame | None = None
+        self._available_raw_years: tuple[int, ...] | None = None
 
     def _ticker_filters(self) -> list[tuple[str, str, object]] | None:
         if self.ticker_scope is None:
@@ -107,21 +108,63 @@ class ExecutionMarketData:
             return None
         return hit
 
-    def _raw_row(self, ticker: str, session_date: date | datetime | pd.Timestamp) -> pd.Series | None:
-        day = self._normalize_day(session_date)
-        rel = f"raw/prices_raw_{day.year}.parquet"
+    def _raw_years(self) -> tuple[int, ...]:
+        if self._available_raw_years is None:
+            years: list[int] = []
+            for rel in self.source.list_files("raw", suffixes=[".parquet"]):
+                stem = rel.rsplit("/", 1)[-1].rsplit(".", 1)[0]
+                token = stem.rsplit("_", 1)[-1]
+                if token.isdigit() and len(token) == 4:
+                    years.append(int(token))
+            self._available_raw_years = tuple(sorted(set(years)))
+        return self._available_raw_years
+
+    def _load_raw_year(self, year: int) -> pd.DataFrame | None:
+        rel = f"raw/prices_raw_{year}.parquet"
         if not self.source.exists(rel):
             return None
-        if day.year not in self._raw_cache:
-            self._raw_cache[day.year] = self._index_market_frame(
+        if year not in self._raw_cache:
+            self._raw_cache[year] = self._index_market_frame(
                 self.source.read_parquet(
                     rel,
                     columns=["date", "stock_id", "open", "max", "min", "close"],
                     filters=self._ticker_filters(),
                 )
             )
+        return self._raw_cache[year]
+
+    def _latest_valid_raw_before(
+        self,
+        *,
+        ticker: str,
+        day: pd.Timestamp,
+    ) -> tuple[pd.Timestamp, pd.Series] | None:
+        years = [y for y in self._raw_years() if y <= day.year]
+        for year in sorted(years, reverse=True):
+            df = self._load_raw_year(year)
+            if df is None or df.empty:
+                continue
+            try:
+                stock = df.xs(str(ticker), level="_stock_key", drop_level=False)
+            except KeyError:
+                continue
+            candidates = stock[stock["_date_key"] < day].sort_values(
+                "_date_key",
+                ascending=False,
+            )
+            for _, row in candidates.iterrows():
+                source_day = pd.Timestamp(row["_date_key"]).normalize()
+                if self._bar_from_row(str(ticker), source_day, row) is not None:
+                    return source_day, row
+        return None
+
+    def _raw_row(self, ticker: str, session_date: date | datetime | pd.Timestamp) -> pd.Series | None:
+        day = self._normalize_day(session_date)
+        df = self._load_raw_year(day.year)
+        if df is None:
+            return None
         return self._unique_indexed_row(
-            self._raw_cache[day.year],
+            df,
             day=day,
             ticker=str(ticker),
         )
@@ -293,6 +336,89 @@ class ExecutionMarketData:
             field=field,
             price=float(getattr(bar, field)),
             reason="OK",
+            bar=bar,
+            tradability=trad,
+        )
+
+
+    def resolve_mark(
+        self,
+        *,
+        ticker: str,
+        session_date: date | datetime | pd.Timestamp,
+        field: str = "close",
+        not_before: date | datetime | pd.Timestamp | None = None,
+    ) -> ExecutionPriceDecision:
+        """Resolve a RAW mark with explicit stale carry for suspension gaps.
+
+        Same-session observed RAW is preferred. If the current tradability row
+        explicitly says NO_TRADE_ROW_WITHIN_ACTIVE_SPAN, valuation may carry the
+        latest prior valid RAW close. This is valuation-only: fills, stops, and
+        sizing never use stale prices.
+
+        not_before is an economic-coordinate barrier. A stale observation older
+        than that date is rejected so a pre-CA mark is not carried across an
+        explicitly modeled corporate action.
+        """
+
+        if field not in {"open", "close"}:
+            raise ValueError("MARK supports open or close requests")
+
+        same_day = self.resolve(
+            ticker=ticker,
+            session_date=session_date,
+            side="sell",
+            use=PriceUse.MARK,
+            field=field,
+        )
+        if same_day.availability is ExecutionAvailability.EXECUTABLE:
+            return same_day
+
+        day = self._normalize_day(session_date)
+        trad_row = self._tradability_row(ticker, day)
+        if trad_row is None:
+            return same_day
+        trad = self._tradability_from_row(str(ticker), day, trad_row)
+        if trad.observed_trade or trad.reason != "NO_TRADE_ROW_WITHIN_ACTIVE_SPAN":
+            return same_day
+
+        stale = self._latest_valid_raw_before(ticker=str(ticker), day=day)
+        if stale is None:
+            return ExecutionPriceDecision(
+                availability=ExecutionAvailability.NOT_EXECUTABLE,
+                use=PriceUse.MARK,
+                side="sell",
+                field="stale_close",
+                price=None,
+                reason="STALE_RAW_MARK_UNAVAILABLE",
+                bar=None,
+                tradability=trad,
+            )
+
+        source_day, row = stale
+        if not_before is not None:
+            barrier = self._normalize_day(not_before)
+            if source_day < barrier:
+                return ExecutionPriceDecision(
+                    availability=ExecutionAvailability.NOT_EXECUTABLE,
+                    use=PriceUse.MARK,
+                    side="sell",
+                    field="stale_close",
+                    price=None,
+                    reason="STALE_RAW_MARK_BLOCKED_BY_CA",
+                    bar=None,
+                    tradability=trad,
+                )
+
+        bar = self._bar_from_row(str(ticker), source_day, row)
+        assert bar is not None
+        return ExecutionPriceDecision(
+            availability=ExecutionAvailability.EXECUTABLE,
+            use=PriceUse.MARK,
+            side="sell",
+            field="stale_close",
+            price=float(bar.close),
+            reason="STALE_RAW_MARK",
             bar=bar,
             tradability=trad,
         )
