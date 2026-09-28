@@ -6,7 +6,7 @@ from enum import Enum
 from typing import TYPE_CHECKING
 
 from astraquant.portfolio.cash import CashAccount
-from astraquant.portfolio.models import PositionShareMutation
+from astraquant.portfolio.models import PositionExtinguishment, PositionShareMutation
 
 if TYPE_CHECKING:
     from astraquant.portfolio.ledger import PortfolioLedger
@@ -86,6 +86,7 @@ class CorporateActionAccounting:
         self.dividend_receivables: dict[str, DividendReceivable] = {}
         self.completed_dividends: dict[str, DividendReceivable] = {}
         self.share_mutations: dict[str, PositionShareMutation] = {}
+        self.position_extinguishments: dict[str, PositionExtinguishment] = {}
         self.cash_entitlement_receivables: dict[str, CorporateActionCashReceivable] = {}
         self.completed_cash_entitlements: dict[str, CorporateActionCashReceivable] = {}
 
@@ -231,3 +232,30 @@ class CorporateActionAccounting:
         receivable.paid_at = paid_at
         self.completed_cash_entitlements[event_id] = receivable
         return receivable
+
+
+    def extinguish_position(
+        self,
+        *,
+        event: CorporateActionEvent,
+        positions: "PortfolioLedger",
+        applied_at: datetime,
+    ) -> PositionExtinguishment:
+        """Extinguish shares through an explicit exogenous corporate action."""
+
+        if event.event_type is not CorporateActionType.MERGER:
+            raise ValueError("position extinguishment currently requires MERGER event type")
+        if applied_at < event.effective_at:
+            raise ValueError("cannot extinguish position before effective date")
+        if event.event_id in self.position_extinguishments:
+            raise ValueError(f"duplicate position extinguishment event id: {event.event_id}")
+
+        mutation = PositionExtinguishment(
+            event_id=event.event_id,
+            ticker=event.ticker,
+            effective_at=event.effective_at,
+            source=event.source,
+        )
+        positions.apply_position_extinguishment(mutation)
+        self.position_extinguishments[event.event_id] = mutation
+        return mutation
