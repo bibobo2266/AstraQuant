@@ -1,0 +1,70 @@
+name: Source corporate action calendar audit
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/source_ca_calendar_audit.yml"
+      - "scripts/source_ca_calendar_audit.py"
+      - "src/astraquant/portfolio/calendar.py"
+      - "src/astraquant/portfolio/historical_runner.py"
+      - "src/astraquant/portfolio/strategy_simulator.py"
+
+permissions:
+  contents: write
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+
+    steps:
+      - name: Checkout AstraQuant
+        uses: actions/checkout@v4
+        with:
+          path: AstraQuant
+
+      - name: Checkout immutable source
+        uses: actions/checkout@v4
+        with:
+          repository: bibobo2266/minervini_picks
+          token: ${{ secrets.MINERVINI_READ_TOKEN }}
+          path: source_runtime/minervini_picks
+          persist-credentials: false
+
+      - name: Make source checkout filesystem read-only
+        run: chmod -R a-w source_runtime/minervini_picks
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install AstraQuant
+        working-directory: AstraQuant
+        run: python -m pip install --quiet -e .
+
+      - name: Audit source corporate-action calendar mapping
+        working-directory: AstraQuant
+        env:
+          SOURCE_ROOT: ../source_runtime/minervini_picks/data
+          REPORT_PATH: docs/SOURCE_CA_CALENDAR_AUDIT.md
+        run: python scripts/source_ca_calendar_audit.py
+
+      - name: Publish summary
+        working-directory: AstraQuant
+        run: cat docs/SOURCE_CA_CALENDAR_AUDIT.md >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Commit report to AstraQuant only
+        working-directory: AstraQuant
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add docs/SOURCE_CA_CALENDAR_AUDIT.md
+          if git diff --cached --quiet; then exit 0; fi
+          git commit -m "audit: record corporate action calendar mapping"
+          git pull --rebase origin main
+          git push origin HEAD:main
