@@ -64,3 +64,9 @@
 | Event date | Type | Cash/share | Share multiplier | Source |
 |---|---|---:|---:|---|
 | 2016-11-01 | dividend | 0.0 | nan | FinMind TaiwanStockDividend |
+
+## Normalized FinMind actions ±60 days
+
+| Effective date | Kind | Cash/share | Share multiplier | Known at | Payment at |
+|---|---|---:|---:|---|---|
+| 2016-10-26 | STOCK_DIVIDEND | None | 1.1146 | 2016-10-06 00:00:00 | None |
