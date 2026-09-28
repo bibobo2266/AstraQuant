@@ -1,7 +1,7 @@
 # Source RAW Mark Gap Audit
 
-- ticker: 4141
-- target session: 2022-04-27
+- ticker: 2823
+- target session: 2021-12-20
 
 ## Target tradability
 
@@ -11,11 +11,11 @@
 
 | Date | Open | High | Low | Close |
 |---|---:|---:|---:|---:|
-| 2022-04-20 | 26.1 | 26.1 | 26.05 | 26.05 |
-| 2022-04-21 | 26.05 | 26.1 | 26.05 | 26.1 |
-| 2022-04-22 | 26.1 | 26.1 | 26.05 | 26.05 |
-| 2022-04-25 | 26.1 | 26.15 | 26.05 | 26.1 |
-| 2022-04-26 | 26.1 | 26.15 | 26.1 | 26.1 |
+| 2021-12-13 | 30.85 | 31.0 | 30.85 | 30.95 |
+| 2021-12-14 | 30.9 | 30.9 | 30.7 | 30.85 |
+| 2021-12-15 | 30.8 | 30.85 | 30.5 | 30.6 |
+| 2021-12-16 | 30.65 | 30.8 | 30.4 | 30.5 |
+| 2021-12-17 | 30.5 | 31.0 | 30.45 | 30.55 |
 
 ## Next RAW observations
 
@@ -26,20 +26,19 @@
 
 | Date | Observed | Valid | Buy blocked | Sell blocked | Reason |
 |---|---|---|---|---|---|
-| 2022-04-12 | True | True | False | False | OBSERVED |
-| 2022-04-13 | True | True | False | False | OBSERVED |
-| 2022-04-14 | True | True | False | False | OBSERVED |
-| 2022-04-15 | True | True | False | False | OBSERVED |
-| 2022-04-18 | True | True | False | False | OBSERVED |
-| 2022-04-19 | True | True | False | False | OBSERVED |
-| 2022-04-20 | True | True | False | False | OBSERVED |
-| 2022-04-21 | True | True | False | False | OBSERVED |
-| 2022-04-22 | True | True | False | False | OBSERVED |
-| 2022-04-25 | True | True | False | False | OBSERVED |
-| 2022-04-26 | True | True | False | False | OBSERVED |
+| 2021-12-06 | True | True | False | False | OBSERVED |
+| 2021-12-07 | True | True | False | False | OBSERVED |
+| 2021-12-08 | True | True | False | False | OBSERVED |
+| 2021-12-09 | True | True | False | False | OBSERVED |
+| 2021-12-10 | True | True | False | False | OBSERVED |
+| 2021-12-13 | True | True | False | False | OBSERVED |
+| 2021-12-14 | True | True | False | False | OBSERVED |
+| 2021-12-15 | True | True | False | False | OBSERVED |
+| 2021-12-16 | True | True | False | False | OBSERVED |
+| 2021-12-17 | True | True | False | False | OBSERVED |
 
 ## Corporate actions ±60 days
 
 | Event date | Type | Cash/share | Share multiplier | Source |
 |---|---|---:|---:|---|
-| — | none | — | — | — |
+| 2021-10-25 | ex_right_dividend | nan | nan | TWSE TWT49U |
