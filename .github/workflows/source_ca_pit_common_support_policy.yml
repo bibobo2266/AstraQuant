@@ -50,6 +50,8 @@ jobs:
           SOURCE_ROOT: ../source_runtime/minervini_picks/data
           REPORT_PATH: docs/SOURCE_CA_PIT_COMMON_SUPPORT_POLICY.md
           EXCLUSIONS_PATH: docs/SOURCE_CA_PIT_EXCLUSIONS.csv
+          SIGNAL_START: "2016-01-04"
+          SIGNAL_END: "2026-06-30"
         run: python scripts/source_ca_pit_common_support_policy.py
 
       - name: Publish summary
