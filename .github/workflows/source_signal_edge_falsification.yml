@@ -1,0 +1,70 @@
+name: Conditional signal-edge falsification
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/source_signal_edge_falsification.yml"
+      - "scripts/source_signal_edge_falsification.py"
+      - "scripts/source_strategy_integration_smoke.py"
+      - "src/astraquant/**"
+
+permissions:
+  contents: write
+
+jobs:
+  report:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - name: Checkout AstraQuant
+        uses: actions/checkout@v4
+        with:
+          path: AstraQuant
+
+      - name: Checkout immutable source
+        uses: actions/checkout@v4
+        with:
+          repository: bibobo2266/minervini_picks
+          token: ${{ secrets.MINERVINI_READ_TOKEN }}
+          path: source_runtime/minervini_picks
+          persist-credentials: false
+
+      - name: Make source checkout filesystem read-only
+        run: chmod -R a-w source_runtime/minervini_picks
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install AstraQuant
+        working-directory: AstraQuant
+        run: python -m pip install --quiet -e .
+
+      - name: Run conditional signal-edge falsification
+        working-directory: AstraQuant
+        env:
+          SOURCE_ROOT: ../source_runtime/minervini_picks/data
+          REPORT_PATH: docs/SOURCE_SIGNAL_EDGE_FALSIFICATION.md
+          SIGNAL_START: "2016-01-04"
+          SIGNAL_END: "2026-06-30"
+        run: python scripts/source_signal_edge_falsification.py
+
+      - name: Publish summary
+        working-directory: AstraQuant
+        run: cat docs/SOURCE_SIGNAL_EDGE_FALSIFICATION.md >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Commit report to AstraQuant only
+        working-directory: AstraQuant
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add docs/SOURCE_SIGNAL_EDGE_FALSIFICATION.md
+          if git diff --cached --quiet; then exit 0; fi
+          git commit -m "report: record conditional signal-edge falsification"
+          git pull --rebase origin main
+          git push origin HEAD:main
