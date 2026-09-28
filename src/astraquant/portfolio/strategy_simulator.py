@@ -10,7 +10,7 @@ from astraquant.execution.fills import NotExecutableError
 from astraquant.execution.market_data import ExecutionAvailability
 from astraquant.execution.service import CanonicalExecutionService, SignalDeclaration
 from astraquant.portfolio.calendar import TradingCalendar
-from astraquant.portfolio.corporate_actions import CorporateActionType
+from astraquant.portfolio.corporate_actions import CashEntitlementBasis, CorporateActionType
 from astraquant.portfolio.engine import PortfolioEngine, SettlementInstruction
 from astraquant.portfolio.historical_runner import HistoricalCorporateActionInstruction
 from astraquant.portfolio.models import OrderIntent
@@ -211,13 +211,17 @@ class CanonicalStrategySimulator:
                             raise ValueError(
                                 f"cash component missing for {event.event_id}"
                             )
-                        if item.cash_share_basis is None:
-                            raise ValueError(
-                                f"cash_share_basis missing for {event.event_id}"
-                            )
+                        if item.cash_share_basis_mode is CashEntitlementBasis.OPENING_POSITION:
+                            shares_entitled = opening_shares
+                        else:
+                            if item.cash_share_basis is None:
+                                raise ValueError(
+                                    f"cash_share_basis missing for {event.event_id}"
+                                )
+                            shares_entitled = item.cash_share_basis
                         self.portfolio.corporate_actions.accrue_cash_entitlement(
                             event=event,
-                            shares_entitled=item.cash_share_basis,
+                            shares_entitled=shares_entitled,
                             accrued_at=economic_apply_at,
                             component=item.component,
                         )
