@@ -151,7 +151,20 @@ def main() -> None:
             }
         )
     ].copy()
-    nondiv_unknown_known = int(nondiv["known_date"].isna().sum())
+    nondiv_unknown = nondiv[nondiv["known_date"].isna()].copy()
+    nondiv_unknown["event_year"] = nondiv_unknown["event_date"].dt.year.astype("Int64")
+    nondiv_breakdown = (
+        nondiv_unknown.groupby("event_type", dropna=False)
+        .agg(
+            rows=("stock_id", "size"),
+            tickers=("stock_id", "nunique"),
+            first_year=("event_year", "min"),
+            last_year=("event_year", "max"),
+        )
+        .reset_index()
+        .sort_values(["event_type"], kind="stable")
+    )
+    nondiv_unknown_known = int(len(nondiv_unknown))
     nondiv_late_known = int(
         (
             nondiv["known_date"].notna()
@@ -196,6 +209,24 @@ def main() -> None:
         f"- supported non-dividend rows in eligible ticker scope: {len(nondiv):,}",
         f"- known_date missing: {nondiv_unknown_known:,}",
         f"- known_date after event_date: {nondiv_late_known:,}",
+        "",
+        "### Missing-known-date breakdown",
+        "",
+        "| Event type | Rows | Distinct tickers | First year | Last year |",
+        "|---|---:|---:|---:|---:|",
+    ]
+    if nondiv_breakdown.empty:
+        lines.append("| — | 0 | 0 | — | — |")
+    else:
+        for row in nondiv_breakdown.itertuples(index=False):
+            first_year = "—" if pd.isna(row.first_year) else str(int(row.first_year))
+            last_year = "—" if pd.isna(row.last_year) else str(int(row.last_year))
+            lines.append(
+                f"| {row.event_type} | {int(row.rows):,} | {int(row.tickers):,} | {first_year} | {last_year} |"
+            )
+    lines += [
+        "",
+        "The table above is descriptive source evidence only. Event types are not assigned one blanket PIT treatment here; P2-060 must freeze event-type-specific handling before any portfolio-level attribution run.",
         "",
         "## Canonical builder result",
         "",
