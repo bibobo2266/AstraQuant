@@ -12,6 +12,8 @@ Purpose: connect real canonical breakout candidates to the causal RAW portfolio 
 - session count / RAW NAV snapshots: 57
 - canonical signal candidates supplied: 972
 - candidate tickers in scoped execution source: 359
+- PIT-unsafe CA tickers quarantined: 0
+- signal rows removed by PIT CA quarantine: 0
 - integration-only policy: 10% NAV target, max 10 positions, 12% RAW stop, 20-session re-entry gap, 250-session max hold, 1000-share lot, seed 0
 
 ## Accounting/event audit counts
@@ -46,6 +48,7 @@ Purpose: connect real canonical breakout candidates to the causal RAW portfolio 
 | settled_cash_nonnegative | PASS |
 | no_adjusted_execution_fallback | PASS |
 | unsupported_ca_cash_zero | PASS |
+| pit_unsafe_ca_tickers_excluded | PASS |
 
 ## Performance lock
 
