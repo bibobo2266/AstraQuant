@@ -46,8 +46,8 @@ jobs:
         env:
           SOURCE_ROOT: ../source_runtime/minervini_picks/data
           REPORT_PATH: docs/SOURCE_TERMINAL_SECURITY_AUDIT.md
-          TICKER: "4141"
-          TARGET_DATE: "2022-04-27"
+          TICKER: "2823"
+          TARGET_DATE: "2021-12-20"
         run: python scripts/source_terminal_security_audit.py
 
       - name: Publish summary
