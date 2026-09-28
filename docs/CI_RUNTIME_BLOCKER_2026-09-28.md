@@ -1,27 +1,36 @@
 # GitHub Actions Runtime Blocker — 2026-09-28
 
-Status: **BLOCKED**
+Status: **RESOLVED_INFRASTRUCTURE**
 
-The P2-058 canonical FIFO reconstruction tests and P2-059 eligible-universe CA coverage audit were pushed to AstraQuant main in commit `b069770c2bcc68ef9de9c47e5d71d3f366ecb6a7`.
+The P2-058 canonical FIFO reconstruction tests and P2-059 eligible-universe CA coverage audit were initially pushed in commit `b069770c2bcc68ef9de9c47e5d71d3f366ecb6a7`.
 
-Both the standard test workflow and the new source audit workflow failed before any workflow step was recorded. A retry of failed jobs produced the same result.
+## Root cause
 
-## Observed runs
+AstraQuant had been changed from public to private. GitHub Actions usage on the private repository required billable Actions capacity, while the account spending limit was effectively $0 after account-payment/spending-limit restrictions. GitHub created workflow/job objects but did not start runner steps.
 
-- tests run: `36418298213`, attempt 1 failure; attempt 2 failure.
-- eligible-universe CA coverage audit run: `36418297799`, attempt 1 failure; attempt 2 failure.
-- tests job: `108914623403`; GitHub returned an empty step list.
-- CA audit job: `108914622345`; GitHub returned an empty step list.
-- job log download was unavailable because no log blob existed.
+Run `36418298213` exposed the GitHub annotation:
 
-Multiple pre-existing source workflows triggered by the same push also failed in the same immediate/no-step pattern. That makes this an Actions/runtime-start blocker rather than evidence that the new Python logic or source audit failed.
+> The job was not started because recent account payments have failed or your spending limit needs to be increased.
 
-## Research consequence
+This explains the prior empty step lists and missing log blobs.
 
-- P2-058 is not DONE because CI has not passed.
-- P2-059 is not DONE because the source-backed audit never executed and its evidence file was not produced.
-- deterministic portfolio-level policy/capacity attribution remains locked.
-- locked OOS remains locked.
-- no source fallback, ticker exclusion, parameter tuning, seed promotion, or strategy promotion is permitted from this state.
+## Resolution
 
-The next valid action is to restore GitHub Actions job execution, rerun `tests` and `Eligible-universe CA coverage audit`, inspect the generated source evidence, and only then continue the attribution workflow.
+AstraQuant was changed back to a public repository. `bibobo2266/minervini_picks` remains private and is still treated as immutable source data.
+
+After the repository visibility change, failed runs for commit `b069770c2bcc68ef9de9c47e5d71d3f366ecb6a7` were rerun. The standard `tests` workflow (run `36418298213`, attempt 3) started normally and passed all recorded steps, including the pytest step.
+
+The source-backed eligible-universe CA coverage audit was also rerun separately; its research status is tracked under P2-059 and must be determined from the actual source audit output, not from this infrastructure resolution.
+
+## Evidence boundary
+
+This incident is infrastructure/billing evidence only. It does **not** change any source-data, RAW execution, corporate-action, accounting, signal, placebo, capacity, or performance evidence.
+
+The source repository boundary is unchanged:
+
+- writes are permitted only to `bibobo2266/AstraQuant`;
+- `bibobo2266/minervini_picks` remains strictly read-only;
+- source checkout keeps `persist-credentials: false`;
+- source checkout is made filesystem read-only before source-backed scripts run.
+
+No failed pre-resolution job is interpreted as evidence about strategy correctness or source quality.

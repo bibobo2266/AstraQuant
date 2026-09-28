@@ -31,9 +31,9 @@ Purpose: test breakout-specific cross-sectional information without portfolio-ca
 ## Empirical null distribution
 
 - expectancy percentile of baseline: 100.00%
-- one-sided empirical p-value, expectancy >= baseline: 0.0020
+- 0 / 500 null permutations reached or exceeded baseline expectancy; with the finite-sample +1 convention the reported one-sided empirical p estimate is 1/501 = 0.0020, which is the resolution floor of this 500-permutation run rather than evidence that the exact p-value equals 0.0020
 - win-rate percentile of baseline: 100.00%
-- one-sided empirical p-value, win rate >= baseline: 0.0020
+- 0 / 500 null permutations reached or exceeded baseline win rate; with the finite-sample +1 convention the reported one-sided empirical p estimate is 1/501 = 0.0020, which is the resolution floor of this 500-permutation run rather than evidence that the exact p-value equals 0.0020
 
 | Quantile | Expectancy | Win rate | Payoff ratio |
 |---:|---:|---:|---:|
