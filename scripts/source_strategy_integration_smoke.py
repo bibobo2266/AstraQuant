@@ -14,7 +14,11 @@ from astraquant.execution.fills import ExecutionFillFactory
 from astraquant.execution.market_data import ExecutionMarketData
 from astraquant.execution.service import CanonicalExecutionService, SignalDeclaration
 from astraquant.features.technical import BreakoutSignalConfig, build_simple_breakout_signals
-from astraquant.portfolio.corporate_actions import CorporateActionEvent, CorporateActionType
+from astraquant.portfolio.corporate_actions import (
+    CashEntitlementBasis,
+    CorporateActionEvent,
+    CorporateActionType,
+)
 from astraquant.portfolio.engine import PortfolioEngine
 from astraquant.portfolio.historical_runner import HistoricalCorporateActionInstruction
 from astraquant.portfolio.policy import PortfolioIntentPolicy, PortfolioPolicyConfig
@@ -60,7 +64,7 @@ def build_supported_ca(
     *,
     candidate_tickers: set[str],
     sessions: set[pd.Timestamp],
-) -> tuple[list[HistoricalCorporateActionInstruction], int]:
+) -> tuple[list[HistoricalCorporateActionInstruction], int, dict[str, int]]:
     ledger = pd.read_parquet(
         SOURCE_ROOT / "reference" / "corporate_actions_ledger.parquet",
         columns=[
@@ -79,9 +83,10 @@ def build_supported_ca(
         & ledger["event_date"].isin(sessions)
     ].copy()
 
+    supported_combined_types = {"ex_right_dividend", "capital_reduction"}
     unsupported_cash = d[
         d["cash_per_share"].gt(0)
-        & ~d["event_type"].astype(str).eq("dividend")
+        & ~d["event_type"].astype(str).isin({"dividend", *supported_combined_types})
     ]
     unsupported_count = len(unsupported_cash)
     unsupported_summary = (
@@ -92,6 +97,7 @@ def build_supported_ca(
 
     instructions: list[HistoricalCorporateActionInstruction] = []
 
+    # Ordinary dividend rows use opening shares automatically in the simulator.
     div = d[
         d["event_type"].astype(str).eq("dividend")
         & d["cash_per_share"].gt(0)
@@ -115,26 +121,79 @@ def build_supported_ca(
             HistoricalCorporateActionInstruction(event=event, applied_at=event.effective_at)
         )
 
+    # Official TPEx ex-right/dividend rows encode cash per pre-event share and,
+    # when present, a stock distribution as multiplier=1+stock/1000.
+    # Capital-reduction refund is likewise per pre-mutation share.
+    combined = d[
+        d["event_type"].astype(str).isin(supported_combined_types)
+        & d["cash_per_share"].gt(0)
+    ].copy()
+    for (ticker, day, source_type), g in combined.groupby(
+        ["stock_id", "event_date", "event_type"],
+        sort=True,
+    ):
+        cash_vals = sorted(set(round(float(v), 8) for v in g["cash_per_share"].dropna()))
+        if len(cash_vals) != 1:
+            raise SystemExit(
+                f"BLOCKED: conflicting cash values {ticker} {day} {source_type}: {cash_vals}"
+            )
+        mult_vals = sorted(set(round(float(v), 10) for v in g["share_multiplier"].dropna()))
+        if len(mult_vals) > 1:
+            raise SystemExit(
+                f"BLOCKED: conflicting share multipliers {ticker} {day} {source_type}: {mult_vals}"
+            )
+        row = g.sort_values(["source_name", "source_url"]).iloc[0]
+        multiplier = mult_vals[0] if mult_vals else None
+        mapped_type = (
+            CorporateActionType.CAPITAL_REDUCTION
+            if str(source_type) == "capital_reduction"
+            else CorporateActionType.STOCK_DIVIDEND
+        )
+        component = (
+            "CAPITAL_REDUCTION_REFUND"
+            if str(source_type) == "capital_reduction"
+            else "EX_RIGHT_DIVIDEND_CASH"
+        )
+        event = CorporateActionEvent(
+            event_id=f"smoke:{ticker}:{pd.Timestamp(day).date()}:{source_type}",
+            ticker=str(ticker),
+            event_type=mapped_type,
+            effective_at=datetime.combine(pd.Timestamp(day).date(), datetime.min.time()),
+            known_at=None if pd.isna(row["known_date"]) else pd.Timestamp(row["known_date"]).to_pydatetime(),
+            cash_per_share=float(cash_vals[0]),
+            share_multiplier=None if multiplier is None else float(multiplier),
+            source=str(row["source_name"]),
+            notes=str(row["source_url"]),
+        )
+        instructions.append(
+            HistoricalCorporateActionInstruction(
+                event=event,
+                applied_at=event.effective_at,
+                component=component,
+                cash_share_basis_mode=CashEntitlementBasis.OPENING_POSITION,
+            )
+        )
+
+    # Share-only events not already represented by a combined cash instruction.
     share = d[d["share_multiplier"].gt(0)].copy()
     for (ticker, day, source_type), g in share.groupby(
         ["stock_id", "event_date", "event_type"],
         sort=True,
     ):
+        if str(source_type) in supported_combined_types and bool(g["cash_per_share"].gt(0).any()):
+            continue
         vals = sorted(set(round(float(v), 10) for v in g["share_multiplier"].dropna()))
         if len(vals) != 1:
             raise SystemExit(
                 f"BLOCKED: conflicting share multipliers {ticker} {day} {source_type}: {vals}"
             )
-        # Skip rows already represented by an unsupported cash component; the
-        # smoke must not silently apply only half of an economic event.
-        if bool(g["cash_per_share"].gt(0).any()) and str(source_type) != "dividend":
-            continue
         row = g.sort_values(["source_name", "source_url"]).iloc[0]
-        mapped = (
-            CorporateActionType.CAPITAL_REDUCTION
-            if "capital_reduction" in str(source_type)
-            else CorporateActionType.SPLIT
-        )
+        if str(source_type) == "capital_reduction":
+            mapped = CorporateActionType.CAPITAL_REDUCTION
+        elif str(source_type) == "ex_right_dividend":
+            mapped = CorporateActionType.STOCK_DIVIDEND
+        else:
+            mapped = CorporateActionType.SPLIT
         event = CorporateActionEvent(
             event_id=f"smoke:{ticker}:{pd.Timestamp(day).date()}:{source_type}",
             ticker=str(ticker),
