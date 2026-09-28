@@ -305,6 +305,10 @@ class CanonicalStrategySimulator:
                     )
 
                 self.policy.apply_corporate_action(event)
+                if item.successor_ticker is not None and item.successor_legs:
+                    raise ValueError(
+                        f"event {event.event_id} cannot declare both single and composite successors"
+                    )
                 if item.successor_ticker is not None:
                     if item.successor_multiplier is None:
                         raise ValueError(
@@ -323,6 +327,22 @@ class CanonicalStrategySimulator:
                         quantity_multiplier=item.successor_multiplier,
                     )
                     latest_ca_session[str(item.successor_ticker)] = day
+                if item.successor_legs:
+                    self.portfolio.corporate_actions.convert_security_composite(
+                        event=event,
+                        positions=self.portfolio.positions,
+                        legs=item.successor_legs,
+                        cash_value_weight=item.cash_value_weight,
+                        applied_at=economic_apply_at,
+                    )
+                    self.policy.convert_security_composite(
+                        from_ticker=str(event.ticker),
+                        legs=item.successor_legs,
+                        cash_per_source_share=float(event.cash_per_share or 0.0),
+                        cash_value_weight=item.cash_value_weight,
+                    )
+                    for leg in item.successor_legs:
+                        latest_ca_session[str(leg.to_ticker)] = day
                 cash_for_mark = float(event.cash_per_share or 0.0)
                 multiplier_for_mark = float(event.share_multiplier or 1.0)
                 if cash_for_mark != 0.0 or multiplier_for_mark != 1.0:

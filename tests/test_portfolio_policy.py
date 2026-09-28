@@ -10,6 +10,7 @@ from astraquant.execution.market_data import (
     TradabilityState,
 )
 from astraquant.portfolio.corporate_actions import CorporateActionEvent, CorporateActionType
+from astraquant.portfolio.models import SecurityConversionLeg
 from astraquant.portfolio.policy import (
     CapacitySelectionRule,
     EntryCandidate,
@@ -303,3 +304,39 @@ def test_hash_capacity_rule_is_reproducible_and_order_independent():
         available_cash=1_000_000.0,
     )
     assert [x.ticker for x in p1] == [x.ticker for x in p2]
+
+
+def test_policy_composite_conversion_preserves_residual_stop_value():
+    policy = PortfolioIntentPolicy(
+        PortfolioPolicyConfig(
+            position_fraction=0.10,
+            max_positions=10,
+            stop_fraction=0.12,
+        )
+    )
+    original = policy.register_entry(
+        ticker="2823",
+        quantity=1000,
+        fill_price=30.0,
+        session_index=10,
+    )
+
+    legs = (
+        SecurityConversionLeg("2883", 0.8, 0.3681097069104598),
+        SecurityConversionLeg("2883B", 0.73, 0.24536165635923635),
+    )
+    created = policy.convert_security_composite(
+        from_ticker="2823",
+        legs=legs,
+        cash_per_source_share=11.5,
+        cash_value_weight=0.38652863673030385,
+    )
+
+    assert "2823" not in policy.managed_positions
+    assert {x.ticker for x in created} == {"2883", "2883B"}
+    residual_stop_before = (original.stop_price - 11.5) * 1000
+    residual_stop_after = sum(x.stop_price * x.quantity for x in created)
+    assert residual_stop_after == pytest.approx(residual_stop_before)
+    assert sum(x.entry_price * x.quantity for x in created) == pytest.approx(
+        30000.0 * (1.0 - 0.38652863673030385)
+    )

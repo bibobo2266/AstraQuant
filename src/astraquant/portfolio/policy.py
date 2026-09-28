@@ -8,6 +8,7 @@ import numpy as np
 
 from astraquant.execution.market_data import ExecutionAvailability, ExecutionPriceDecision
 from astraquant.portfolio.corporate_actions import CorporateActionEvent
+from astraquant.portfolio.models import SecurityConversionLeg
 
 
 class ExitReason(str, Enum):
@@ -310,3 +311,73 @@ class PortfolioIntentPolicy:
         if last is not None and to_ticker not in self.last_entry_index:
             self.last_entry_index[to_ticker] = last
         return state
+
+
+    def convert_security_composite(
+        self,
+        *,
+        from_ticker: str,
+        legs: tuple[SecurityConversionLeg, ...],
+        cash_per_source_share: float,
+        cash_value_weight: float,
+    ) -> tuple[ManagedPosition, ...]:
+        """Split managed state across successor legs with explicit economics.
+
+        Cash consideration reduces the predecessor stop value first. The
+        remaining stop value is allocated across successor legs in proportion to
+        their declared value weights. This preserves aggregate residual stop
+        value at conversion without inventing a market fill.
+        """
+
+        from_ticker = str(from_ticker)
+        state = self.managed_positions.get(from_ticker)
+        if state is None:
+            return ()
+        if len(legs) < 2:
+            raise ValueError("composite policy conversion requires at least two legs")
+        if cash_per_source_share < 0:
+            raise ValueError("cash_per_source_share must be non-negative")
+
+        successor_weight = sum(float(leg.value_weight) for leg in legs)
+        if successor_weight <= 0:
+            raise ValueError("successor value weight must be positive")
+        if abs(successor_weight + float(cash_value_weight) - 1.0) > 1e-9:
+            raise ValueError("composite policy weights must sum to 1")
+        for leg in legs:
+            if str(leg.to_ticker) in self.managed_positions:
+                raise ValueError(
+                    f"cannot convert into already-managed successor: {leg.to_ticker}"
+                )
+
+        old = self.managed_positions.pop(from_ticker)
+        original_quantity = float(old.quantity)
+        original_entry_total = float(old.entry_price) * original_quantity
+        residual_stop_total = max(
+            1e-12,
+            (float(old.stop_price) - float(cash_per_source_share))
+            * original_quantity,
+        )
+
+        created: list[ManagedPosition] = []
+        for leg in legs:
+            quantity = original_quantity * float(leg.quantity_multiplier)
+            relative_successor_weight = float(leg.value_weight) / successor_weight
+            created_state = ManagedPosition(
+                ticker=str(leg.to_ticker),
+                quantity=quantity,
+                entry_session_index=old.entry_session_index,
+                entry_price=(
+                    original_entry_total * float(leg.value_weight) / quantity
+                ),
+                stop_price=(
+                    residual_stop_total * relative_successor_weight / quantity
+                ),
+            )
+            self.managed_positions[created_state.ticker] = created_state
+            created.append(created_state)
+
+        last = self.last_entry_index.get(from_ticker)
+        if last is not None:
+            for leg in legs:
+                self.last_entry_index.setdefault(str(leg.to_ticker), last)
+        return tuple(created)

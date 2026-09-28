@@ -101,6 +101,7 @@ def _trade_frame(portfolio: PortfolioEngine) -> pd.DataFrame:
         fills=_all_fills(portfolio),
         share_mutations=ca.share_mutations.values(),
         security_conversions=ca.security_conversions.values(),
+        composite_conversions=ca.composite_conversions.values(),
         position_extinguishments=ca.position_extinguishments.values(),
         cash_entitlements=cash_entitlements,
     )

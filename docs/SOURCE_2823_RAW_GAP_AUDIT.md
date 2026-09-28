@@ -84,3 +84,9 @@ References:
 4. Rerun P2-062 on the unchanged P2-060 common-support universe. Do not exclude 2823 merely because the reverse rule selected it.
 
 Until those conditions are met, P2-062 remains blocked. No adjusted-price fallback, stale-price substitution, or silent ticker exclusion is permitted.
+
+## Remediation implementation
+
+AstraQuant now has a generic composite-conversion model rather than a 2823-specific bypass. The declared 2823 terms are 0.80 share of 2883 common, 0.73 share of 2883B preferred, plus TWD 11.5 cash per predecessor share. Successor/cash value weights are frozen from the disclosed deal-value inputs: 0.8 x 13.69 for common, 0.73 x 10.0 for preferred, and 11.5 cash, normalized across the three consideration legs. These weights preserve total predecessor basis and aggregate residual stop value; they are not fitted to backtest results.
+
+Implementation still requires CI and a source-backed P2-062 rerun to prove that canonical RAW/tradability for both successor legs is available when needed. Until that passes, P2-062 is not DONE and locked OOS remains closed.

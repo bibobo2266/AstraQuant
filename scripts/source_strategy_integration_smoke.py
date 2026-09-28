@@ -25,6 +25,7 @@ from astraquant.portfolio.corporate_actions import (
 )
 from astraquant.portfolio.engine import PortfolioEngine
 from astraquant.portfolio.historical_runner import HistoricalCorporateActionInstruction
+from astraquant.portfolio.models import SecurityConversionLeg
 from astraquant.portfolio.policy import PortfolioIntentPolicy, PortfolioPolicyConfig
 from astraquant.portfolio.strategy_simulator import (
     CanonicalStrategySimulator,
@@ -62,6 +63,31 @@ CURATED_TERMINAL_EVENTS = [
         "cash_per_share": 42.5,
         "source": "MOPS/TWSE cash share-conversion disclosure",
         "source_url": "https://www.moneydj.com/kmdj/news/newsviewer.aspx?a=08e82787-ac21-4b82-a7e5-0457c205ba74",
+    },
+]
+
+CURATED_COMPOSITE_CONVERSIONS = [
+    {
+        "ticker": "2823",
+        "known_at": datetime(2021, 11, 16, 9, 3),
+        "terminal_stale_from": pd.Timestamp("2021-12-20").date(),
+        "effective_at": datetime(2021, 12, 30),
+        "cash_per_share": 11.5,
+        "successor_legs": (
+            SecurityConversionLeg(
+                to_ticker="2883",
+                quantity_multiplier=0.8,
+                value_weight=0.3681097069104598,
+            ),
+            SecurityConversionLeg(
+                to_ticker="2883B",
+                quantity_multiplier=0.73,
+                value_weight=0.24536165635923635,
+            ),
+        ),
+        "cash_value_weight": 0.38652863673030385,
+        "source": "MOPS share-conversion disclosure; value weights use disclosed 20-day common reference price 13.69, preferred issue price 10.0, and cash 11.5",
+        "source_url": "https://www.moneydj.com/kmdj/news/newsviewer.aspx?a=bdb8cd34-7c85-499c-8e74-610c995a8dc6",
     },
 ]
 
@@ -322,6 +348,39 @@ def build_supported_ca(
                 terminal_stale_from=item["terminal_stale_from"],
                 successor_ticker=successor_ticker,
                 successor_multiplier=float(item["successor_multiplier"]),
+            )
+        )
+
+    for item in CURATED_COMPOSITE_CONVERSIONS:
+        ticker = str(item["ticker"])
+        effective_at = item["effective_at"]
+        if (
+            ticker not in candidate_tickers
+            or effective_at.date() < session_start.date()
+            or effective_at.date() > session_end.date()
+        ):
+            continue
+        for leg in item["successor_legs"]:
+            candidate_tickers.add(str(leg.to_ticker))
+        event = CorporateActionEvent(
+            event_id=f"composite:{ticker}:{effective_at.date()}",
+            ticker=ticker,
+            event_type=CorporateActionType.MERGER,
+            effective_at=effective_at,
+            known_at=item["known_at"],
+            cash_per_share=float(item["cash_per_share"]),
+            source=str(item["source"]),
+            notes=str(item["source_url"]),
+        )
+        instructions.append(
+            HistoricalCorporateActionInstruction(
+                event=event,
+                applied_at=event.effective_at,
+                component="MERGER_CASHOUT_PARTIAL",
+                cash_share_basis_mode=CashEntitlementBasis.OPENING_POSITION,
+                terminal_stale_from=item["terminal_stale_from"],
+                successor_legs=tuple(item["successor_legs"]),
+                cash_value_weight=float(item["cash_value_weight"]),
             )
         )
 

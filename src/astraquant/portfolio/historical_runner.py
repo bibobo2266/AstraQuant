@@ -12,7 +12,7 @@ from astraquant.portfolio.corporate_actions import (
     CorporateActionEvent,
     CorporateActionType,
 )
-from astraquant.portfolio.models import OrderIntent
+from astraquant.portfolio.models import OrderIntent, SecurityConversionLeg
 from astraquant.portfolio.replay_runner import CanonicalPortfolioReplay, ReplaySnapshot
 
 
@@ -41,6 +41,8 @@ class HistoricalCorporateActionInstruction:
     extinguish_position: bool = False
     successor_ticker: str | None = None
     successor_multiplier: float | None = None
+    successor_legs: tuple[SecurityConversionLeg, ...] = ()
+    cash_value_weight: float = 0.0
 
 
 @dataclass(frozen=True)
@@ -181,6 +183,10 @@ class HistoricalPortfolioRunner:
                         event=event,
                         applied_at=economic_apply_at,
                     )
+                if item.successor_ticker is not None and item.successor_legs:
+                    raise HistoricalReplayError(
+                        f"event {event.event_id} cannot declare both single and composite successors"
+                    )
                 if item.successor_ticker is not None:
                     if item.successor_multiplier is None:
                         raise HistoricalReplayError(
@@ -191,6 +197,14 @@ class HistoricalPortfolioRunner:
                         positions=self.replay.portfolio.positions,
                         to_ticker=item.successor_ticker,
                         quantity_multiplier=item.successor_multiplier,
+                        applied_at=economic_apply_at,
+                    )
+                if item.successor_legs:
+                    self.replay.portfolio.corporate_actions.convert_security_composite(
+                        event=event,
+                        positions=self.replay.portfolio.positions,
+                        legs=item.successor_legs,
+                        cash_value_weight=item.cash_value_weight,
                         applied_at=economic_apply_at,
                     )
                 if item.extinguish_position:

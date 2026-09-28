@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from .models import Fill, Position, PositionExtinguishment, PositionSecurityConversion, PositionShareMutation
+from .models import Fill, Position, PositionCompositeConversion, PositionExtinguishment, PositionSecurityConversion, PositionShareMutation
 
 
 class PortfolioLedger:
@@ -11,6 +11,7 @@ class PortfolioLedger:
         self.applied_share_mutation_ids: set[str] = set()
         self.applied_extinguishment_ids: set[str] = set()
         self.applied_security_conversion_ids: set[str] = set()
+        self.applied_composite_conversion_ids: set[str] = set()
 
     def apply_fill(self, fill: Fill) -> Position:
         pos = self.positions.setdefault(fill.ticker, Position(ticker=fill.ticker))
@@ -125,3 +126,47 @@ class PortfolioLedger:
 
         self.applied_security_conversion_ids.add(conversion.event_id)
         return target
+
+
+    def apply_composite_conversion(
+        self,
+        conversion: PositionCompositeConversion,
+    ) -> tuple[Position, ...]:
+        if conversion.event_id in self.applied_composite_conversion_ids:
+            raise ValueError(
+                f"duplicate composite conversion event id: {conversion.event_id}"
+            )
+
+        source = self.positions.setdefault(
+            conversion.from_ticker,
+            Position(ticker=conversion.from_ticker),
+        )
+        if source.quantity < 0:
+            raise ValueError("negative positions are unsupported")
+
+        created: list[Position] = []
+        if source.quantity > 0:
+            source_quantity = float(source.quantity)
+            source_total_cost = float(source.avg_cost) * source_quantity
+            for leg in conversion.legs:
+                target = self.positions.setdefault(
+                    leg.to_ticker,
+                    Position(ticker=leg.to_ticker),
+                )
+                if target.quantity < 0:
+                    raise ValueError("negative positions are unsupported")
+                new_quantity = source_quantity * leg.quantity_multiplier
+                transferred_cost = source_total_cost * leg.value_weight
+                existing_cost = target.avg_cost * target.quantity
+                combined_quantity = target.quantity + new_quantity
+                target.avg_cost = (
+                    existing_cost + transferred_cost
+                ) / combined_quantity
+                target.quantity = combined_quantity
+                created.append(target)
+
+            source.quantity = 0.0
+            source.avg_cost = 0.0
+
+        self.applied_composite_conversion_ids.add(conversion.event_id)
+        return tuple(created)

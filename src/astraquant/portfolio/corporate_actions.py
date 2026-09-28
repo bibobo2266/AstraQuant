@@ -6,7 +6,7 @@ from enum import Enum
 from typing import TYPE_CHECKING
 
 from astraquant.portfolio.cash import CashAccount
-from astraquant.portfolio.models import PositionExtinguishment, PositionSecurityConversion, PositionShareMutation
+from astraquant.portfolio.models import PositionCompositeConversion, PositionExtinguishment, PositionSecurityConversion, PositionShareMutation, SecurityConversionLeg
 
 if TYPE_CHECKING:
     from astraquant.portfolio.ledger import PortfolioLedger
@@ -88,6 +88,7 @@ class CorporateActionAccounting:
         self.share_mutations: dict[str, PositionShareMutation] = {}
         self.position_extinguishments: dict[str, PositionExtinguishment] = {}
         self.security_conversions: dict[str, PositionSecurityConversion] = {}
+        self.composite_conversions: dict[str, PositionCompositeConversion] = {}
         self.cash_entitlement_receivables: dict[str, CorporateActionCashReceivable] = {}
         self.completed_cash_entitlements: dict[str, CorporateActionCashReceivable] = {}
 
@@ -289,4 +290,41 @@ class CorporateActionAccounting:
         )
         positions.apply_security_conversion(conversion)
         self.security_conversions[event.event_id] = conversion
+        return conversion
+
+
+    def convert_security_composite(
+        self,
+        *,
+        event: CorporateActionEvent,
+        positions: "PortfolioLedger",
+        legs: tuple[SecurityConversionLeg, ...],
+        cash_value_weight: float,
+        applied_at: datetime,
+    ) -> PositionCompositeConversion:
+        """Convert one predecessor into multiple successor securities plus optional cash.
+
+        The economic consideration and value weights must be explicit. AstraQuant
+        never infers successor identities, ratios, or basis/value allocation from
+        adjusted prices.
+        """
+
+        if event.event_type is not CorporateActionType.MERGER:
+            raise ValueError("composite security conversion requires MERGER event type")
+        if applied_at < event.effective_at:
+            raise ValueError("cannot convert security before effective date")
+        if event.event_id in self.composite_conversions:
+            raise ValueError(f"duplicate composite conversion event id: {event.event_id}")
+
+        conversion = PositionCompositeConversion(
+            event_id=event.event_id,
+            from_ticker=str(event.ticker),
+            legs=tuple(legs),
+            effective_at=event.effective_at,
+            cash_per_source_share=float(event.cash_per_share or 0.0),
+            cash_value_weight=float(cash_value_weight),
+            source=event.source,
+        )
+        positions.apply_composite_conversion(conversion)
+        self.composite_conversions[event.event_id] = conversion
         return conversion

@@ -6,6 +6,7 @@ from typing import Iterable
 
 from astraquant.portfolio.models import (
     Fill,
+    PositionCompositeConversion,
     PositionExtinguishment,
     PositionSecurityConversion,
     PositionShareMutation,
@@ -66,6 +67,7 @@ def reconstruct_fifo_trades(
     fills: Iterable[Fill],
     share_mutations: Iterable[PositionShareMutation] = (),
     security_conversions: Iterable[PositionSecurityConversion] = (),
+    composite_conversions: Iterable[PositionCompositeConversion] = (),
     position_extinguishments: Iterable[PositionExtinguishment] = (),
     cash_entitlements: Iterable[CorporateActionCashReceivable] = (),
     tolerance: float = 1e-9,
@@ -83,6 +85,8 @@ def reconstruct_fifo_trades(
     for mutation in share_mutations:
         events.append((mutation.effective_at, 0, mutation.event_id, mutation))
     for conversion in security_conversions:
+        events.append((conversion.effective_at, 1, conversion.event_id, conversion))
+    for conversion in composite_conversions:
         events.append((conversion.effective_at, 1, conversion.event_id, conversion))
     entitlement_by_event = {x.event_id: x for x in cash_entitlements}
     for extinguishment in position_extinguishments:
@@ -115,6 +119,64 @@ def reconstruct_fifo_trades(
                 target = queues.setdefault(target_ticker, [])
                 target.extend(moved)
                 target.sort(key=lambda lot: (lot.opened_at, lot.sequence))
+            continue
+
+        if isinstance(event, PositionCompositeConversion):
+            source_ticker = str(event.from_ticker)
+            moved = queues.pop(source_ticker, [])
+            if not moved:
+                continue
+
+            for lot in moved:
+                original_quantity = float(lot.quantity)
+                original_unit_cost = float(lot.unit_cost)
+
+                if event.cash_per_source_share > 0:
+                    cash_basis_per_share = original_unit_cost * event.cash_value_weight
+                    realized = (
+                        float(event.cash_per_source_share) - cash_basis_per_share
+                    ) * original_quantity
+                    closed.append(
+                        ReconstructedClosedLot(
+                            entry_ticker=lot.entry_ticker,
+                            exit_ticker=source_ticker,
+                            quantity=original_quantity,
+                            entry_price_with_fees=cash_basis_per_share,
+                            exit_price=float(event.cash_per_source_share),
+                            entry_at=lot.opened_at,
+                            exit_at=event.effective_at,
+                            source_fill_id=lot.source_fill_id,
+                            exit_fill_id=None,
+                            allocated_exit_fees=0.0,
+                            realized_pnl=realized,
+                            exit_event_id=event.event_id,
+                            exit_kind="COMPOSITE_CASH_CONSIDERATION",
+                        )
+                    )
+
+                for leg in event.legs:
+                    new_quantity = original_quantity * float(leg.quantity_multiplier)
+                    new_unit_cost = (
+                        original_unit_cost * float(leg.value_weight)
+                        / float(leg.quantity_multiplier)
+                    )
+                    target = queues.setdefault(str(leg.to_ticker), [])
+                    target.append(
+                        _Lot(
+                            ticker=str(leg.to_ticker),
+                            quantity=new_quantity,
+                            unit_cost=new_unit_cost,
+                            opened_at=lot.opened_at,
+                            source_fill_id=lot.source_fill_id,
+                            entry_ticker=lot.entry_ticker,
+                            sequence=lot.sequence,
+                        )
+                    )
+
+            for leg in event.legs:
+                queues[str(leg.to_ticker)].sort(
+                    key=lambda lot: (lot.opened_at, lot.sequence)
+                )
             continue
 
         if isinstance(event, PositionExtinguishment):
