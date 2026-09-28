@@ -48,3 +48,12 @@ class PositionShareMutation:
     def __post_init__(self) -> None:
         if self.share_multiplier <= 0:
             raise ValueError("share_multiplier must be positive")
+
+
+@dataclass(frozen=True)
+class PositionExtinguishment:
+    event_id: str
+    ticker: str
+    effective_at: datetime
+    source: str = ""
+
