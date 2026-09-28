@@ -76,6 +76,22 @@ def load_tradability(adjusted: pd.DataFrame) -> pd.DataFrame:
     return d[d["date"].ge(first_adjusted)].copy()
 
 
+def pit_unsafe_ca_tickers(
+    *,
+    start: pd.Timestamp,
+    end: pd.Timestamp,
+) -> set[str]:
+    dividend = pd.read_parquet(SOURCE_ROOT / "fundamentals" / "dividend.parquet")
+    actions = build_finmind_normalized_actions(dividend)
+    return {
+        a.ticker
+        for a in actions
+        if start.date() <= a.effective_date <= end.date()
+        and a.known_at is not None
+        and a.known_at.date() > a.effective_date
+    }
+
+
 def build_supported_ca(
     *,
     candidate_tickers: set[str],
@@ -227,6 +243,21 @@ def main() -> None:
     signals = all_signals[
         all_signals["signal_date"].between(SIGNAL_START, SIGNAL_END)
     ].copy()
+
+    # Quarantine tickers whose normalized corporate-action detail was not
+    # available by the economic effective date. This is a source/PIT quality
+    # exclusion, not a performance-based filter.
+    quarantined_tickers = pit_unsafe_ca_tickers(
+        start=SIGNAL_START,
+        end=SIGNAL_END,
+    )
+    quarantined_signal_rows = int(
+        signals["stock_id"].astype(str).isin(quarantined_tickers).sum()
+    )
+    signals = signals[
+        ~signals["stock_id"].astype(str).isin(quarantined_tickers)
+    ].copy()
+
     if signals.empty:
         raise SystemExit("BLOCKED: no canonical breakout signals in smoke window")
 
@@ -311,6 +342,7 @@ def main() -> None:
         "settled_cash_nonnegative": portfolio.cash.settled_cash >= -1e-9,
         "no_adjusted_execution_fallback": True,
         "unsupported_ca_cash_zero": unsupported_ca_cash == 0,
+        "pit_unsafe_ca_tickers_excluded": not bool(candidate_tickers & quarantined_tickers),
     }
     status = "PASS" if all(checks.values()) else "FAIL"
 
@@ -329,6 +361,8 @@ def main() -> None:
         f"- session count / RAW NAV snapshots: {len(result.sessions):,}",
         f"- canonical signal candidates supplied: {len(signals):,}",
         f"- candidate tickers in scoped execution source: {len(candidate_tickers):,}",
+        f"- PIT-unsafe CA tickers quarantined: {len(quarantined_tickers):,}",
+        f"- signal rows removed by PIT CA quarantine: {quarantined_signal_rows:,}",
         "- integration-only policy: 10% NAV target, max 10 positions, 12% RAW stop, 20-session re-entry gap, 250-session max hold, 1000-share lot, seed 0",
         "",
         "## Accounting/event audit counts",
