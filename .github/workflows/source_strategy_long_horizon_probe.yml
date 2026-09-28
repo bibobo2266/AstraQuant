@@ -6,6 +6,8 @@ on:
     branches: [main]
     paths:
       - ".github/workflows/source_strategy_long_horizon_probe.yml"
+      - "scripts/source_strategy_integration_smoke.py"
+      - "src/astraquant/portfolio/strategy_simulator.py"
 
 permissions:
   contents: write
