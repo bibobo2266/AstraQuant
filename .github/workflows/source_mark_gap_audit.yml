@@ -46,8 +46,8 @@ jobs:
         env:
           SOURCE_ROOT: ../source_runtime/minervini_picks/data
           REPORT_PATH: docs/SOURCE_MARK_GAP_AUDIT.md
-          TICKER: "6251"
-          TARGET_DATE: "2022-08-15"
+          TICKER: "5305"
+          TARGET_DATE: "2020-11-24"
         run: python scripts/source_mark_gap_audit.py
 
       - name: Publish summary
