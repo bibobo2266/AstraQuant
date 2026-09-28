@@ -6,7 +6,7 @@ from enum import Enum
 from typing import TYPE_CHECKING
 
 from astraquant.portfolio.cash import CashAccount
-from astraquant.portfolio.models import PositionExtinguishment, PositionShareMutation
+from astraquant.portfolio.models import PositionExtinguishment, PositionSecurityConversion, PositionShareMutation
 
 if TYPE_CHECKING:
     from astraquant.portfolio.ledger import PortfolioLedger
@@ -87,6 +87,7 @@ class CorporateActionAccounting:
         self.completed_dividends: dict[str, DividendReceivable] = {}
         self.share_mutations: dict[str, PositionShareMutation] = {}
         self.position_extinguishments: dict[str, PositionExtinguishment] = {}
+        self.security_conversions: dict[str, PositionSecurityConversion] = {}
         self.cash_entitlement_receivables: dict[str, CorporateActionCashReceivable] = {}
         self.completed_cash_entitlements: dict[str, CorporateActionCashReceivable] = {}
 
@@ -259,3 +260,33 @@ class CorporateActionAccounting:
         positions.apply_position_extinguishment(mutation)
         self.position_extinguishments[event.event_id] = mutation
         return mutation
+
+
+    def convert_security(
+        self,
+        *,
+        event: CorporateActionEvent,
+        positions: "PortfolioLedger",
+        to_ticker: str,
+        quantity_multiplier: float,
+        applied_at: datetime,
+    ) -> PositionSecurityConversion:
+        """Convert a held security into an explicit successor security."""
+
+        if event.event_type is not CorporateActionType.MERGER:
+            raise ValueError("security conversion currently requires MERGER event type")
+        if applied_at < event.effective_at:
+            raise ValueError("cannot convert security before effective date")
+        if event.event_id in self.security_conversions:
+            raise ValueError(f"duplicate security conversion event id: {event.event_id}")
+        conversion = PositionSecurityConversion(
+            event_id=event.event_id,
+            from_ticker=str(event.ticker),
+            to_ticker=str(to_ticker),
+            quantity_multiplier=float(quantity_multiplier),
+            effective_at=event.effective_at,
+            source=event.source,
+        )
+        positions.apply_security_conversion(conversion)
+        self.security_conversions[event.event_id] = conversion
+        return conversion
