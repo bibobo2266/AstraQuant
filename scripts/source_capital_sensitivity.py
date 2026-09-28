@@ -223,7 +223,9 @@ def main() -> None:
     REPORT_PATH.parent.mkdir(parents=True, exist_ok=True)
     REPORT_PATH.write_text("\n".join(lines) + "\n", encoding="utf-8")
     if status != "PASS":
-        raise SystemExit("FAIL: starting-capital sensitivity gate failed")
+        failed = [name for name, ok in checks.items() if not ok]
+        print(REPORT_PATH.read_text(encoding="utf-8"))
+        raise SystemExit(f"FAIL: starting-capital sensitivity gate failed: {failed}")
 
 
 if __name__ == "__main__":
