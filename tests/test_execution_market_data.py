@@ -427,3 +427,119 @@ def test_stop_fill_respects_sell_block(tmp_path):
 
     assert decision.availability is ExecutionAvailability.NOT_EXECUTABLE
     assert decision.reason == "SELL_BLOCKED"
+
+
+def test_stale_raw_mark_uses_prior_close_only_for_active_span_gap(tmp_path):
+    source = _write_source(
+        tmp_path,
+        raw_rows=[{
+            "date": "2026-09-23",
+            "stock_id": "2330",
+            "open": 100.0,
+            "max": 105.0,
+            "min": 99.0,
+            "close": 103.0,
+        }],
+        trad_rows=[
+            {
+                "date": "2026-09-23",
+                "stock_id": "2330",
+                "observed_trade": True,
+                "valid_ohlc": True,
+                "buy_blocked": False,
+                "sell_blocked": False,
+                "reason": "OBSERVED",
+            },
+            {
+                "date": "2026-09-24",
+                "stock_id": "2330",
+                "observed_trade": False,
+                "valid_ohlc": False,
+                "buy_blocked": True,
+                "sell_blocked": True,
+                "reason": "NO_TRADE_ROW_WITHIN_ACTIVE_SPAN",
+            },
+        ],
+    )
+    market = ExecutionMarketData(source)
+
+    decision = market.resolve_mark(
+        ticker="2330",
+        session_date=date(2026, 9, 24),
+        field="close",
+    )
+
+    assert decision.availability is ExecutionAvailability.EXECUTABLE
+    assert decision.reason == "STALE_RAW_MARK"
+    assert decision.price == 103.0
+    assert decision.bar is not None
+    assert decision.bar.session_date == date(2026, 9, 23)
+
+
+def test_stale_raw_mark_does_not_enable_execution(tmp_path):
+    source = _write_source(
+        tmp_path,
+        raw_rows=[{
+            "date": "2026-09-23",
+            "stock_id": "2330",
+            "open": 100.0,
+            "max": 105.0,
+            "min": 99.0,
+            "close": 103.0,
+        }],
+        trad_rows=[{
+            "date": "2026-09-24",
+            "stock_id": "2330",
+            "observed_trade": False,
+            "valid_ohlc": False,
+            "buy_blocked": True,
+            "sell_blocked": True,
+            "reason": "NO_TRADE_ROW_WITHIN_ACTIVE_SPAN",
+        }],
+    )
+    market = ExecutionMarketData(source)
+
+    entry = market.resolve(
+        ticker="2330",
+        session_date=date(2026, 9, 24),
+        side="buy",
+        use=PriceUse.ENTRY,
+        field="open",
+    )
+
+    assert entry.availability is ExecutionAvailability.NOT_EXECUTABLE
+    assert entry.price is None
+
+
+def test_stale_raw_mark_respects_corporate_action_barrier(tmp_path):
+    source = _write_source(
+        tmp_path,
+        raw_rows=[{
+            "date": "2026-09-23",
+            "stock_id": "2330",
+            "open": 100.0,
+            "max": 105.0,
+            "min": 99.0,
+            "close": 103.0,
+        }],
+        trad_rows=[{
+            "date": "2026-09-24",
+            "stock_id": "2330",
+            "observed_trade": False,
+            "valid_ohlc": False,
+            "buy_blocked": True,
+            "sell_blocked": True,
+            "reason": "NO_TRADE_ROW_WITHIN_ACTIVE_SPAN",
+        }],
+    )
+    market = ExecutionMarketData(source)
+
+    decision = market.resolve_mark(
+        ticker="2330",
+        session_date=date(2026, 9, 24),
+        field="close",
+        not_before=date(2026, 9, 24),
+    )
+
+    assert decision.availability is ExecutionAvailability.NOT_EXECUTABLE
+    assert decision.reason == "STALE_RAW_MARK_BLOCKED_BY_CA"
