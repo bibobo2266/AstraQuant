@@ -161,7 +161,7 @@ def main() -> None:
     lines = [
         "# Full-Universe CA/PIT Common-Support Policy",
         "",
-        "Status: **FROZEN_PENDING_WORKFLOW_PASS**",
+        "Status: **FROZEN**",
         "",
         "Purpose: freeze the corporate-action PIT common-support exclusion set before any deterministic policy/capacity attribution is run. This is a source-governance decision, not a strategy parameter and not a result-driven filter.",
         "",
