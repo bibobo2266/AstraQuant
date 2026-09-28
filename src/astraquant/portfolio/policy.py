@@ -235,3 +235,37 @@ class PortfolioIntentPolicy:
             (state.stop_price - cash_component) / multiplier,
         )
         return state
+
+
+    def convert_security(
+        self,
+        *,
+        from_ticker: str,
+        to_ticker: str,
+        quantity_multiplier: float,
+    ) -> ManagedPosition | None:
+        """Move managed policy state across an explicit successor-security conversion."""
+
+        from_ticker = str(from_ticker)
+        to_ticker = str(to_ticker)
+        if quantity_multiplier <= 0:
+            raise ValueError("quantity_multiplier must be positive")
+        state = self.managed_positions.get(from_ticker)
+        if state is None:
+            return None
+        if to_ticker in self.managed_positions:
+            raise ValueError(
+                f"cannot convert into already-managed successor: {to_ticker}"
+            )
+
+        state = self.managed_positions.pop(from_ticker)
+        state.ticker = to_ticker
+        state.quantity *= quantity_multiplier
+        state.entry_price /= quantity_multiplier
+        state.stop_price /= quantity_multiplier
+        self.managed_positions[to_ticker] = state
+
+        last = self.last_entry_index.get(from_ticker)
+        if last is not None and to_ticker not in self.last_entry_index:
+            self.last_entry_index[to_ticker] = last
+        return state
