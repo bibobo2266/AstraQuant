@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from .models import Fill, Position, PositionShareMutation
+from .models import Fill, Position, PositionExtinguishment, PositionShareMutation
 
 
 class PortfolioLedger:
@@ -9,6 +9,7 @@ class PortfolioLedger:
     def __init__(self) -> None:
         self.positions: dict[str, Position] = {}
         self.applied_share_mutation_ids: set[str] = set()
+        self.applied_extinguishment_ids: set[str] = set()
 
     def apply_fill(self, fill: Fill) -> Position:
         pos = self.positions.setdefault(fill.ticker, Position(ticker=fill.ticker))
@@ -63,4 +64,24 @@ class PortfolioLedger:
             pos.avg_cost = old_total_cost / pos.quantity
 
         self.applied_share_mutation_ids.add(mutation.event_id)
+        return pos
+
+
+    def apply_position_extinguishment(
+        self,
+        event: PositionExtinguishment,
+    ) -> Position:
+        if event.event_id in self.applied_extinguishment_ids:
+            raise ValueError(f"duplicate position extinguishment event id: {event.event_id}")
+
+        pos = self.positions.setdefault(
+            event.ticker,
+            Position(ticker=event.ticker),
+        )
+        if pos.quantity < 0:
+            raise ValueError("negative positions are unsupported")
+
+        pos.quantity = 0.0
+        pos.avg_cost = 0.0
+        self.applied_extinguishment_ids.add(event.event_id)
         return pos
