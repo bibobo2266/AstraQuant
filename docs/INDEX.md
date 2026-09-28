@@ -44,3 +44,5 @@ Phase-1 runtime/data audit is complete with explicit limitations. Phase-2 execut
 
 - `AUDIT_TRAIL.md` — research-to-order-intent identity chain
 - `PERSISTENCE.md` — append-only governance persistence conventions
+
+- [Corporate-action source semantics clarification](CORPORATE_ACTION_SOURCE_SEMANTICS_CLARIFICATION.md) — verified source-builder meanings, entitlement basis, known/payment-date limitations, and conversion guardrails.
