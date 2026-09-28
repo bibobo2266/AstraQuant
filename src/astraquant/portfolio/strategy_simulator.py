@@ -299,6 +299,24 @@ class CanonicalStrategySimulator:
                     )
 
                 self.policy.apply_corporate_action(event)
+                if item.successor_ticker is not None:
+                    if item.successor_multiplier is None:
+                        raise ValueError(
+                            f"successor_multiplier missing for {event.event_id}"
+                        )
+                    self.portfolio.corporate_actions.convert_security(
+                        event=event,
+                        positions=self.portfolio.positions,
+                        to_ticker=item.successor_ticker,
+                        quantity_multiplier=item.successor_multiplier,
+                        applied_at=economic_apply_at,
+                    )
+                    self.policy.convert_security(
+                        from_ticker=str(event.ticker),
+                        to_ticker=str(item.successor_ticker),
+                        quantity_multiplier=item.successor_multiplier,
+                    )
+                    latest_ca_session[str(item.successor_ticker)] = day
                 cash_for_mark = float(event.cash_per_share or 0.0)
                 multiplier_for_mark = float(event.share_multiplier or 1.0)
                 if cash_for_mark != 0.0 or multiplier_for_mark != 1.0:
