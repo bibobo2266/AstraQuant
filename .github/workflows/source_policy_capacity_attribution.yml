@@ -29,7 +29,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: bibobo2266/minervini_picks
-          token: \${{ secrets.MINERVINI_READ_TOKEN }}
+          token: ${{ secrets.MINERVINI_READ_TOKEN }}
           path: source_runtime/minervini_picks
           persist-credentials: false
 
