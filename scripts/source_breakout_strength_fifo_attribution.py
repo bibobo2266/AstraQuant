@@ -181,7 +181,7 @@ def _trade_metrics(trades: pd.DataFrame) -> dict[str, float]:
     }
 
 
-def _year_block_bootstrap_mean(trades: pd.DataFrame, *, seed: int) -> tuple[float, float]:
+def _year_block_bootstrap_mean(trades: pd.DataFrame, *, seed: int) -> tuple[float, float, int]:
     years = sorted(trades["entry_year"].unique().tolist())
     if len(years) < 2:
         return float("nan"), float("nan")
@@ -202,7 +202,7 @@ def _year_block_bootstrap_mean(trades: pd.DataFrame, *, seed: int) -> tuple[floa
 def _paired_year_block_difference(
     first: pd.DataFrame,
     second: pd.DataFrame,
-) -> tuple[float, float, float]:
+) -> tuple[float, float, float, int]:
     years = sorted(set(first["entry_year"]) & set(second["entry_year"]))
     if len(years) < 2:
         return float("nan"), float("nan"), float("nan")
@@ -362,7 +362,7 @@ def main() -> None:
 
     checks = {
         "frozen_exclusion_hash_matches": True,
-        "all_six_prespecified_rules_complete": len(frame) == len(RULES),
+        "all_six_declared_rules_complete": len(frame) == len(RULES),
         "common_support_exclusion_active": not bool(ticker_scope & excluded),
         "ranking_metadata_complete": not bool(signals[["turnover_value", "breakout_excess"]].isna().any().any()),
         "all_nav_positive": bool(frame["final_nav"].gt(0).all()),
