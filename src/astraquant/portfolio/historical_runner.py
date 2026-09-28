@@ -39,6 +39,8 @@ class HistoricalCorporateActionInstruction:
     cash_share_basis_mode: CashEntitlementBasis = CashEntitlementBasis.EXPLICIT
     terminal_stale_from: date | None = None
     extinguish_position: bool = False
+    successor_ticker: str | None = None
+    successor_multiplier: float | None = None
 
 
 @dataclass(frozen=True)
@@ -177,6 +179,18 @@ class HistoricalPortfolioRunner:
                 if event.share_multiplier is not None:
                     self.replay.apply_share_mutation(
                         event=event,
+                        applied_at=economic_apply_at,
+                    )
+                if item.successor_ticker is not None:
+                    if item.successor_multiplier is None:
+                        raise HistoricalReplayError(
+                            f"successor_multiplier required for event {event.event_id}"
+                        )
+                    self.replay.portfolio.corporate_actions.convert_security(
+                        event=event,
+                        positions=self.replay.portfolio.positions,
+                        to_ticker=item.successor_ticker,
+                        quantity_multiplier=item.successor_multiplier,
                         applied_at=economic_apply_at,
                     )
                 if item.extinguish_position:
