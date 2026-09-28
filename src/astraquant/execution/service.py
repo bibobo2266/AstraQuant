@@ -94,6 +94,7 @@ class CanonicalExecutionService:
         side: str = "sell",
         field: str = "close",
         not_before: date | datetime | None = None,
+        allow_terminal_stale_without_tradability: bool = False,
     ) -> ExecutionPriceDecision:
         if side.lower() != "sell":
             raise ValueError("mark side is informational and must be sell")
@@ -102,6 +103,7 @@ class CanonicalExecutionService:
             session_date=session_date,
             field=field,
             not_before=not_before,
+            allow_terminal_stale_without_tradability=allow_terminal_stale_without_tradability,
         )
 
     def execute(
