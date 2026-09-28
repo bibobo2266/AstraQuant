@@ -42,6 +42,20 @@ REPORT_TITLE = os.environ.get(
 )
 
 
+CURATED_TERMINAL_EVENTS = [
+    {
+        "ticker": "4141",
+        "known_at": datetime(2022, 3, 30, 18, 31, 29),
+        "terminal_stale_from": pd.Timestamp("2022-04-27").date(),
+        "effective_at": datetime(2022, 5, 3),
+        "payment_at": datetime(2022, 5, 10),
+        "cash_per_share": 26.23,
+        "source": "MOPS/TWSE public merger-delisting disclosure",
+        "source_url": "https://news.cnyes.com/news/id/4844580",
+    },
+]
+
+
 def load_adjusted() -> pd.DataFrame:
     parts = []
     start_year = SIGNAL_START.year - 1
@@ -224,6 +238,37 @@ def build_supported_ca(
                 applied_at=event.effective_at,
                 component=component,
                 cash_share_basis_mode=CashEntitlementBasis.OPENING_POSITION,
+            )
+        )
+
+    for item in CURATED_TERMINAL_EVENTS:
+        ticker = str(item["ticker"])
+        effective_at = item["effective_at"]
+        if (
+            ticker not in candidate_tickers
+            or effective_at.date() < session_start.date()
+            or effective_at.date() > session_end.date()
+        ):
+            continue
+        event = CorporateActionEvent(
+            event_id=f"terminal:{ticker}:{effective_at.date()}:cash_merger",
+            ticker=ticker,
+            event_type=CorporateActionType.MERGER,
+            effective_at=effective_at,
+            known_at=item["known_at"],
+            payment_at=item["payment_at"],
+            cash_per_share=float(item["cash_per_share"]),
+            source=str(item["source"]),
+            notes=str(item["source_url"]),
+        )
+        instructions.append(
+            HistoricalCorporateActionInstruction(
+                event=event,
+                applied_at=event.effective_at,
+                component="MERGER_CASHOUT",
+                cash_share_basis_mode=CashEntitlementBasis.OPENING_POSITION,
+                terminal_stale_from=item["terminal_stale_from"],
+                extinguish_position=True,
             )
         )
 
