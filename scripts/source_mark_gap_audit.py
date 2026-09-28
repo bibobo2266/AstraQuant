@@ -6,6 +6,8 @@ from pathlib import Path
 
 import pandas as pd
 
+from astraquant.data.corporate_actions import build_finmind_normalized_actions
+
 SOURCE_ROOT = Path(os.environ.get("SOURCE_ROOT", "source_runtime/minervini_picks/data")).resolve()
 REPORT_PATH = Path(os.environ.get("REPORT_PATH", "docs/SOURCE_MARK_GAP_AUDIT.md"))
 TICKER = os.environ.get("TICKER", "8271")
@@ -53,6 +55,14 @@ def main() -> None:
         ca["stock_id"].eq(TICKER)
         & ca["event_date"].between(TARGET - pd.Timedelta(days=60), TARGET + pd.Timedelta(days=60))
     ].sort_values("event_date")
+
+    dividend = pd.read_parquet(SOURCE_ROOT / "fundamentals" / "dividend.parquet")
+    normalized = [
+        a for a in build_finmind_normalized_actions(dividend)
+        if a.ticker == TICKER
+        and TARGET.date() - pd.Timedelta(days=60) <= pd.Timestamp(a.effective_date)
+        and pd.Timestamp(a.effective_date) <= TARGET.date() + pd.Timedelta(days=60)
+    ]
 
     target_trad = trad[trad["date"].eq(TARGET)]
     prev_raw = raw[raw["date"].lt(TARGET)].tail(5)
@@ -129,6 +139,21 @@ def main() -> None:
         )
     if ca.empty:
         lines.append("| — | none | — | — | — |")
+
+    lines += [
+        "",
+        "## Normalized FinMind actions ±60 days",
+        "",
+        "| Effective date | Kind | Cash/share | Share multiplier | Known at | Payment at |",
+        "|---|---|---:|---:|---|---|",
+    ]
+    for a in normalized:
+        lines.append(
+            f"| {a.effective_date} | {a.kind.value} | {a.cash_per_share} | "
+            f"{a.share_multiplier} | {a.known_at} | {a.payment_at} |"
+        )
+    if not normalized:
+        lines.append("| — | none | — | — | — | — |")
 
     REPORT_PATH.parent.mkdir(parents=True, exist_ok=True)
     REPORT_PATH.write_text("\n".join(lines) + "\n", encoding="utf-8")
