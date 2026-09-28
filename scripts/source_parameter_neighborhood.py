@@ -95,6 +95,7 @@ def main() -> None:
     sim_sessions = market_sessions[:sim_end]
 
     rows = []
+    common_support_checks: list[bool] = []
     for scenario in SCENARIOS:
         all_signals = build_simple_breakout_signals(
             adjusted,
@@ -117,6 +118,9 @@ def main() -> None:
             ~signals["stock_id"].astype(str).isin(COMMON_SUPPORT_EXCLUDED_TICKERS)
         ].copy()
         candidate_tickers = set(signals["stock_id"].astype(str))
+        common_support_checks.append(
+            not bool(candidate_tickers & COMMON_SUPPORT_EXCLUDED_TICKERS)
+        )
 
         ca_instructions, unsupported_count, unsupported_summary = build_supported_ca(
             candidate_tickers=candidate_tickers,
@@ -199,9 +203,7 @@ def main() -> None:
         "baseline_present": int(frame["scenario"].eq("baseline").sum()) == 1,
         "all_nav_positive": bool(frame["final_nav"].gt(0).all()),
         "pit_unsafe_ca_tickers_quarantined": len(quarantined) > 0,
-        "unsupported_multi_security_terminal_excluded": not bool(
-            set().union(*[COMMON_SUPPORT_EXCLUDED_TICKERS]) & set()
-        ) or True,
+        "unsupported_multi_security_terminal_excluded": bool(all(common_support_checks)),
     }
     status = "PASS" if all(checks.values()) else "FAIL"
 
