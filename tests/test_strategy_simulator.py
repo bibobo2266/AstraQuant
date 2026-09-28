@@ -1,3 +1,4 @@
+import pytest
 from datetime import date, datetime
 
 import pandas as pd
@@ -363,3 +364,68 @@ def test_terminal_merger_carries_last_raw_then_extinguishes_and_pays(tmp_path):
     assert portfolio.cash.settled_cash == 26230.0
     assert result.sessions[1].snapshot.valuation.nav == 26100.0
     assert result.sessions[5].snapshot.valuation.nav == 26230.0
+
+
+def test_ca_transformed_mark_handles_invalid_ohlc_on_event_day(tmp_path):
+    from astraquant.portfolio.corporate_actions import (
+        CorporateActionEvent,
+        CorporateActionType,
+    )
+    from astraquant.portfolio.historical_runner import HistoricalCorporateActionInstruction
+
+    sim, portfolio, _ = _simulator(tmp_path)
+
+    raw_path = sim.execution.market_data.source.root / "raw" / "prices_raw_2026.parquet"
+    raw = pd.read_parquet(raw_path)
+    mask = (
+        raw["stock_id"].astype(str).eq("2330")
+        & pd.to_datetime(raw["date"]).eq(pd.Timestamp("2026-01-06"))
+    )
+    raw.loc[mask, "max"] = 80.0
+    raw.to_parquet(raw_path, index=False)
+
+    trad_path = sim.execution.market_data.source.root / "reference" / "tradability.parquet"
+    trad = pd.read_parquet(trad_path)
+    tmask = (
+        trad["stock_id"].astype(str).eq("2330")
+        & pd.to_datetime(trad["date"]).eq(pd.Timestamp("2026-01-06"))
+    )
+    trad.loc[tmask, "valid_ohlc"] = False
+    trad.loc[tmask, "buy_blocked"] = True
+    trad.loc[tmask, "sell_blocked"] = True
+    trad.loc[tmask, "reason"] = "INVALID_OHLC"
+    trad.to_parquet(trad_path, index=False)
+
+    sessions = [
+        date(2026, 1, 2),
+        date(2026, 1, 5),
+        date(2026, 1, 6),
+        date(2026, 1, 7),
+    ]
+    signals = pd.DataFrame(
+        [{"signal_date": "2026-01-02", "stock_id": "2330"}]
+    )
+    event = CorporateActionEvent(
+        event_id="STOCK-DIV-2330",
+        ticker="2330",
+        event_type=CorporateActionType.STOCK_DIVIDEND,
+        effective_at=datetime(2026, 1, 6),
+        share_multiplier=1.1,
+        source="test",
+    )
+
+    result = sim.run(
+        sessions=sessions,
+        signals=signals,
+        corporate_actions=[
+            HistoricalCorporateActionInstruction(
+                event=event,
+                applied_at=event.effective_at,
+            )
+        ],
+    )
+
+    day = result.sessions[2]
+    pos = next(x for x in day.snapshot.valuation.positions if x.ticker == "2330")
+    assert pos.raw_mark == pytest.approx(102.0 / 1.1)
+    assert pos.market_value == pytest.approx(2000.0 * 102.0)
