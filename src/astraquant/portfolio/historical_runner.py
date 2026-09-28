@@ -37,6 +37,8 @@ class HistoricalCorporateActionInstruction:
     component: str | None = None
     cash_share_basis: float | None = None
     cash_share_basis_mode: CashEntitlementBasis = CashEntitlementBasis.EXPLICIT
+    terminal_stale_from: date | None = None
+    extinguish_position: bool = False
 
 
 @dataclass(frozen=True)
@@ -175,6 +177,12 @@ class HistoricalPortfolioRunner:
                 if event.share_multiplier is not None:
                     self.replay.apply_share_mutation(
                         event=event,
+                        applied_at=economic_apply_at,
+                    )
+                if item.extinguish_position:
+                    self.replay.portfolio.corporate_actions.extinguish_position(
+                        event=event,
+                        positions=self.replay.portfolio.positions,
                         applied_at=economic_apply_at,
                     )
                 ca_count += 1
