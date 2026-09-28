@@ -188,3 +188,49 @@ def test_max_hold_exit_uses_raw_close(tmp_path):
     order = portfolio.orders.orders["order:maxhold:2026-01-06:2330"]
     assert order.fills[0].price == 105.0
     assert "2330" not in policy.managed_positions
+
+
+def test_strategy_simulator_settles_dividend_on_payment_date(tmp_path):
+    from astraquant.portfolio.corporate_actions import (
+        CorporateActionEvent,
+        CorporateActionType,
+    )
+    from astraquant.portfolio.historical_runner import HistoricalCorporateActionInstruction
+
+    sim, portfolio, _ = _simulator(tmp_path)
+    sessions = [
+        date(2026, 1, 2),
+        date(2026, 1, 5),
+        date(2026, 1, 6),
+        date(2026, 1, 7),
+    ]
+    signals = pd.DataFrame(
+        [{"signal_date": "2026-01-02", "stock_id": "2330"}]
+    )
+    event = CorporateActionEvent(
+        event_id="DIV-PAY",
+        ticker="2330",
+        event_type=CorporateActionType.CASH_DIVIDEND,
+        effective_at=datetime(2026, 1, 6),
+        payment_at=datetime(2026, 1, 7),
+        cash_per_share=1.0,
+        source="test",
+    )
+
+    result = sim.run(
+        sessions=sessions,
+        signals=signals,
+        corporate_actions=[
+            HistoricalCorporateActionInstruction(
+                event=event,
+                applied_at=event.effective_at,
+            )
+        ],
+    )
+
+    assert result.total_corporate_actions == 1
+    assert result.total_corporate_cash_payments == 1
+    assert result.sessions[2].corporate_cash_payments == 0
+    assert result.sessions[3].corporate_cash_payments == 1
+    assert portfolio.cash.pending_receivables == 0.0
+    assert "DIV-PAY" in portfolio.corporate_actions.completed_dividends
