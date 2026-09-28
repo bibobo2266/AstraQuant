@@ -256,7 +256,10 @@ class CanonicalStrategySimulator:
                     )
                 )
 
-            opening_nav = self._opening_nav(day)
+            try:
+                opening_nav = self._opening_nav(day)
+            except Exception as exc:
+                raise type(exc)(f"opening NAV failed on {day}: {exc}") from exc
             planned, skipped = self.policy.plan_entries(
                 candidates=candidates,
                 session_index=idx,
