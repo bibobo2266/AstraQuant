@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from .models import Fill, Position, PositionExtinguishment, PositionShareMutation
+from .models import Fill, Position, PositionExtinguishment, PositionSecurityConversion, PositionShareMutation
 
 
 class PortfolioLedger:
@@ -10,6 +10,7 @@ class PortfolioLedger:
         self.positions: dict[str, Position] = {}
         self.applied_share_mutation_ids: set[str] = set()
         self.applied_extinguishment_ids: set[str] = set()
+        self.applied_security_conversion_ids: set[str] = set()
 
     def apply_fill(self, fill: Fill) -> Position:
         pos = self.positions.setdefault(fill.ticker, Position(ticker=fill.ticker))
@@ -85,3 +86,42 @@ class PortfolioLedger:
         pos.avg_cost = 0.0
         self.applied_extinguishment_ids.add(event.event_id)
         return pos
+
+
+    def apply_security_conversion(
+        self,
+        conversion: PositionSecurityConversion,
+    ) -> Position:
+        if conversion.event_id in self.applied_security_conversion_ids:
+            raise ValueError(
+                f"duplicate security conversion event id: {conversion.event_id}"
+            )
+
+        source = self.positions.setdefault(
+            conversion.from_ticker,
+            Position(ticker=conversion.from_ticker),
+        )
+        if source.quantity < 0:
+            raise ValueError("negative positions are unsupported")
+
+        target = self.positions.setdefault(
+            conversion.to_ticker,
+            Position(ticker=conversion.to_ticker),
+        )
+        if target.quantity < 0:
+            raise ValueError("negative positions are unsupported")
+
+        if source.quantity > 0:
+            transferred_cost = source.avg_cost * source.quantity
+            new_quantity = source.quantity * conversion.quantity_multiplier
+            existing_cost = target.avg_cost * target.quantity
+            combined_quantity = target.quantity + new_quantity
+            target.avg_cost = (
+                existing_cost + transferred_cost
+            ) / combined_quantity
+            target.quantity = combined_quantity
+            source.quantity = 0.0
+            source.avg_cost = 0.0
+
+        self.applied_security_conversion_ids.add(conversion.event_id)
+        return target
