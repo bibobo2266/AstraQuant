@@ -1,44 +1,66 @@
 # Source RAW Mark Gap Audit
 
-- ticker: 2823
-- target session: 2021-12-20
+- ticker: 2241
+- target session: 2016-10-26
 
 ## Target tradability
 
-- no tradability row
+- observed_trade: True
+- valid_ohlc: False
+- buy_blocked: True
+- sell_blocked: True
+- reason: INVALID_OHLC
 
 ## Previous RAW observations
 
 | Date | Open | High | Low | Close |
 |---|---:|---:|---:|---:|
-| 2021-12-13 | 30.85 | 31.0 | 30.85 | 30.95 |
-| 2021-12-14 | 30.9 | 30.9 | 30.7 | 30.85 |
-| 2021-12-15 | 30.8 | 30.85 | 30.5 | 30.6 |
-| 2021-12-16 | 30.65 | 30.8 | 30.4 | 30.5 |
-| 2021-12-17 | 30.5 | 31.0 | 30.45 | 30.55 |
+| 2016-10-19 | 105.59 | 108.33 | 105.5 | 106.3 |
+| 2016-10-20 | 106.57 | 106.99 | 105.0 | 105.8 |
+| 2016-10-21 | 105.6 | 114.73 | 103.67 | 111.98 |
+| 2016-10-24 | 110.23 | 114.98 | 109.0 | 111.07 |
+| 2016-10-25 | 111.92 | 122.0 | 108.82 | 115.5 |
 
 ## Next RAW observations
 
 | Date | Open | High | Low | Close |
 |---|---:|---:|---:|---:|
+| 2016-10-27 | 110.64 | 113.0 | 109.0 | 112.34 |
+| 2016-10-28 | 111.18 | 113.0 | 109.28 | 109.41 |
+| 2016-10-31 | 110.46 | 109.41 | 106.81 | 106.81 |
+| 2016-11-01 | 107.6 | 107.2 | 104.62 | 105.55 |
+| 2016-11-02 | 105.88 | 107.69 | 104.0 | 105.01 |
 
 ## Local tradability sequence
 
 | Date | Observed | Valid | Buy blocked | Sell blocked | Reason |
 |---|---|---|---|---|---|
-| 2021-12-06 | True | True | False | False | OBSERVED |
-| 2021-12-07 | True | True | False | False | OBSERVED |
-| 2021-12-08 | True | True | False | False | OBSERVED |
-| 2021-12-09 | True | True | False | False | OBSERVED |
-| 2021-12-10 | True | True | False | False | OBSERVED |
-| 2021-12-13 | True | True | False | False | OBSERVED |
-| 2021-12-14 | True | True | False | False | OBSERVED |
-| 2021-12-15 | True | True | False | False | OBSERVED |
-| 2021-12-16 | True | True | False | False | OBSERVED |
-| 2021-12-17 | True | True | False | False | OBSERVED |
+| 2016-10-11 | True | False | True | True | INVALID_OHLC |
+| 2016-10-12 | True | True | False | False | OBSERVED |
+| 2016-10-13 | True | True | False | False | OBSERVED |
+| 2016-10-14 | True | True | False | False | OBSERVED |
+| 2016-10-17 | True | True | False | False | OBSERVED |
+| 2016-10-18 | True | False | True | True | INVALID_OHLC |
+| 2016-10-19 | True | True | False | False | OBSERVED |
+| 2016-10-20 | True | True | False | False | OBSERVED |
+| 2016-10-21 | True | True | False | False | OBSERVED |
+| 2016-10-24 | True | True | False | False | OBSERVED |
+| 2016-10-25 | True | True | False | False | OBSERVED |
+| 2016-10-26 | True | False | True | True | INVALID_OHLC |
+| 2016-10-27 | True | True | False | False | OBSERVED |
+| 2016-10-28 | True | True | False | False | OBSERVED |
+| 2016-10-31 | True | False | True | True | INVALID_OHLC |
+| 2016-11-01 | True | False | True | True | INVALID_OHLC |
+| 2016-11-02 | True | True | False | False | OBSERVED |
+| 2016-11-03 | True | True | False | False | OBSERVED |
+| 2016-11-04 | True | True | False | False | OBSERVED |
+| 2016-11-07 | True | False | True | True | INVALID_OHLC |
+| 2016-11-08 | True | True | False | False | OBSERVED |
+| 2016-11-09 | True | True | False | False | OBSERVED |
+| 2016-11-10 | True | True | False | False | OBSERVED |
 
 ## Corporate actions ±60 days
 
 | Event date | Type | Cash/share | Share multiplier | Source |
 |---|---|---:|---:|---|
-| 2021-10-25 | ex_right_dividend | nan | nan | TWSE TWT49U |
+| 2016-11-01 | dividend | 0.0 | nan | FinMind TaiwanStockDividend |
