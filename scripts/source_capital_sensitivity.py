@@ -165,7 +165,7 @@ def main() -> None:
     checks = {
         "all_capital_scenarios_complete": len(frame) == len(CAPITALS),
         "all_final_nav_positive": bool(frame["final_nav"].gt(0).all()),
-        "all_pending_payables_nonnegative": bool(frame["ending_payables"].ge(0).all()),
+        "all_pending_payables_nonnegative_with_float_tolerance": bool(frame["ending_payables"].ge(-1e-6).all()),
         "pit_unsafe_ca_tickers_excluded": not bool(candidate_tickers & quarantined),
         "baseline_10m_present": bool(frame["initial_cash"].eq(10_000_000.0).any()),
     }
@@ -195,15 +195,15 @@ def main() -> None:
         "",
         "## Results",
         "",
-        "| Starting capital | Final NAV | Total return | CAGR | Max DD | Sharpe | Entries | Stop exits | Max-hold exits | Blocked exits | Open positions |",
-        "|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|",
+        "| Starting capital | Final NAV | Total return | CAGR | Max DD | Sharpe | Entries | Stop exits | Max-hold exits | Blocked exits | Open positions | Ending payables |",
+        "|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|",
     ]
     for row in frame.itertuples(index=False):
         lines.append(
             f"| {row.initial_cash:,.0f} | {row.final_nav:,.2f} | {row.total_return*100:.2f}% "
             f"| {row.cagr*100:.2f}% | {row.max_drawdown*100:.2f}% | {row.sharpe:.3f} "
             f"| {row.entries:,} | {row.stop_exits:,} | {row.max_hold_exits:,} "
-            f"| {row.blocked_exits:,} | {row.ending_open_positions:,} |"
+            f"| {row.blocked_exits:,} | {row.ending_open_positions:,} | {row.ending_payables:.9f} |"
         )
 
     lines += [
