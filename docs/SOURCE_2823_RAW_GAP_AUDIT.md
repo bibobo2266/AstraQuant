@@ -1,6 +1,6 @@
 # 2823 RAW Gap / Terminal-Semantics Audit
 
-Status: **SOURCE_AUDIT_ONLY**
+Status: **BLOCKER_CONFIRMED — TERMINAL_MULTI_LEG_CONVERSION_NOT_MODELED**
 
 Purpose: investigate the P2-062 blocker without adjusted-price fallback or silent ticker exclusion. The observed failure was an unavailable canonical RAW mark for 2823 on 2021-12-20 while the reverse breakout-strength rule held the security.
 
@@ -65,3 +65,22 @@ _none_
 ## Decision boundary
 
 This audit does not authorize excluding 2823 and does not authorize using adjusted prices as RAW marks. If the source shows a terminal/security-conversion event that AstraQuant has not modeled, that event must be accounted explicitly and then P2-062 rerun on the unchanged frozen common-support policy.
+
+## Source interpretation
+
+The source-backed audit establishes that canonical RAW, adjusted, and tradability observations for 2823 stop after 2021-12-17, while the canonical corporate-action ledger has no 2823 row in the audited window. This is consistent with public TWSE/MOPS-derived disclosure that 2823 stopped trading on 2021-12-20 and was converted/delisted on 2021-12-30.
+
+Public disclosure states a three-leg economic consideration per 2823 common share: 0.80 share of 2883 common, 0.73 share of 2883 preferred, plus TWD 11.5 cash. AstraQuant currently models at most one successor security plus optional cash entitlement. Therefore this event cannot be represented faithfully by the existing single-successor conversion path.
+
+References:
+- MoneyDJ/MOPS disclosure: https://www.moneydj.com/kmdj/news/newsviewer.aspx?a=60ed45a4-aa0e-4e7a-b598-f78ada4a5488
+- TWSE-derived delisting disclosure: https://www.moneydj.com/kmdj/news/newsviewer.aspx?a=f97ffc94-afa8-4dc4-bf06-b87562bac3d4
+
+## Required remediation before P2-062 can resume
+
+1. Freeze an explicit source-backed representation for all three consideration legs, including the exact successor identifier and RAW/mark semantics for the preferred-share leg.
+2. Extend canonical portfolio accounting and FIFO reconstruction to support one predecessor converting into multiple successor securities plus cash without fabricating market fills.
+3. Add regression coverage for quantity/cost-basis allocation and subsequent RAW valuation/exit of every successor leg.
+4. Rerun P2-062 on the unchanged P2-060 common-support universe. Do not exclude 2823 merely because the reverse rule selected it.
+
+Until those conditions are met, P2-062 remains blocked. No adjusted-price fallback, stale-price substitution, or silent ticker exclusion is permitted.
