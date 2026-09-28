@@ -38,6 +38,16 @@ Purpose: validate the AstraQuant-side normalized FinMind cash/stock dividend vie
 - Payment dates come from CashDividendPaymentDate; no guessed settlement date is introduced.
 - Official-event linkage above is diagnostic only. It does not silently replace or merge source rows.
 
+## PIT exceptions
+
+- 4804 2015-04-23 CASH_DIVIDEND known_at=2015-04-27T00:00:00
+- 4804 2015-04-23 STOCK_DIVIDEND known_at=2015-04-27T00:00:00
+- 8450 2015-09-10 CASH_DIVIDEND known_at=2015-09-17T00:00:00
+- 4550 2016-09-12 CASH_DIVIDEND known_at=2016-09-13T00:00:00
+- 3234 2017-07-19 CASH_DIVIDEND known_at=2017-07-26T00:00:00
+- 5234 2019-06-13 CASH_DIVIDEND known_at=2019-06-14T00:00:00
+- 6712 2025-04-30 CASH_DIVIDEND known_at=2025-05-07T00:00:00
+
 ## Gate
 
 The view is eligible for the next integration step only if logical keys are unique, economic values are valid, and no payment precedes its effective date. Date-join misses remain explicit source limitations rather than guessed matches.
