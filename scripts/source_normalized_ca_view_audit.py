@@ -135,6 +135,23 @@ def main() -> None:
         "- Payment dates come from CashDividendPaymentDate; no guessed settlement date is introduced.",
         "- Official-event linkage above is diagnostic only. It does not silently replace or merge source rows.",
         "",
+        "## PIT exceptions",
+        "",
+    ]
+    late = frame[
+        frame["known_at"].notna()
+        & (frame["known_at"].dt.normalize() > frame["effective_date"])
+    ].copy()
+    if late.empty:
+        lines.append("- none")
+    else:
+        for row in late.itertuples(index=False):
+            lines.append(
+                f"- {row.stock_id} {pd.Timestamp(row.effective_date).date()} "
+                f"{row.event_kind} known_at={pd.Timestamp(row.known_at).isoformat()}"
+            )
+    lines += [
+        "",
         "## Gate",
         "",
         "The view is eligible for the next integration step only if logical keys are unique, economic values are valid, and no payment precedes its effective date. Date-join misses remain explicit source limitations rather than guessed matches.",
