@@ -115,22 +115,35 @@ class CanonicalPortfolioReplay:
         mark_fields: Mapping[str, str] | None = None,
         mark_not_before: Mapping[str, date | datetime] | None = None,
         terminal_stale_tickers: set[str] | None = None,
+        mark_ca_transforms: Mapping[str, tuple[tuple[float, float], ...]] | None = None,
     ) -> ReplaySnapshot:
         decisions = {}
         mark_fields = mark_fields or {}
         mark_not_before = mark_not_before or {}
         terminal_stale_tickers = terminal_stale_tickers or set()
+        mark_ca_transforms = mark_ca_transforms or {}
         for ticker, position in self.portfolio.positions.positions.items():
             if position.quantity == 0:
                 continue
-            decisions[ticker] = self.execution.mark(
-                ticker=ticker,
-                session_date=at,
-                side="sell",
-                field=mark_fields.get(ticker, "close"),
-                not_before=mark_not_before.get(ticker),
-                allow_terminal_stale_without_tradability=ticker in terminal_stale_tickers,
-            )
+            transforms = mark_ca_transforms.get(ticker, ())
+            if transforms:
+                decisions[ticker] = self.execution.mark_after_corporate_actions(
+                    ticker=ticker,
+                    session_date=at,
+                    field=mark_fields.get(ticker, "close"),
+                    not_before=mark_not_before.get(ticker),
+                    allow_terminal_stale_without_tradability=ticker in terminal_stale_tickers,
+                    transformations=transforms,
+                )
+            else:
+                decisions[ticker] = self.execution.mark(
+                    ticker=ticker,
+                    session_date=at,
+                    side="sell",
+                    field=mark_fields.get(ticker, "close"),
+                    not_before=mark_not_before.get(ticker),
+                    allow_terminal_stale_without_tradability=ticker in terminal_stale_tickers,
+                )
 
         snap = ReplaySnapshot(
             at=at,
