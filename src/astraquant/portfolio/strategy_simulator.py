@@ -131,21 +131,34 @@ class CanonicalStrategySimulator:
         *,
         mark_not_before: dict[str, date] | None = None,
         terminal_stale_tickers: set[str] | None = None,
+        mark_ca_transforms: dict[str, tuple[tuple[float, float], ...]] | None = None,
     ) -> float:
         decisions = {}
         mark_not_before = mark_not_before or {}
         terminal_stale_tickers = terminal_stale_tickers or set()
+        mark_ca_transforms = mark_ca_transforms or {}
         for ticker, position in self.portfolio.positions.positions.items():
             if position.quantity == 0:
                 continue
-            decisions[ticker] = self.execution.mark(
-                ticker=ticker,
-                session_date=day,
-                side="sell",
-                field="open",
-                not_before=mark_not_before.get(ticker),
-                allow_terminal_stale_without_tradability=ticker in terminal_stale_tickers,
-            )
+            transforms = mark_ca_transforms.get(ticker, ())
+            if transforms:
+                decisions[ticker] = self.execution.mark_after_corporate_actions(
+                    ticker=ticker,
+                    session_date=day,
+                    field="open",
+                    not_before=mark_not_before.get(ticker),
+                    allow_terminal_stale_without_tradability=ticker in terminal_stale_tickers,
+                    transformations=transforms,
+                )
+            else:
+                decisions[ticker] = self.execution.mark(
+                    ticker=ticker,
+                    session_date=day,
+                    side="sell",
+                    field="open",
+                    not_before=mark_not_before.get(ticker),
+                    allow_terminal_stale_without_tradability=ticker in terminal_stale_tickers,
+                )
         return value_portfolio(
             cash=self.portfolio.cash,
             positions=self.portfolio.positions.positions,
@@ -241,6 +254,7 @@ class CanonicalStrategySimulator:
             total_ca_payments += ca_payment_count
 
             ca_count = 0
+            current_ca_mark_transforms: dict[str, list[tuple[float, float]]] = {}
             for item in sorted(
                 ca_by_day.get(day, []),
                 key=lambda x: x.event.event_id,
@@ -285,6 +299,12 @@ class CanonicalStrategySimulator:
                     )
 
                 self.policy.apply_corporate_action(event)
+                cash_for_mark = float(event.cash_per_share or 0.0)
+                multiplier_for_mark = float(event.share_multiplier or 1.0)
+                if cash_for_mark != 0.0 or multiplier_for_mark != 1.0:
+                    current_ca_mark_transforms.setdefault(str(event.ticker), []).append(
+                        (cash_for_mark, multiplier_for_mark)
+                    )
                 if item.extinguish_position:
                     self.portfolio.corporate_actions.extinguish_position(
                         event=event,
@@ -321,6 +341,10 @@ class CanonicalStrategySimulator:
                     day,
                     mark_not_before=latest_ca_session,
                     terminal_stale_tickers=terminal_stale_tickers,
+                    mark_ca_transforms={
+                        ticker: tuple(values)
+                        for ticker, values in current_ca_mark_transforms.items()
+                    },
                 )
             except Exception as exc:
                 raise type(exc)(f"opening NAV failed on {day}: {exc}") from exc
@@ -468,6 +492,10 @@ class CanonicalStrategySimulator:
                 at=datetime.combine(day, datetime.max.time()),
                 mark_not_before=latest_ca_session,
                 terminal_stale_tickers=terminal_stale_tickers,
+                mark_ca_transforms={
+                    ticker: tuple(values)
+                    for ticker, values in current_ca_mark_transforms.items()
+                },
             )
             audits.append(
                 StrategySessionAudit(
