@@ -25,6 +25,22 @@ class ZeroFeeModel:
 
 
 @dataclass(frozen=True)
+class FixedBpsFeeModel:
+    bps: float
+
+    def __post_init__(self) -> None:
+        if self.bps < 0:
+            raise ValueError("fee bps must be non-negative")
+
+    def fee(self, *, side: str, quantity: float, price: float) -> float:
+        if side.lower() not in {"buy", "sell"}:
+            raise ValueError(f"unsupported side: {side}")
+        if quantity <= 0 or price <= 0:
+            raise ValueError("quantity and price must be positive")
+        return quantity * price * self.bps / 10_000.0
+
+
+@dataclass(frozen=True)
 class FixedBpsSlippage:
     bps: float
 
