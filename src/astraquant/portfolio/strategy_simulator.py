@@ -123,8 +123,14 @@ class CanonicalStrategySimulator:
             days=self.config.settlement_lag_sessions + 7
         )
 
-    def _opening_nav(self, day: date) -> float:
+    def _opening_nav(
+        self,
+        day: date,
+        *,
+        mark_not_before: dict[str, date] | None = None,
+    ) -> float:
         decisions = {}
+        mark_not_before = mark_not_before or {}
         for ticker, position in self.portfolio.positions.positions.items():
             if position.quantity == 0:
                 continue
@@ -133,6 +139,7 @@ class CanonicalStrategySimulator:
                 session_date=day,
                 side="sell",
                 field="open",
+                not_before=mark_not_before.get(ticker),
             )
         return value_portfolio(
             cash=self.portfolio.cash,
@@ -177,6 +184,7 @@ class CanonicalStrategySimulator:
         total_entry_skips = 0
         total_blocked_exits = 0
         total_ca = 0
+        latest_ca_session: dict[str, date] = {}
 
         for idx, day in enumerate(calendar):
             start = self._session_start(day)
@@ -234,6 +242,7 @@ class CanonicalStrategySimulator:
                     )
 
                 self.policy.apply_corporate_action(event)
+                latest_ca_session[str(event.ticker)] = day
                 ca_count += 1
             total_ca += ca_count
 
@@ -257,7 +266,10 @@ class CanonicalStrategySimulator:
                 )
 
             try:
-                opening_nav = self._opening_nav(day)
+                opening_nav = self._opening_nav(
+                    day,
+                    mark_not_before=latest_ca_session,
+                )
             except Exception as exc:
                 raise type(exc)(f"opening NAV failed on {day}: {exc}") from exc
             planned, skipped = self.policy.plan_entries(
@@ -402,6 +414,7 @@ class CanonicalStrategySimulator:
 
             snapshot = self.replay.snapshot(
                 at=datetime.combine(day, datetime.max.time()),
+                mark_not_before=latest_ca_session,
             )
             audits.append(
                 StrategySessionAudit(
