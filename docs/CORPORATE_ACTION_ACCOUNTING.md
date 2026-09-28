@@ -64,3 +64,21 @@ AstraQuant supports this through an explicit cash-entitlement receivable:
 The caller must declare the economic component (for example `CAPITAL_REDUCTION_REFUND`) and the correct entitlement-share basis. AstraQuant does not infer that basis from adjusted prices.
 
 If the source does not provide a trustworthy payment date, the receivable remains outstanding and cannot be moved to settled cash by guessing a date.
+
+
+## Opening-position entitlement basis
+
+Some official corporate-action rows combine a cash entitlement with a share-count mutation.
+
+For supported combined events, AstraQuant can declare `OPENING_POSITION` as the entitlement-share basis. The cash receivable is then accrued from the position quantity **before** the same-event share multiplier is applied.
+
+This is required for:
+
+- TPEx `ex_right_dividend` rows whose official source supplies cash per pre-event share and a stock-distribution multiplier; and
+- capital-reduction refund rows whose official source supplies refund per pre-reduction share plus a replacement-share ratio.
+
+Accounting order:
+
+`opening shares → cash entitlement → share mutation`
+
+The basis is explicit in the instruction. It is never reverse-engineered from adjusted prices.
