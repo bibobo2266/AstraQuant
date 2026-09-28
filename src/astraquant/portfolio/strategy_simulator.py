@@ -38,6 +38,7 @@ class StrategySessionAudit:
     max_hold_exits: int
     settlements_completed: int
     corporate_actions_applied: int
+    corporate_cash_payments: int
     snapshot: ReplaySnapshot
 
 
@@ -50,6 +51,7 @@ class StrategySimulationResult:
     total_entry_skips: int
     total_blocked_exits: int
     total_corporate_actions: int
+    total_corporate_cash_payments: int
 
 
 class CanonicalStrategySimulator:
@@ -184,6 +186,7 @@ class CanonicalStrategySimulator:
         total_entry_skips = 0
         total_blocked_exits = 0
         total_ca = 0
+        total_ca_payments = 0
         latest_ca_session: dict[str, date] = {}
 
         for idx, day in enumerate(calendar):
@@ -196,6 +199,32 @@ class CanonicalStrategySimulator:
             )
             for settlement_id in due:
                 self.replay.settle(settlement_id, start)
+
+            ca_payment_count = 0
+            due_dividends = sorted(
+                event_id
+                for event_id, receivable in self.portfolio.corporate_actions.dividend_receivables.items()
+                if receivable.payment_at is not None and receivable.payment_at <= start
+            )
+            for event_id in due_dividends:
+                self.portfolio.corporate_actions.pay_cash_dividend(
+                    event_id,
+                    paid_at=start,
+                )
+                ca_payment_count += 1
+
+            due_entitlements = sorted(
+                event_id
+                for event_id, receivable in self.portfolio.corporate_actions.cash_entitlement_receivables.items()
+                if receivable.payment_at is not None and receivable.payment_at <= start
+            )
+            for event_id in due_entitlements:
+                self.portfolio.corporate_actions.pay_cash_entitlement(
+                    event_id,
+                    paid_at=start,
+                )
+                ca_payment_count += 1
+            total_ca_payments += ca_payment_count
 
             ca_count = 0
             for item in sorted(
@@ -426,6 +455,7 @@ class CanonicalStrategySimulator:
                     max_hold_exits=max_hold_exits,
                     settlements_completed=len(due),
                     corporate_actions_applied=ca_count,
+                    corporate_cash_payments=ca_payment_count,
                     snapshot=snapshot,
                 )
             )
@@ -438,4 +468,5 @@ class CanonicalStrategySimulator:
             total_entry_skips=total_entry_skips,
             total_blocked_exits=total_blocked_exits,
             total_corporate_actions=total_ca,
+            total_corporate_cash_payments=total_ca_payments,
         )
