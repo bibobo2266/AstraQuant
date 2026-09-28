@@ -60,8 +60,8 @@ def main() -> None:
     normalized = [
         a for a in build_finmind_normalized_actions(dividend)
         if a.ticker == TICKER
-        and TARGET.date() - pd.Timedelta(days=60) <= pd.Timestamp(a.effective_date)
-        and pd.Timestamp(a.effective_date) <= TARGET.date() + pd.Timedelta(days=60)
+        and TARGET - pd.Timedelta(days=60) <= pd.Timestamp(a.effective_date)
+        and pd.Timestamp(a.effective_date) <= TARGET + pd.Timedelta(days=60)
     ]
 
     target_trad = trad[trad["date"].eq(TARGET)]
