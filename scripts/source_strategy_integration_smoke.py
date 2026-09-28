@@ -78,9 +78,13 @@ def build_supported_ca(
     ledger["cash_per_share"] = pd.to_numeric(ledger["cash_per_share"], errors="coerce")
     ledger["share_multiplier"] = pd.to_numeric(ledger["share_multiplier"], errors="coerce")
 
+    if not sessions:
+        return [], 0, {}
+    session_start = min(sessions)
+    session_end = max(sessions)
     d = ledger[
         ledger["stock_id"].isin(candidate_tickers)
-        & ledger["event_date"].isin(sessions)
+        & ledger["event_date"].between(session_start, session_end, inclusive="both")
     ].copy()
 
     supported_combined_types = {"ex_right_dividend", "capital_reduction"}
