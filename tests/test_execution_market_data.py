@@ -661,7 +661,7 @@ def test_held_successor_outside_candidate_universe_can_be_marked(tmp_path):
         tmp_path,
         raw_rows=[
             {
-                "date": "2022-01-03",
+                "date": "2026-01-05",
                 "stock_id": "2330",
                 "open": 100.0,
                 "max": 101.0,
@@ -669,7 +669,7 @@ def test_held_successor_outside_candidate_universe_can_be_marked(tmp_path):
                 "close": 100.5,
             },
             {
-                "date": "2022-01-03",
+                "date": "2026-01-05",
                 "stock_id": "2883B",
                 "open": 10.1,
                 "max": 10.2,
@@ -679,7 +679,7 @@ def test_held_successor_outside_candidate_universe_can_be_marked(tmp_path):
         ],
         trad_rows=[
             {
-                "date": "2022-01-03",
+                "date": "2026-01-05",
                 "stock_id": "2330",
                 "observed_trade": True,
                 "valid_ohlc": True,
@@ -688,7 +688,7 @@ def test_held_successor_outside_candidate_universe_can_be_marked(tmp_path):
                 "reason": "OBSERVED",
             },
             {
-                "date": "2022-01-03",
+                "date": "2026-01-05",
                 "stock_id": "2883B",
                 "observed_trade": True,
                 "valid_ohlc": True,
@@ -704,7 +704,7 @@ def test_held_successor_outside_candidate_universe_can_be_marked(tmp_path):
 
     mark = market.resolve_mark(
         ticker="2883B",
-        session_date=date(2022, 1, 3),
+        session_date=date(2026, 1, 5),
         field="close",
     )
 
