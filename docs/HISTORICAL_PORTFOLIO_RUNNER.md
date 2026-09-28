@@ -47,3 +47,10 @@ No entitlement basis is inferred from adjusted prices.
 Unit/integration tests cover chronological settlement, share mutation, dividend entitlement, trading, and RAW NAV snapshots. CI passes.
 
 The next gate is a frozen-source full-history probe spanning the 2015–2026 RAW history. That probe remains accounting/integration evidence only; strategy performance stays locked.
+
+
+## Trading Calendar Policy
+
+Corporate actions whose economic effective date is not a trading session are mapped **forward only** to the first configured trading session after the effective date. The original effective date remains unchanged for audit/provenance. No event is mapped backward, and events beyond the configured calendar horizon hard-fail instead of being guessed.
+
+See `docs/TRADING_CALENDAR_POLICY.md` and `docs/SOURCE_CA_CALENDAR_AUDIT.md`.
