@@ -50,3 +50,10 @@ Corporate-action economic accounting is applied before same-session trading. Man
 The simulator records accounting/session audit counts only. It does not compute CAGR, MDD, MAR, Sharpe, hit rate, or strategy rankings.
 
 The next gate is a frozen-source integration smoke using real canonical breakout candidates. Missing/invalid RAW marks or other accounting blockers must fail visibly rather than falling back to adjusted prices.
+
+
+## Trading Calendar Policy
+
+Corporate actions whose economic effective date is not a trading session are mapped **forward only** to the first configured trading session after the effective date. The original effective date remains unchanged for audit/provenance. No event is mapped backward, and events beyond the configured calendar horizon hard-fail instead of being guessed.
+
+See `docs/TRADING_CALENDAR_POLICY.md` and `docs/SOURCE_CA_CALENDAR_AUDIT.md`.
