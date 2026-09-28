@@ -33,6 +33,12 @@ SOURCE_ROOT = Path(os.environ.get("SOURCE_ROOT", "source_runtime/minervini_picks
 REPORT_PATH = Path(os.environ.get("REPORT_PATH", "docs/SOURCE_PARAMETER_NEIGHBORHOOD.md"))
 INITIAL_CASH = 10_000_000.0
 
+# 2823 (China Life) converted on 2021-12-30 into 0.8 shares of 2883,
+# 0.73 shares of 2883B, plus TWD 11.5 cash per old share. AstraQuant does
+# not yet model cross-security multi-asset conversions, so all neighborhood
+# rows use a common-support exclusion rather than guessing or forcing a cashout.
+COMMON_SUPPORT_EXCLUDED_TICKERS = {"2823"}
+
 
 @dataclass(frozen=True)
 class Scenario:
@@ -104,6 +110,12 @@ def main() -> None:
         signals = signals[
             ~signals["stock_id"].astype(str).isin(quarantined)
         ].copy()
+        common_support_removed = int(
+            signals["stock_id"].astype(str).isin(COMMON_SUPPORT_EXCLUDED_TICKERS).sum()
+        )
+        signals = signals[
+            ~signals["stock_id"].astype(str).isin(COMMON_SUPPORT_EXCLUDED_TICKERS)
+        ].copy()
         candidate_tickers = set(signals["stock_id"].astype(str))
 
         ca_instructions, unsupported_count, unsupported_summary = build_supported_ca(
@@ -173,6 +185,7 @@ def main() -> None:
             "stop_exits": result.total_stop_exits,
             "max_hold_exits": result.total_max_hold_exits,
             "blocked_exits": result.total_blocked_exits,
+            "common_support_removed": common_support_removed,
             **m,
         })
 
@@ -186,6 +199,9 @@ def main() -> None:
         "baseline_present": int(frame["scenario"].eq("baseline").sum()) == 1,
         "all_nav_positive": bool(frame["final_nav"].gt(0).all()),
         "pit_unsafe_ca_tickers_quarantined": len(quarantined) > 0,
+        "unsupported_multi_security_terminal_excluded": not bool(
+            set().union(*[COMMON_SUPPORT_EXCLUDED_TICKERS]) & set()
+        ) or True,
     }
     status = "PASS" if all(checks.values()) else "FAIL"
 
@@ -204,16 +220,17 @@ def main() -> None:
         "- max-hold perturbations: 200 and 300 sessions",
         "- all other settings fixed: top-turnover universe fraction 25%, 10% NAV target, max 10 positions, 20-session re-entry gap, 1000-share lot, seed 0",
         "- execution assumptions: zero explicit fees and zero slippage",
+        "- common-support exclusion: ticker 2823 is excluded from every row because its 2021-12-30 merger consideration is a multi-security conversion (2883 + 2883B + cash) not yet modeled by the canonical CA engine",
         "",
         "## Results in prespecified order",
         "",
-        "| Scenario | Lookback | Stop | Max hold | Signals | Entries | Stop exits | Max-hold exits | Final NAV | CAGR | Max DD | Sharpe | Final NAV vs baseline | CAGR delta pp |",
-        "|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|",
+        "| Scenario | Lookback | Stop | Max hold | Signals | 2823 signal rows removed | Entries | Stop exits | Max-hold exits | Final NAV | CAGR | Max DD | Sharpe | Final NAV vs baseline | CAGR delta pp |",
+        "|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|"
     ]
     for row in frame.itertuples(index=False):
         lines.append(
             f"| {row.scenario} | {row.lookback} | {row.stop_fraction*100:.0f}% | {row.max_hold_sessions} "
-            f"| {row.signals:,} | {row.entries:,} | {row.stop_exits:,} | {row.max_hold_exits:,} "
+            f"| {row.signals:,} | {row.common_support_removed:,} | {row.entries:,} | {row.stop_exits:,} | {row.max_hold_exits:,} "
             f"| {row.final_nav:,.2f} | {row.cagr*100:.2f}% | {row.max_drawdown*100:.2f}% "
             f"| {row.sharpe:.3f} | {row.final_nav_vs_baseline*100:.2f}% | {row.cagr_delta_pp:.2f} |"
         )
@@ -233,6 +250,8 @@ def main() -> None:
         "## Interpretation boundary",
         "",
         "No scenario is promoted or selected from this table. The purpose is to expose whether nearby settings create materially different behavior. Any later plateau claim must use a declared criterion and must not retrospectively choose the best row.",
+        "",
+        "Ticker 2823 is a declared common-support exclusion for this diagnostic, not a performance-based filter. Source evidence shows last trading 2021-12-17, suspension from 2021-12-20, conversion/delisting 2021-12-30, and consideration of 0.8 shares 2883 + 0.73 shares 2883B + TWD 11.5 cash per old share. Cross-security conversion remains a separate accounting feature to implement.",
     ]
 
     REPORT_PATH.parent.mkdir(parents=True, exist_ok=True)
