@@ -202,3 +202,69 @@ def test_historical_runner_rejects_instruction_outside_calendar(tmp_path):
             sessions=[date(2026, 1, 5)],
             trades=[trade],
         )
+
+
+def test_non_session_corporate_action_maps_to_next_session(tmp_path):
+    runner, portfolio = _runner(tmp_path)
+
+    buy = HistoricalTradeInstruction(
+        intent=OrderIntent(
+            intent_id="I1",
+            ticker="2330",
+            side="buy",
+            quantity=100,
+            created_at=datetime(2026, 1, 2, 9, 0),
+            rationale="test",
+        ),
+        signal=_signal(),
+        order_id="O1",
+        fill_id="F1",
+        submitted_at=datetime(2026, 1, 2, 9, 0),
+        session_date=date(2026, 1, 2),
+        use=PriceUse.ENTRY,
+        field="open",
+        settlement_id="S1",
+        settlement_due=datetime(2026, 1, 5),
+    )
+    weekend_dividend = HistoricalCorporateActionInstruction(
+        event=CorporateActionEvent(
+            event_id="DIV-WEEKEND",
+            ticker="2330",
+            event_type=CorporateActionType.CASH_DIVIDEND,
+            effective_at=datetime(2026, 1, 3),
+            cash_per_share=2.0,
+        ),
+        applied_at=datetime(2026, 1, 3),
+    )
+
+    result = runner.run(
+        sessions=[date(2026, 1, 2), date(2026, 1, 5), date(2026, 1, 6)],
+        trades=[buy],
+        corporate_actions=[weekend_dividend],
+    )
+
+    day2 = result.sessions[1]
+    assert day2.session_date == date(2026, 1, 5)
+    assert day2.corporate_actions_applied == 1
+    assert portfolio.cash.pending_receivables == 200
+
+
+def test_corporate_action_after_calendar_horizon_fails(tmp_path):
+    runner, _ = _runner(tmp_path)
+    event = HistoricalCorporateActionInstruction(
+        event=CorporateActionEvent(
+            event_id="DIV-AFTER",
+            ticker="2330",
+            event_type=CorporateActionType.CASH_DIVIDEND,
+            effective_at=datetime(2026, 1, 7),
+            cash_per_share=2.0,
+        ),
+        applied_at=datetime(2026, 1, 7),
+    )
+
+    from astraquant.portfolio.calendar import CalendarMappingError
+    with pytest.raises(CalendarMappingError, match="no trading session"):
+        runner.run(
+            sessions=[date(2026, 1, 2), date(2026, 1, 5), date(2026, 1, 6)],
+            corporate_actions=[event],
+        )
