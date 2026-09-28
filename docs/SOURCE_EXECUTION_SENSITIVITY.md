@@ -26,10 +26,10 @@ Purpose: hold the audited strategy configuration fixed while varying only explic
 
 | Scenario | Entries | RAW stop exits | Max-hold exits | Blocked exits | CA cash payments |
 |---|---:|---:|---:|---:|---:|
-| baseline_0_0 | 215 | 140 | 65 | 19 | 12,036 |
-| stress_10_10 | 221 | 144 | 67 | 21 | 12,036 |
-| stress_25_25 | 226 | 148 | 68 | 9 | 12,036 |
-| stress_50_50 | 219 | 139 | 70 | 17 | 12,036 |
+| baseline_0_0 | 215 | 140 | 65 | 19 | 12,037 |
+| stress_10_10 | 221 | 144 | 67 | 21 | 12,037 |
+| stress_25_25 | 226 | 148 | 68 | 9 | 12,037 |
+| stress_50_50 | 219 | 139 | 70 | 17 | 12,037 |
 
 ## Reproducibility gates
 
