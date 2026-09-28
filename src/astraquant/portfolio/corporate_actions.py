@@ -12,6 +12,11 @@ if TYPE_CHECKING:
     from astraquant.portfolio.ledger import PortfolioLedger
 
 
+class CashEntitlementBasis(str, Enum):
+    OPENING_POSITION = "OPENING_POSITION"
+    EXPLICIT = "EXPLICIT"
+
+
 class CorporateActionType(str, Enum):
     CASH_DIVIDEND = "CASH_DIVIDEND"
     STOCK_DIVIDEND = "STOCK_DIVIDEND"
