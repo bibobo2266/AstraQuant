@@ -114,10 +114,12 @@ class CanonicalPortfolioReplay:
         at: datetime,
         mark_fields: Mapping[str, str] | None = None,
         mark_not_before: Mapping[str, date | datetime] | None = None,
+        terminal_stale_tickers: set[str] | None = None,
     ) -> ReplaySnapshot:
         decisions = {}
         mark_fields = mark_fields or {}
         mark_not_before = mark_not_before or {}
+        terminal_stale_tickers = terminal_stale_tickers or set()
         for ticker, position in self.portfolio.positions.positions.items():
             if position.quantity == 0:
                 continue
@@ -127,6 +129,7 @@ class CanonicalPortfolioReplay:
                 side="sell",
                 field=mark_fields.get(ticker, "close"),
                 not_before=mark_not_before.get(ticker),
+                allow_terminal_stale_without_tradability=ticker in terminal_stale_tickers,
             )
 
         snap = ReplaySnapshot(
