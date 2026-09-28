@@ -380,7 +380,11 @@ class ExecutionMarketData:
         if trad_row is None:
             return same_day
         trad = self._tradability_from_row(str(ticker), day, trad_row)
-        if trad.observed_trade or trad.reason != "NO_TRADE_ROW_WITHIN_ACTIVE_SPAN":
+        stale_valuation_reasons = {
+            "NO_TRADE_ROW_WITHIN_ACTIVE_SPAN",
+            "INVALID_OHLC",
+        }
+        if trad.valid_ohlc or trad.reason not in stale_valuation_reasons:
             return same_day
 
         stale = self._latest_valid_raw_before(ticker=str(ticker), day=day)
@@ -419,7 +423,11 @@ class ExecutionMarketData:
             side="sell",
             field="stale_close",
             price=float(bar.close),
-            reason="STALE_RAW_MARK",
+            reason=(
+                "STALE_RAW_MARK_INVALID_OHLC"
+                if trad.reason == "INVALID_OHLC"
+                else "STALE_RAW_MARK"
+            ),
             bar=bar,
             tradability=trad,
         )
