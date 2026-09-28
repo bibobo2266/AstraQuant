@@ -1,4 +1,5 @@
 name: Source dividend semantics audit
+# read-only source audit
 
 on:
   workflow_dispatch:
