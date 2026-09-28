@@ -10,27 +10,30 @@ Purpose: connect real canonical breakout candidates to the causal RAW portfolio 
 - post-signal drain sessions requested: 5
 - simulation sessions: 2016-01-04 through 2026-07-07
 - session count / RAW NAV snapshots: 2,559
-- canonical signal candidates supplied: 35,668
-- candidate tickers in scoped execution source: 1,553
+- canonical signal candidates supplied: 35,592
+- candidate tickers in scoped execution source: 1,550
+- PIT-unsafe CA tickers quarantined: 4
+- signal rows removed by PIT CA quarantine: 76
 - integration-only policy: 10% NAV target, max 10 positions, 12% RAW stop, 20-session re-entry gap, 250-session max hold, 1000-share lot, seed 0
 
 ## Accounting/event audit counts
 
-- entries executed: 201
-- entry candidates skipped/blocked: 35,467
-- RAW stop exits: 121
-- RAW max-hold exits: 71
-- blocked exit attempts: 17
-- supported corporate actions applied: 17,196
+- entries executed: 215
+- entry candidates skipped/blocked: 35,377
+- RAW stop exits: 140
+- RAW max-hold exits: 65
+- blocked exit attempts: 19
+- supported corporate actions applied: 14,257
+- corporate-action cash payments settled: 12,036
 
 ## Final accounting state
 
 - open managed positions: 9
-- settled cash: 4493070.555165939
-- pending receivables: 9161227.28983906
+- settled cash: 24815005.028909937
+- pending receivables: 328865.2688299995
 - pending payables: 0.0
-- RAW market value: 30237200.0
-- NAV: 43891497.845005
+- RAW market value: 26552750.0
+- NAV: 51696620.29773994
 
 ## Gates
 
@@ -45,6 +48,7 @@ Purpose: connect real canonical breakout candidates to the causal RAW portfolio 
 | settled_cash_nonnegative | PASS |
 | no_adjusted_execution_fallback | PASS |
 | unsupported_ca_cash_zero | PASS |
+| pit_unsafe_ca_tickers_excluded | PASS |
 
 ## Performance lock
 
