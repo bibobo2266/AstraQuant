@@ -349,6 +349,7 @@ class ExecutionMarketData:
         session_date: date | datetime | pd.Timestamp,
         field: str = "close",
         not_before: date | datetime | pd.Timestamp | None = None,
+        allow_terminal_stale_without_tradability: bool = False,
     ) -> ExecutionPriceDecision:
         """Resolve a RAW mark with explicit stale carry for suspension gaps.
 
@@ -378,7 +379,37 @@ class ExecutionMarketData:
         day = self._normalize_day(session_date)
         trad_row = self._tradability_row(ticker, day)
         if trad_row is None:
-            return same_day
+            if not allow_terminal_stale_without_tradability:
+                return same_day
+            stale = self._latest_valid_raw_before(ticker=str(ticker), day=day)
+            if stale is None:
+                return same_day
+            source_day, row = stale
+            if not_before is not None:
+                barrier = self._normalize_day(not_before)
+                if source_day < barrier:
+                    return ExecutionPriceDecision(
+                        availability=ExecutionAvailability.NOT_EXECUTABLE,
+                        use=PriceUse.MARK,
+                        side="sell",
+                        field="stale_close",
+                        price=None,
+                        reason="STALE_RAW_MARK_BLOCKED_BY_CA",
+                        bar=None,
+                        tradability=None,
+                    )
+            bar = self._bar_from_row(str(ticker), source_day, row)
+            assert bar is not None
+            return ExecutionPriceDecision(
+                availability=ExecutionAvailability.EXECUTABLE,
+                use=PriceUse.MARK,
+                side="sell",
+                field="stale_close",
+                price=float(bar.close),
+                reason="TERMINAL_STALE_RAW_MARK",
+                bar=bar,
+                tradability=None,
+            )
         trad = self._tradability_from_row(str(ticker), day, trad_row)
         stale_valuation_reasons = {
             "NO_TRADE_ROW_WITHIN_ACTIVE_SPAN",
