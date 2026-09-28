@@ -24,6 +24,15 @@ Purpose: measure whether the full same-day tradable top-25%-turnover universe ca
 - known_date missing: 478
 - known_date after event_date: 0
 
+### Missing-known-date breakdown
+
+| Event type | Rows | Distinct tickers | First year | Last year |
+|---|---:|---:|---:|---:|
+| capital_reduction | 457 | 337 | 2016 | 2026 |
+| par_value_change_split | 21 | 19 | 2019 | 2026 |
+
+The table above is descriptive source evidence only. Event types are not assigned one blanket PIT treatment here; P2-060 must freeze event-type-specific handling before any portfolio-level attribution run.
+
 ## Canonical builder result
 
 - generated instructions: 16,044
@@ -43,16 +52,3 @@ Unknown payment dates are not automatically blockers because canonical accountin
 ## Decision boundary
 
 This file is an audit of the expanded null-universe accounting scope. A nonzero unsupported count is adverse/source-blocking evidence, not permission to fall back to adjusted prices or silently omit affected names. Portfolio-level policy/capacity attribution remains locked until the blocker is explicitly accounted for on a common-support basis.
-
-## Post-run PIT interpretation
-
-The four normalized `known_at > effective_date` blockers in the 2016-01-04 through 2026-06-30 research window cross-reference to the normalized-CA audit exceptions:
-
-- 4550 — 2016-09-12 CASH_DIVIDEND, known_at 2016-09-13
-- 3234 — 2017-07-19 CASH_DIVIDEND, known_at 2017-07-26
-- 5234 — 2019-06-13 CASH_DIVIDEND, known_at 2019-06-14
-- 6712 — 2025-04-30 CASH_DIVIDEND, known_at 2025-05-07
-
-These are explicit source/PIT blockers. Any common-support exclusion must name them and apply identically across baseline and controls; they may not be silently removed after observing performance.
-
-The 478 supported non-dividend ledger rows with missing `known_date` are not counted by the current builder as runtime-unsupported because their economic event fields can be applied on the source event/effective date. However, AstraQuant's PIT policy states that unknown availability remains a research limitation. Therefore portfolio-level null/capacity attribution remains locked until a separate policy step explicitly determines whether effective-date-only exogenous accounting is sufficient for this use or whether a common-support restriction is required. No adjusted-price fallback is permitted.
