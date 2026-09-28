@@ -21,6 +21,8 @@ from astraquant.portfolio.policy import CapacitySelectionRule, PortfolioIntentPo
 from astraquant.portfolio.strategy_simulator import CanonicalStrategySimulator, StrategySimulationConfig
 from astraquant.portfolio.trade_reconstruction import reconstruct_fifo_trades
 
+from source_eligible_universe_ca_coverage import eligible_turnover_universe
+
 from source_strategy_integration_smoke import (
     DRAIN_SESSIONS,
     SIGNAL_END,
@@ -34,6 +36,7 @@ SOURCE_ROOT = Path(os.environ.get("SOURCE_ROOT", "source_runtime/minervini_picks
 REPORT_PATH = Path(os.environ.get("REPORT_PATH", "docs/SOURCE_BREAKOUT_STRENGTH_FIFO_ATTRIBUTION.md"))
 EXCLUSIONS_PATH = Path(os.environ.get("EXCLUSIONS_PATH", "docs/SOURCE_CA_PIT_EXCLUSIONS.csv"))
 EXPECTED_EXCLUSIONS_SHA256 = "379d58f6a8aa06b1e020d56911930f4bc01861d3eeca109613d9e5b1e490d134"
+EXPECTED_ELIGIBLE_TICKERS = 1986
 INITIAL_CASH = 10_000_000.0
 STOP_FRACTION = 0.12
 BOOTSTRAP_REPS = 5000
@@ -107,6 +110,15 @@ def _trade_frame(portfolio: PortfolioEngine) -> pd.DataFrame:
     )
 
     open_source_ids = {lot.source_fill_id for lot in reconstructed.open_lots}
+    open_lot_details = [
+        {
+            "source_fill_id": lot.source_fill_id,
+            "ticker": lot.ticker,
+            "quantity": float(lot.quantity),
+            "opened_at": pd.Timestamp(lot.opened_at),
+        }
+        for lot in reconstructed.open_lots
+    ]
     rows = []
     for lot in reconstructed.closed_lots:
         rows.append(
@@ -150,6 +162,7 @@ def _trade_frame(portfolio: PortfolioEngine) -> pd.DataFrame:
         raise SystemExit("FAIL: closed-trade reconstruction is empty or invalid")
     trades["entry_year"] = pd.to_datetime(trades["entry_at"]).dt.year.astype(int)
     trades.attrs["open_lots"] = len(reconstructed.open_lots)
+    trades.attrs["open_lot_details"] = open_lot_details
     trades.attrs["cash_extinguishment_lots"] = int(
         (lots["exit_kind"] == "CASH_EXTINGUISHMENT").sum()
     )
@@ -230,7 +243,7 @@ def _paired_year_block_difference(
 def _run_rule(*, name, rule, signals, sim_sessions, ca_instructions, ticker_scope):
     portfolio = PortfolioEngine(opening_cash=INITIAL_CASH)
     execution = CanonicalExecutionService(
-        market_data=ExecutionMarketData(SourceDataAdapter(SOURCE_ROOT), ticker_scope=ticker_scope),
+        market_data=ExecutionMarketData(SourceDataAdapter(SOURCE_ROOT), ticker_scope=valuation_scope),
         fill_factory=ExecutionFillFactory(
             fee_model=ZeroFeeModel(),
             slippage_model=FixedBpsSlippage(bps=0),
@@ -301,6 +314,14 @@ def main() -> None:
     adjusted = load_adjusted()
     tradability = load_tradability(adjusted)
 
+    eligible = eligible_turnover_universe(adjusted, tradability)
+    eligible_ticker_count = int(eligible["stock_id"].astype(str).nunique())
+    if eligible_ticker_count != EXPECTED_ELIGIBLE_TICKERS:
+        raise SystemExit(
+            "BLOCKED: frozen eligible-universe ticker count changed "
+            f"(expected {EXPECTED_ELIGIBLE_TICKERS}, got {eligible_ticker_count})"
+        )
+
     signals = build_simple_breakout_signals(
         adjusted,
         tradability[["date", "stock_id", "observed_trade", "valid_ohlc"]],
@@ -312,6 +333,11 @@ def main() -> None:
     ].copy()
     if signals.empty:
         raise SystemExit("BLOCKED: no breakout signals remain on frozen common support")
+    candidate_id_ok = bool(
+        signals["stock_id"].astype(str).str.fullmatch(r"[1-9]\d{3}", na=False).all()
+    )
+    if not candidate_id_ok:
+        raise SystemExit("FAIL: non-ordinary ticker leaked into candidate universe")
     if signals[["breakout_excess", "turnover_value"]].isna().any().any():
         raise SystemExit("BLOCKED: deterministic ranking metadata contains nulls")
 
@@ -324,14 +350,20 @@ def main() -> None:
     sim_end = min(len(market_sessions), end_pos + 1 + DRAIN_SESSIONS)
     sim_sessions = market_sessions[:sim_end]
 
-    ticker_scope = set(signals["stock_id"].astype(str))
-    if ticker_scope & excluded:
+    candidate_scope = set(signals["stock_id"].astype(str))
+    if candidate_scope & excluded:
         raise SystemExit("FAIL: frozen common-support exclusion leaked into signal scope")
 
     ca_instructions, unsupported_count, unsupported_summary = build_supported_ca(
-        candidate_tickers=set(ticker_scope),
+        candidate_tickers=set(candidate_scope),
         sessions=set(sim_sessions),
     )
+    valuation_scope = set(candidate_scope)
+    for item in ca_instructions:
+        if item.successor_ticker is not None:
+            valuation_scope.add(str(item.successor_ticker))
+        for leg in item.successor_legs:
+            valuation_scope.add(str(leg.to_ticker))
     if unsupported_count:
         raise SystemExit(
             "BLOCKED: new CA blocker after frozen common-support application "
@@ -347,7 +379,7 @@ def main() -> None:
             signals=signals,
             sim_sessions=sim_sessions,
             ca_instructions=ca_instructions,
-            ticker_scope=ticker_scope,
+            ticker_scope=valuation_scope,
         )
         rows.append(row)
         trade_frames[name] = trades
@@ -356,15 +388,28 @@ def main() -> None:
     desc = frame[frame["rule"].eq("breakout_excess_desc")].iloc[0]
     asc = frame[frame["rule"].eq("breakout_excess_asc")].iloc[0]
     neutral = frame[frame["rule"].isin(["ticker_asc", "hash_asc"])]
-    diff_obs, diff_low, diff_high, paired_year_blocks = _paired_year_block_difference(
+    desc_diff_obs, desc_diff_low, desc_diff_high, desc_paired_year_blocks = _paired_year_block_difference(
         trade_frames["breakout_excess_desc"],
         trade_frames["hash_asc"],
     )
+    asc_diff_obs, asc_diff_low, asc_diff_high, asc_paired_year_blocks = _paired_year_block_difference(
+        trade_frames["breakout_excess_asc"],
+        trade_frames["hash_asc"],
+    )
+    if desc_diff_low > 0 and asc_diff_high < 0:
+        trade_level_verdict = "breakout strength carries directional information"
+    elif desc_diff_high < 0 and asc_diff_low > 0:
+        trade_level_verdict = "breakout strength carries inverse information"
+    else:
+        trade_level_verdict = "breakout strength carries no clear directional information"
 
     checks = {
         "frozen_exclusion_hash_matches": True,
         "all_six_declared_rules_complete": len(frame) == len(RULES),
-        "common_support_exclusion_active": not bool(ticker_scope & excluded),
+        "common_support_exclusion_active": not bool(candidate_scope & excluded),
+        "frozen_eligible_ticker_count_unchanged": eligible_ticker_count == EXPECTED_ELIGIBLE_TICKERS,
+        "candidate_universe_four_digit_ordinary_only": candidate_id_ok,
+        "valuation_scope_can_include_ca_successors": valuation_scope.issuperset(candidate_scope),
         "ranking_metadata_complete": not bool(signals[["turnover_value", "breakout_excess"]].isna().any().any()),
         "all_nav_positive": bool(frame["final_nav"].gt(0).all()),
         "fifo_closed_trades_present_all_rules": bool(frame["closed_trades"].gt(0).all()),
@@ -377,50 +422,79 @@ def main() -> None:
         "",
         f"Status: **{status}**",
         "",
-        "Purpose: follow up P2-061 without interpreting its path-only result prematurely. This diagnostic adds the reverse breakout-strength rule, reconstructs single-trade outcomes through canonical fills plus corporate-action share mutations, successor conversions, and cash-extinguishment entitlements, and adds a fixed calendar-year block-bootstrap uncertainty scale.",
+        "## Trade-level results — primary statistic",
         "",
-        "## Rule provenance",
-        "",
-        "- ticker_asc, turnover_desc, turnover_asc, breakout_excess_desc, hash_asc were preregistered in P2-061 before any result was observed.",
-        "- breakout_excess_asc was added in P2-062 AFTER the P2-061 result was observed, at external-reviewer request, as the symmetric counterpart required to distinguish directional signal information from dispersion-selection effects. It is NOT preregistered-blind and must not be represented as such.",
-        "",
-        "## Frozen design",
-        "",
-        "- P2-060 exclusion ledger is unchanged and hash-gated.",
-        "- signal definition, 250-session lookback, top-25% turnover universe, RAW execution/accounting, 10% NAV target, 10-position cap, 12% stop, 20-session re-entry, 250-session max hold, 1000-share lot, and zero fee/slippage are unchanged.",
-        "- six deterministic rules are rerun because P2-061 did not persist fills/trade ledgers; FIFO trade statistics cannot be recovered from its aggregate report alone.",
-        "- new directional falsification rule: weakest causal breakout excess first (breakout_excess_asc).",
-        "- trade unit: one entry fill, aggregated across any FIFO lot fragments until fully closed. Partially open entry lots are excluded from closed-trade statistics and counted separately.",
-        "- cash mergers close lots from explicit cash-entitlement economics at the extinguishment effective date; no synthetic market sell fill is created.",
-        f"- uncertainty scale: {BOOTSTRAP_REPS:,} calendar-year block-bootstrap replications, fixed seed {BOOTSTRAP_SEED}. The number of resamples controls Monte Carlo precision; the effective block count is the number of distinct calendar-year blocks, not 5,000.",
-        "",
-        "## Path + single-trade results",
-        "",
-        "| Rule | CAGR | Max DD | Sharpe | Entries | Closed trades | Open lots | Win rate | Payoff | Expectancy | Stop-normalized expectancy | 95% year-block CI | Cash-extinguishment lots |",
-        "|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|",
+        "| Rule | Trades | Win rate | Avg win | Avg loss | Payoff | Expectancy / trade | Stop-normalized expectancy |",
+        "|---|---:|---:|---:|---:|---:|---:|---:|",
     ]
     for row in frame.itertuples(index=False):
         lines.append(
-            f"| {row.rule} | {row.cagr*100:.2f}% | {row.max_drawdown*100:.2f}% | {row.sharpe:.3f} "
-            f"| {row.entries:,} | {int(row.closed_trades):,} | {int(row.open_lots):,} "
-            f"| {row.win_rate*100:.2f}% | {row.payoff_ratio:.3f} | {row.expectancy*100:.2f}% "
-            f"| {row.stop_normalized_expectancy:.3f} | [{row.expectancy_ci_low*100:.2f}%, {row.expectancy_ci_high*100:.2f}%] "
-            f"| {int(row.cash_extinguishment_lots):,} |"
+            f"| {row.rule} | {int(row.closed_trades):,} | {row.win_rate*100:.2f}% "
+            f"| {row.mean_winner*100:.2f}% | {row.mean_loser*100:.2f}% | {row.payoff_ratio:.3f} "
+            f"| {row.expectancy*100:.2f}% | {row.stop_normalized_expectancy:.3f} |"
         )
 
     lines += [
         "",
-        "## Directional comparison",
+        "Closed-trade expectancy excludes every entry fill with any remaining open FIFO lot.",
         "",
-        f"- strongest-breakout-first CAGR: {desc['cagr']*100:.2f}%",
-        f"- weakest-breakout-first CAGR: {asc['cagr']*100:.2f}%",
-        f"- neutral deterministic CAGR range (ticker/hash): {neutral['cagr'].min()*100:.2f}% to {neutral['cagr'].max()*100:.2f}%",
-        f"- strongest-breakout-first single-trade expectancy: {desc['expectancy']*100:.2f}%",
-        f"- weakest-breakout-first single-trade expectancy: {asc['expectancy']*100:.2f}%",
-        f"- neutral deterministic single-trade expectancy range (ticker/hash): {neutral['expectancy'].min()*100:.2f}% to {neutral['expectancy'].max()*100:.2f}%",
-        f"- strongest-breakout-first minus hash single-trade expectancy difference: {diff_obs*100:.2f} percentage points",
-        f"- paired calendar-year block-bootstrap 95% interval for that difference: [{diff_low*100:.2f}, {diff_high*100:.2f}] percentage points",
-        f"- paired bootstrap effective calendar-year blocks: {paired_year_blocks}; resamples: {BOOTSTRAP_REPS:,}",
+        "### Open (unclosed) entry lots — excluded from expectancy",
+        "",
+        "| Rule | Source fill | Current ticker | Quantity | Opened at |",
+        "|---|---|---|---:|---|",
+    ]
+    any_open = False
+    for name, trades in trade_frames.items():
+        for lot in trades.attrs.get("open_lot_details", []):
+            any_open = True
+            lines.append(
+                f"| {name} | {lot['source_fill_id']} | {lot['ticker']} "
+                f"| {lot['quantity']:.6g} | {lot['opened_at']} |"
+            )
+    if not any_open:
+        lines.append("| — | — | — | 0 | — |")
+
+    lines += [
+        "",
+        "## Directional trade-level comparison",
+        "",
+        f"- breakout_excess_desc minus hash_asc expectancy: {desc_diff_obs*100:.2f} percentage points",
+        f"- paired calendar-year block 95% interval: [{desc_diff_low*100:.2f}, {desc_diff_high*100:.2f}] percentage points",
+        f"- effective calendar-year block count: {desc_paired_year_blocks}; Monte Carlo resamples: {BOOTSTRAP_REPS:,}",
+        f"- breakout_excess_asc minus hash_asc expectancy: {asc_diff_obs*100:.2f} percentage points",
+        f"- paired calendar-year block 95% interval: [{asc_diff_low*100:.2f}, {asc_diff_high*100:.2f}] percentage points",
+        f"- effective calendar-year block count: {asc_paired_year_blocks}; Monte Carlo resamples: {BOOTSTRAP_REPS:,}",
+        "",
+        f"**Verdict:** Within the frozen P2-060 sub-universe, {trade_level_verdict} at trade level under the predeclared interval rule.",
+        "",
+        "The verdict rule was fixed before this rerun: directional only if desc-hash is strictly above zero while asc-hash is strictly below zero; inverse only if desc-hash is strictly below zero while asc-hash is strictly above zero; otherwise no clear directional information.",
+        "",
+        "## Path metrics — secondary",
+        "",
+        "| Rule | CAGR | Max DD | Sharpe | Entries | Open lots |",
+        "|---|---:|---:|---:|---:|---:|",
+    ]
+    for row in frame.itertuples(index=False):
+        lines.append(
+            f"| {row.rule} | {row.cagr*100:.2f}% | {row.max_drawdown*100:.2f}% "
+            f"| {row.sharpe:.3f} | {row.entries:,} | {int(row.open_lots):,} |"
+        )
+
+    lines += [
+        "",
+        "## Rule provenance",
+        "",
+        "- ticker_asc, turnover_desc, turnover_asc, breakout_excess_desc, hash_asc were preregistered in P2-061 before any result was observed.",
+        "- breakout_excess_asc was added in P2-062 AFTER the P2-061 result was observed, at external-reviewer request, as the symmetric counterpart required to distinguish directional signal information from dispersion-selection effects. It is NOT preregistered-blind.",
+        "",
+        "## Frozen-design and valuation-scope gates",
+        "",
+        f"- P2-060 exclusion SHA: {EXPECTED_EXCLUSIONS_SHA256}",
+        f"- frozen eligible-universe distinct tickers: {eligible_ticker_count:,} (expected {EXPECTED_ELIGIBLE_TICKERS:,})",
+        "- candidate universe remains numeric four-digit ordinary shares only.",
+        "- valuation universe may additionally contain securities passively received through explicit corporate actions; these successors are never signal candidates.",
+        "- no adjusted-price fallback, synthetic sell fill, or silent ticker exclusion is permitted.",
+        "- signal definition, 250-session lookback, top-25% turnover universe, RAW execution/accounting, 10% NAV target, 10-position cap, 12% stop, 20-session re-entry, 250-session max hold, 1000-share lot, and zero fee/slippage are unchanged.",
         "",
         "## Operational gates",
         "",
@@ -434,13 +508,13 @@ def main() -> None:
         "",
         "## Interpretation boundary",
         "",
-        "This is an attribution/falsification diagnostic, not a promotion test. No deterministic rule is selected, no strategy parameter is changed, and locked OOS remains locked.",
+        "This is an attribution/falsification diagnostic, not a promotion test. No deterministic rule is selected, no parameter is tuned, and locked OOS remains locked.",
         "",
-        "The year-block bootstrap is a descriptive uncertainty scale, not a claim that trades are independent or that the interval has exact frequentist coverage under portfolio dependence. Its effective information count is the number of calendar-year blocks (reported above), while 5,000 is only the number of Monte Carlo resamples. Its purpose is to avoid treating one deterministic CAGR spread as self-interpreting.",
+        "The paired calendar-year block bootstrap is a descriptive uncertainty scale. Its information count is the number of calendar-year blocks reported above; 5,000 is only the number of Monte Carlo resamples and is not an effective sample size.",
         "",
-        "Closed-trade expectancy is return on entry cost. Stop-normalized expectancy means closed-trade expectancy divided by the frozen 12% stop fraction; it is not realized R because realized losses need not equal the stop fraction.",
+        "Closed-trade expectancy is return on entry cost. Stop-normalized expectancy is expectancy divided by the frozen 12% stop fraction; it is not realized R.",
         "",
-        "External validity remains limited to the P2-060 common-support sub-universe, which excludes 355 of 1,986 eligible-universe tickers (17.9%).",
+        "External validity remains limited to the frozen P2-060 common-support sub-universe, which excludes 355 of 1,986 eligible-universe tickers (17.9%).",
     ]
 
     REPORT_PATH.parent.mkdir(parents=True, exist_ok=True)

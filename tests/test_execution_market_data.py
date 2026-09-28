@@ -654,3 +654,60 @@ def test_invalid_ohlc_stale_mark_respects_corporate_action_barrier(tmp_path):
 
     assert decision.availability is ExecutionAvailability.NOT_EXECUTABLE
     assert decision.reason == "STALE_RAW_MARK_BLOCKED_BY_CA"
+
+
+def test_held_successor_outside_candidate_universe_can_be_marked(tmp_path):
+    source = _write_source(
+        tmp_path,
+        raw_rows=[
+            {
+                "date": "2022-01-03",
+                "stock_id": "2330",
+                "open": 100.0,
+                "max": 101.0,
+                "min": 99.0,
+                "close": 100.5,
+            },
+            {
+                "date": "2022-01-03",
+                "stock_id": "2883B",
+                "open": 10.1,
+                "max": 10.2,
+                "min": 10.0,
+                "close": 10.15,
+            },
+        ],
+        trad_rows=[
+            {
+                "date": "2022-01-03",
+                "stock_id": "2330",
+                "observed_trade": True,
+                "valid_ohlc": True,
+                "buy_blocked": False,
+                "sell_blocked": False,
+                "reason": "OBSERVED",
+            },
+            {
+                "date": "2022-01-03",
+                "stock_id": "2883B",
+                "observed_trade": True,
+                "valid_ohlc": True,
+                "buy_blocked": False,
+                "sell_blocked": False,
+                "reason": "OBSERVED",
+            },
+        ],
+    )
+    candidate_scope = {"2330"}
+    valuation_scope = candidate_scope | {"2883B"}
+    market = ExecutionMarketData(source, ticker_scope=valuation_scope)
+
+    mark = market.resolve_mark(
+        ticker="2883B",
+        session_date=date(2022, 1, 3),
+        field="close",
+    )
+
+    assert "2883B" not in candidate_scope
+    assert mark.availability is ExecutionAvailability.EXECUTABLE
+    assert mark.price == 10.15
