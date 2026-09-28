@@ -9,7 +9,11 @@ from astraquant.execution.assumptions import FixedBpsSlippage, ZeroFeeModel
 from astraquant.execution.fills import ExecutionFillFactory
 from astraquant.execution.market_data import ExecutionMarketData
 from astraquant.execution.service import CanonicalExecutionService, SignalDeclaration
-from astraquant.portfolio.corporate_actions import CorporateActionEvent, CorporateActionType
+from astraquant.portfolio.corporate_actions import (
+    CashEntitlementBasis,
+    CorporateActionEvent,
+    CorporateActionType,
+)
 from astraquant.portfolio.engine import PortfolioEngine
 from astraquant.portfolio.historical_runner import (
     HistoricalCorporateActionInstruction,
@@ -268,3 +272,52 @@ def test_corporate_action_after_calendar_horizon_fails(tmp_path):
             sessions=[date(2026, 1, 2), date(2026, 1, 5), date(2026, 1, 6)],
             corporate_actions=[event],
         )
+
+
+def test_combined_cash_and_share_event_uses_opening_share_basis(tmp_path):
+    runner, portfolio = _runner(tmp_path)
+
+    buy = HistoricalTradeInstruction(
+        intent=OrderIntent(
+            intent_id="I-COMBINED",
+            ticker="2330",
+            side="buy",
+            quantity=100,
+            created_at=datetime(2026, 1, 2, 9, 0),
+            rationale="test",
+        ),
+        signal=_signal(),
+        order_id="O-COMBINED",
+        fill_id="F-COMBINED",
+        submitted_at=datetime(2026, 1, 2, 9, 0),
+        session_date=date(2026, 1, 2),
+        use=PriceUse.ENTRY,
+        field="open",
+        settlement_id="S-COMBINED",
+        settlement_due=datetime(2026, 1, 5),
+    )
+    combined = HistoricalCorporateActionInstruction(
+        event=CorporateActionEvent(
+            event_id="CA-COMBINED",
+            ticker="2330",
+            event_type=CorporateActionType.STOCK_DIVIDEND,
+            effective_at=datetime(2026, 1, 5),
+            cash_per_share=2.0,
+            share_multiplier=1.5,
+            source="official",
+        ),
+        applied_at=datetime(2026, 1, 5),
+        component="EX_RIGHT_DIVIDEND_CASH",
+        cash_share_basis_mode=CashEntitlementBasis.OPENING_POSITION,
+    )
+
+    runner.run(
+        sessions=[date(2026, 1, 2), date(2026, 1, 5), date(2026, 1, 6)],
+        trades=[buy],
+        corporate_actions=[combined],
+    )
+
+    assert portfolio.cash.pending_receivables == 200
+    assert portfolio.positions.positions["2330"].quantity == 150
+    receivable = portfolio.corporate_actions.cash_entitlement_receivables["CA-COMBINED"]
+    assert receivable.shares_entitled == 100
