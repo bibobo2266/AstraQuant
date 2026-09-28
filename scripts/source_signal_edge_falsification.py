@@ -150,13 +150,13 @@ def _forward_outcomes(
         entry,
         on=["entry_date", "stock_id"],
         how="left",
-        validate="one_to_one",
+        validate="many_to_one",
     )
     outcome = outcome.merge(
         exit_px,
         on=["exit_date", "stock_id"],
         how="left",
-        validate="one_to_one",
+        validate="many_to_one",
     )
 
     outcome["forward_return"] = (
