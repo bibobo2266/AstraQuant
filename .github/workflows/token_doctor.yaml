@@ -1,0 +1,84 @@
+name: token_doctor
+
+# 診斷 MINERVINI_READ_TOKEN 為什麼是 Bad credentials。
+# 不印出 token 本身，只印長度、前綴與 API 回應碼。
+# 放在要跑 audit 的那個 repo 的 .github/workflows/ 底下。
+
+on:
+  workflow_dispatch:
+
+jobs:
+  doctor:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 1. secret 存在嗎
+        env:
+          T: ${{ secrets.MINERVINI_READ_TOKEN }}
+        run: |
+          if [ -z "$T" ]; then
+            echo "❌ secret 是空的 —— 這個 repo 找不到 MINERVINI_READ_TOKEN"
+            echo "   檢查：名稱拼字、是不是設在別的 repo、是不是設成 environment secret 但 job 沒宣告 environment"
+            exit 1
+          fi
+          echo "✅ secret 有值"
+          echo "   長度 = ${#T}"
+          echo "   前綴 = $(echo -n "$T" | cut -c1-11)"
+          case "$T" in
+            github_pat_*) echo "   類型 = fine-grained PAT" ;;
+            ghp_*)        echo "   類型 = classic PAT" ;;
+            *)            echo "   ⚠️ 前綴不認得，可能貼錯東西" ;;
+          esac
+          CLEAN=$(printf '%s' "$T" | tr -d '[:space:]')
+          if [ "${#CLEAN}" -ne "${#T}" ]; then
+            echo "   ❌ 含有空白或換行（長度 ${#T} vs 去空白後 ${#CLEAN}）—— 重貼一次 secret"
+          else
+            echo "   ✅ 沒有多餘空白"
+          fi
+
+      - name: 2. token 本身有效嗎
+        env:
+          T: ${{ secrets.MINERVINI_READ_TOKEN }}
+        run: |
+          CODE=$(curl -s -o /tmp/r.json -w "%{http_code}" \
+            -H "Authorization: Bearer $T" \
+            -H "Accept: application/vnd.github+json" \
+            https://api.github.com/user)
+          echo "GET /user → $CODE"
+          case "$CODE" in
+            200) echo "✅ token 有效，帳號 = $(python3 -c "import json;print(json.load(open('/tmp/r.json'))['login'])")" ;;
+            401) echo "❌ token 無效／已過期／已撤銷 —— 要重新產生一個"; cat /tmp/r.json; exit 1 ;;
+            403) echo "⚠️ 403，token 有效但被限制"; cat /tmp/r.json ;;
+            *)   echo "⚠️ 非預期回應"; cat /tmp/r.json ;;
+          esac
+
+      - name: 3. 讀得到 minervini_picks 嗎
+        env:
+          T: ${{ secrets.MINERVINI_READ_TOKEN }}
+        run: |
+          CODE=$(curl -s -o /tmp/r2.json -w "%{http_code}" \
+            -H "Authorization: Bearer $T" \
+            -H "Accept: application/vnd.github+json" \
+            https://api.github.com/repos/bibobo2266/minervini_picks)
+          echo "GET /repos/bibobo2266/minervini_picks → $CODE"
+          case "$CODE" in
+            200) echo "✅ 讀得到，private = $(python3 -c "import json;print(json.load(open('/tmp/r2.json'))['private'])")" ;;
+            401) echo "❌ Bad credentials"; exit 1 ;;
+            403) echo "❌ token 有效但沒有這個 repo 的權限 —— fine-grained PAT 要在 Repository access 勾選 minervini_picks，且 Contents 設為 Read"; cat /tmp/r2.json; exit 1 ;;
+            404) echo "❌ 404 —— fine-grained PAT 對沒授權的 private repo 會回 404 而不是 403。去 token 設定加上這個 repo"; exit 1 ;;
+            *)   echo "⚠️ 非預期回應"; cat /tmp/r2.json ;;
+          esac
+
+      - name: 4. 實際 checkout 測試
+        uses: actions/checkout@v4
+        with:
+          repository: bibobo2266/minervini_picks
+          token: ${{ secrets.MINERVINI_READ_TOKEN }}
+          path: source_repo
+          sparse-checkout: |
+            scripts
+          sparse-checkout-cone-mode: false
+
+      - name: 5. 確認抓到東西
+        run: |
+          echo "✅ checkout 成功"
+          ls source_repo/scripts | head -20
