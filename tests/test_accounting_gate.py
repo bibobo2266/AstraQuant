@@ -21,6 +21,11 @@ def _ready(**overrides):
         "nav_reconciles": True,
         "no_adjusted_execution_fallback": True,
         "canonical_execution_path_active": True,
+        "normalized_ca_view_active": True,
+        "ca_payment_dates_settle": True,
+        "pit_unsafe_ca_excluded": True,
+        "terminal_security_lifecycle_active": True,
+        "long_horizon_canonical_probe_passed": True,
     }
     values.update(overrides)
     return AccountingReadiness(**values)
@@ -47,5 +52,20 @@ def test_any_accounting_failure_keeps_performance_locked():
 
     assert not gate.passed
     assert set(gate.failed_checks) == {"nav_reconciles", "receivables_reconcile"}
+    with pytest.raises(PerformanceLockedError):
+        gate.require_performance_unlocked()
+
+
+def test_long_horizon_or_source_quality_failure_keeps_performance_locked():
+    gate = _ready(
+        long_horizon_canonical_probe_passed=False,
+        pit_unsafe_ca_excluded=False,
+    )
+
+    assert not gate.passed
+    assert set(gate.failed_checks) == {
+        "long_horizon_canonical_probe_passed",
+        "pit_unsafe_ca_excluded",
+    }
     with pytest.raises(PerformanceLockedError):
         gate.require_performance_unlocked()
