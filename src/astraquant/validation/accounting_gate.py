@@ -22,6 +22,11 @@ class AccountingReadiness:
     nav_reconciles: bool
     no_adjusted_execution_fallback: bool
     canonical_execution_path_active: bool
+    normalized_ca_view_active: bool
+    ca_payment_dates_settle: bool
+    pit_unsafe_ca_excluded: bool
+    terminal_security_lifecycle_active: bool
+    long_horizon_canonical_probe_passed: bool
 
     @property
     def passed(self) -> bool:
