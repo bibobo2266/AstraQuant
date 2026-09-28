@@ -31,12 +31,21 @@ SOURCE_ROOT = Path(os.environ.get("SOURCE_ROOT", "source_runtime/minervini_picks
 REPORT_PATH = Path(os.environ.get("REPORT_PATH", "docs/SOURCE_STRATEGY_INTEGRATION_SMOKE.md"))
 SIGNAL_START = pd.Timestamp(os.environ.get("SIGNAL_START", "2026-01-01"))
 SIGNAL_END = pd.Timestamp(os.environ.get("SIGNAL_END", "2026-03-31"))
+DRAIN_SESSIONS = int(os.environ.get("DRAIN_SESSIONS", "2"))
+REPORT_TITLE = os.environ.get(
+    "REPORT_TITLE",
+    "Source Canonical Strategy Integration Smoke",
+)
 
 
 def load_adjusted() -> pd.DataFrame:
     parts = []
-    for year in (2025, 2026):
+    start_year = SIGNAL_START.year - 1
+    end_year = SIGNAL_END.year
+    for year in range(start_year, end_year + 1):
         p = SOURCE_ROOT / "adj" / f"prices_adj_{year}.parquet"
+        if not p.exists():
+            continue
         d = pd.read_parquet(
             p,
             columns=["date", "stock_id", "open", "max", "min", "close", "Trading_money"],
@@ -44,10 +53,12 @@ def load_adjusted() -> pd.DataFrame:
         d["date"] = pd.to_datetime(d["date"], errors="coerce").dt.normalize()
         d["stock_id"] = d["stock_id"].astype(str)
         parts.append(d)
+    if not parts:
+        raise SystemExit("BLOCKED: no adjusted source files for requested signal horizon")
     return pd.concat(parts, ignore_index=True)
 
 
-def load_tradability() -> pd.DataFrame:
+def load_tradability(adjusted: pd.DataFrame) -> pd.DataFrame:
     d = pd.read_parquet(
         SOURCE_ROOT / "reference" / "tradability.parquet",
         columns=[
@@ -57,7 +68,8 @@ def load_tradability() -> pd.DataFrame:
     )
     d["date"] = pd.to_datetime(d["date"], errors="coerce").dt.normalize()
     d["stock_id"] = d["stock_id"].astype(str)
-    return d[d["date"].ge(pd.Timestamp("2025-01-01"))].copy()
+    first_adjusted = adjusted["date"].dropna().min()
+    return d[d["date"].ge(first_adjusted)].copy()
 
 
 def build_supported_ca(
@@ -218,7 +230,7 @@ def build_supported_ca(
 
 def main() -> None:
     adjusted = load_adjusted()
-    tradability = load_tradability()
+    tradability = load_tradability(adjusted)
 
     all_signals = build_simple_breakout_signals(
         adjusted,
@@ -231,12 +243,22 @@ def main() -> None:
     if signals.empty:
         raise SystemExit("BLOCKED: no canonical breakout signals in smoke window")
 
-    # Include two post-signal sessions to drain T+2 trade settlements.
-    market_sessions = adjusted["date"].dropna().drop_duplicates().sort_values().tolist()
-    market_sessions = [pd.Timestamp(x) for x in market_sessions if pd.Timestamp(x).year == 2026]
-    end_pos = max(i for i, x in enumerate(market_sessions) if x <= SIGNAL_END)
-    sim_sessions = market_sessions[: min(len(market_sessions), end_pos + 3)]
-    sim_sessions = [x for x in sim_sessions if x >= pd.Timestamp("2026-01-02")]
+    # Simulation uses the actual source-session calendar. Post-signal sessions
+    # are included to give T+N settlements a chance to drain without adding
+    # calendar days by assumption.
+    market_sessions = [
+        pd.Timestamp(x)
+        for x in adjusted["date"].dropna().drop_duplicates().sort_values().tolist()
+        if pd.Timestamp(x) >= SIGNAL_START
+    ]
+    if not market_sessions:
+        raise SystemExit("BLOCKED: no source sessions in requested signal horizon")
+    eligible_end_positions = [i for i, x in enumerate(market_sessions) if x <= SIGNAL_END]
+    if not eligible_end_positions:
+        raise SystemExit("BLOCKED: signal end precedes first source session")
+    end_pos = max(eligible_end_positions)
+    sim_end = min(len(market_sessions), end_pos + 1 + DRAIN_SESSIONS)
+    sim_sessions = market_sessions[:sim_end]
     session_set = set(sim_sessions)
 
     candidate_tickers = set(signals["stock_id"].astype(str))
@@ -306,7 +328,7 @@ def main() -> None:
     status = "PASS" if all(checks.values()) else "FAIL"
 
     lines = [
-        "# Source Canonical Strategy Integration Smoke",
+        f"# {REPORT_TITLE}",
         "",
         f"Status: **{status}**",
         "",
@@ -315,6 +337,7 @@ def main() -> None:
         "## Integration window",
         "",
         f"- signal window: {SIGNAL_START.date()} through {SIGNAL_END.date()}",
+        f"- post-signal drain sessions requested: {DRAIN_SESSIONS}",
         f"- simulation sessions: {sim_sessions[0].date()} through {sim_sessions[-1].date()}",
         f"- session count / RAW NAV snapshots: {len(result.sessions):,}",
         f"- canonical signal candidates supplied: {len(signals):,}",
