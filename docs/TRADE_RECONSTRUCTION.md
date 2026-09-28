@@ -1,6 +1,6 @@
 # Canonical FIFO Trade Reconstruction
 
-Status: **IMPLEMENTED_CI_BLOCKED**
+Status: **IMPLEMENTED_CI_PASS — REPORT CONSUMPTION STARTS IN P2-062**
 
 AstraQuant trade-level reconstruction must not infer position history from fills alone. Canonical holdings can also change through explicit corporate-action share mutations and successor-security conversions.
 
@@ -22,3 +22,7 @@ Cash merger/extinguishment economics remain represented by the canonical CA acco
 After the CA-aware reconstruction utility was added, the frozen strategy-performance and temporal-replication workflows were rerun successfully. Their reported NAV/session/activity statistics did not change.
 
 That is not evidence that trade-level statistics are unaffected. Those two report scripts do not call `reconstruct_fifo_trades`; they derive NAV and activity metrics directly from canonical simulation snapshots/counters. A valid before/after comparison for win rate, payoff ratio, expectancy, holding period, or other closed-trade statistics requires a dedicated report wired to the canonical CA-aware reconstruction path.
+
+## Cash extinguishment closure
+
+P2-062 extends reconstruction so a held cash-merger position is closed from the explicit corporate-action cash entitlement at the extinguishment effective date. This records an economic exit event rather than inventing a market sell fill. The entitlement share count must match the remaining FIFO quantity or reconstruction hard-fails.

@@ -6,9 +6,11 @@ from typing import Iterable
 
 from astraquant.portfolio.models import (
     Fill,
+    PositionExtinguishment,
     PositionSecurityConversion,
     PositionShareMutation,
 )
+from astraquant.portfolio.corporate_actions import CorporateActionCashReceivable
 
 
 @dataclass(frozen=True)
@@ -30,9 +32,11 @@ class ReconstructedClosedLot:
     entry_at: datetime
     exit_at: datetime
     source_fill_id: str
-    exit_fill_id: str
+    exit_fill_id: str | None
     allocated_exit_fees: float
     realized_pnl: float
+    exit_event_id: str | None = None
+    exit_kind: str = "MARKET_FILL"
 
     @property
     def return_on_cost(self) -> float:
@@ -62,6 +66,8 @@ def reconstruct_fifo_trades(
     fills: Iterable[Fill],
     share_mutations: Iterable[PositionShareMutation] = (),
     security_conversions: Iterable[PositionSecurityConversion] = (),
+    position_extinguishments: Iterable[PositionExtinguishment] = (),
+    cash_entitlements: Iterable[CorporateActionCashReceivable] = (),
     tolerance: float = 1e-9,
 ) -> TradeReconstructionResult:
     """Reconstruct FIFO lots from canonical fills plus exogenous share events.
@@ -78,8 +84,11 @@ def reconstruct_fifo_trades(
         events.append((mutation.effective_at, 0, mutation.event_id, mutation))
     for conversion in security_conversions:
         events.append((conversion.effective_at, 1, conversion.event_id, conversion))
+    entitlement_by_event = {x.event_id: x for x in cash_entitlements}
+    for extinguishment in position_extinguishments:
+        events.append((extinguishment.effective_at, 2, extinguishment.event_id, extinguishment))
     for fill in fills:
-        events.append((fill.filled_at, 2, fill.fill_id, fill))
+        events.append((fill.filled_at, 3, fill.fill_id, fill))
     events.sort(key=lambda x: (x[0], x[1], x[2]))
 
     queues: dict[str, list[_Lot]] = {}
@@ -106,6 +115,45 @@ def reconstruct_fifo_trades(
                 target = queues.setdefault(target_ticker, [])
                 target.extend(moved)
                 target.sort(key=lambda lot: (lot.opened_at, lot.sequence))
+            continue
+
+        if isinstance(event, PositionExtinguishment):
+            ticker = str(event.ticker)
+            queue = queues.setdefault(ticker, [])
+            entitlement = entitlement_by_event.get(event.event_id)
+            open_quantity = sum(lot.quantity for lot in queue)
+            if open_quantity <= tolerance:
+                continue
+            if entitlement is None:
+                raise ValueError(
+                    f"cash extinguishment {event.event_id} has open FIFO lots but no cash entitlement"
+                )
+            if abs(float(entitlement.shares_entitled) - open_quantity) > tolerance:
+                raise ValueError(
+                    f"cash extinguishment {event.event_id} entitlement/open-lot mismatch: "
+                    f"entitled={entitlement.shares_entitled} open={open_quantity}"
+                )
+            exit_price = float(entitlement.cash_per_share)
+            while queue:
+                lot = queue.pop(0)
+                realized = (exit_price - lot.unit_cost) * lot.quantity
+                closed.append(
+                    ReconstructedClosedLot(
+                        entry_ticker=lot.entry_ticker,
+                        exit_ticker=ticker,
+                        quantity=lot.quantity,
+                        entry_price_with_fees=lot.unit_cost,
+                        exit_price=exit_price,
+                        entry_at=lot.opened_at,
+                        exit_at=event.effective_at,
+                        source_fill_id=lot.source_fill_id,
+                        exit_fill_id=None,
+                        allocated_exit_fees=0.0,
+                        realized_pnl=realized,
+                        exit_event_id=event.event_id,
+                        exit_kind="CASH_EXTINGUISHMENT",
+                    )
+                )
             continue
 
         fill = event

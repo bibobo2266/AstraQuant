@@ -21,6 +21,7 @@ class CapacitySelectionRule(str, Enum):
     TURNOVER_DESC = "TURNOVER_DESC"
     TURNOVER_ASC = "TURNOVER_ASC"
     BREAKOUT_EXCESS_DESC = "BREAKOUT_EXCESS_DESC"
+    BREAKOUT_EXCESS_ASC = "BREAKOUT_EXCESS_ASC"
     HASH_ASC = "HASH_ASC"
 
 
@@ -163,6 +164,8 @@ class PortfolioIntentPolicy:
                     ordered = sorted(eligible, key=lambda c: (numeric(c.turnover_value, missing=float("inf")), str(c.ticker)))
                 elif rule is CapacitySelectionRule.BREAKOUT_EXCESS_DESC:
                     ordered = sorted(eligible, key=lambda c: (-numeric(c.breakout_excess, missing=float("-inf")), str(c.ticker)))
+                elif rule is CapacitySelectionRule.BREAKOUT_EXCESS_ASC:
+                    ordered = sorted(eligible, key=lambda c: (numeric(c.breakout_excess, missing=float("inf")), str(c.ticker)))
                 elif rule is CapacitySelectionRule.HASH_ASC:
                     ordered = sorted(eligible, key=lambda c: (hashlib.sha256(f"{c.signal_date or ''}|{c.ticker}".encode("utf-8")).hexdigest(), str(c.ticker)))
                 else:

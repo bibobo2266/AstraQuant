@@ -258,6 +258,7 @@ def test_deterministic_capacity_rules_use_prespecified_metadata():
         CapacitySelectionRule.TURNOVER_DESC: ["1003"],
         CapacitySelectionRule.TURNOVER_ASC: ["1001"],
         CapacitySelectionRule.BREAKOUT_EXCESS_DESC: ["1002"],
+        CapacitySelectionRule.BREAKOUT_EXCESS_ASC: ["1001"],
     }
     for rule, tickers in expected.items():
         policy = PortfolioIntentPolicy(

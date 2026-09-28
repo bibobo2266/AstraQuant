@@ -2,8 +2,10 @@ from datetime import datetime
 
 import pytest
 
+from astraquant.portfolio.corporate_actions import CorporateActionCashReceivable
 from astraquant.portfolio.models import (
     Fill,
+    PositionExtinguishment,
     PositionSecurityConversion,
     PositionShareMutation,
 )
@@ -145,4 +147,74 @@ def test_fifo_reconstruction_rejects_unmatched_successor_sell():
                     datetime(2022, 9, 1, 9),
                 )
             ]
+        )
+
+
+def test_fifo_reconstruction_closes_cash_extinguishment_from_entitlement():
+    event_id = "cash-merger"
+    result = reconstruct_fifo_trades(
+        fills=[
+            _fill(
+                "buy-5305",
+                "5305",
+                "buy",
+                1000,
+                30.0,
+                datetime(2020, 11, 2, 9),
+            )
+        ],
+        position_extinguishments=[
+            PositionExtinguishment(
+                event_id=event_id,
+                ticker="5305",
+                effective_at=datetime(2020, 11, 30),
+                source="test",
+            )
+        ],
+        cash_entitlements=[
+            CorporateActionCashReceivable(
+                event_id=event_id,
+                ticker="5305",
+                component="MERGER_CASHOUT",
+                shares_entitled=1000,
+                cash_per_share=42.5,
+                amount=42500.0,
+                accrued_at=datetime(2020, 11, 30),
+                payment_at=datetime(2020, 12, 4),
+            )
+        ],
+    )
+
+    assert result.open_lots == ()
+    assert len(result.closed_lots) == 1
+    trade = result.closed_lots[0]
+    assert trade.exit_fill_id is None
+    assert trade.exit_event_id == event_id
+    assert trade.exit_kind == "CASH_EXTINGUISHMENT"
+    assert trade.exit_price == pytest.approx(42.5)
+    assert trade.realized_pnl == pytest.approx(12500.0)
+    assert trade.return_on_cost == pytest.approx(12.5 / 30.0)
+
+
+def test_fifo_reconstruction_rejects_cash_extinguishment_without_entitlement():
+    with pytest.raises(ValueError, match="no cash entitlement"):
+        reconstruct_fifo_trades(
+            fills=[
+                _fill(
+                    "buy-5305",
+                    "5305",
+                    "buy",
+                    1000,
+                    30.0,
+                    datetime(2020, 11, 2, 9),
+                )
+            ],
+            position_extinguishments=[
+                PositionExtinguishment(
+                    event_id="cash-merger",
+                    ticker="5305",
+                    effective_at=datetime(2020, 11, 30),
+                    source="test",
+                )
+            ],
         )
