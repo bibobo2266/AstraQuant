@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from enum import Enum
+import hashlib
 
 import numpy as np
 
@@ -14,6 +15,15 @@ class ExitReason(str, Enum):
     MAX_HOLD = "MAX_HOLD"
 
 
+class CapacitySelectionRule(str, Enum):
+    RANDOM = "RANDOM"
+    TICKER_ASC = "TICKER_ASC"
+    TURNOVER_DESC = "TURNOVER_DESC"
+    TURNOVER_ASC = "TURNOVER_ASC"
+    BREAKOUT_EXCESS_DESC = "BREAKOUT_EXCESS_DESC"
+    HASH_ASC = "HASH_ASC"
+
+
 @dataclass(frozen=True)
 class PortfolioPolicyConfig:
     position_fraction: float
@@ -23,6 +33,7 @@ class PortfolioPolicyConfig:
     max_hold_sessions: int = 250
     lot_size: int = 1000
     random_seed: int = 0
+    capacity_selection_rule: CapacitySelectionRule = CapacitySelectionRule.RANDOM
 
     def __post_init__(self) -> None:
         if not 0 < self.position_fraction <= 1:
@@ -43,6 +54,9 @@ class PortfolioPolicyConfig:
 class EntryCandidate:
     ticker: str
     sizing_decision: ExecutionPriceDecision
+    signal_date: str | None = None
+    turnover_value: float | None = None
+    breakout_excess: float | None = None
 
 
 @dataclass(frozen=True)
@@ -125,18 +139,42 @@ class PortfolioIntentPolicy:
             return [], skipped
 
         if len(eligible) > slots:
-            chosen_idx = set(
-                int(i)
-                for i in self._rng.choice(
-                    len(eligible),
-                    size=slots,
-                    replace=False,
+            rule = self.config.capacity_selection_rule
+            if rule is CapacitySelectionRule.RANDOM:
+                chosen_idx = set(
+                    int(i)
+                    for i in self._rng.choice(
+                        len(eligible),
+                        size=slots,
+                        replace=False,
+                    )
                 )
-            )
-            selected = [c for i, c in enumerate(eligible) if i in chosen_idx]
+                selected = [c for i, c in enumerate(eligible) if i in chosen_idx]
+                skip_reason = "CAPACITY_RANDOM_SKIP"
+            else:
+                def numeric(value: float | None, *, missing: float) -> float:
+                    return missing if value is None else float(value)
+
+                if rule is CapacitySelectionRule.TICKER_ASC:
+                    ordered = sorted(eligible, key=lambda c: str(c.ticker))
+                elif rule is CapacitySelectionRule.TURNOVER_DESC:
+                    ordered = sorted(eligible, key=lambda c: (-numeric(c.turnover_value, missing=float("-inf")), str(c.ticker)))
+                elif rule is CapacitySelectionRule.TURNOVER_ASC:
+                    ordered = sorted(eligible, key=lambda c: (numeric(c.turnover_value, missing=float("inf")), str(c.ticker)))
+                elif rule is CapacitySelectionRule.BREAKOUT_EXCESS_DESC:
+                    ordered = sorted(eligible, key=lambda c: (-numeric(c.breakout_excess, missing=float("-inf")), str(c.ticker)))
+                elif rule is CapacitySelectionRule.HASH_ASC:
+                    ordered = sorted(eligible, key=lambda c: (hashlib.sha256(f"{c.signal_date or ''}|{c.ticker}".encode("utf-8")).hexdigest(), str(c.ticker)))
+                else:
+                    raise ValueError(f"unsupported capacity selection rule: {rule}")
+                selected = ordered[:slots]
+                chosen = {str(c.ticker) for c in selected}
+                chosen_idx = {i for i, c in enumerate(eligible) if str(c.ticker) in chosen}
+                skip_reason = f"CAPACITY_{rule.value}_SKIP"
+
             for i, candidate in enumerate(eligible):
                 if i not in chosen_idx:
-                    skipped[str(candidate.ticker)] = "CAPACITY_RANDOM_SKIP"
+                    skipped[str(candidate.ticker)] = skip_reason
         else:
             selected = eligible
 

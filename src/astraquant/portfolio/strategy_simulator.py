@@ -34,6 +34,7 @@ class StrategySessionAudit:
     signals_for_open: int
     entries_executed: int
     entries_skipped: int
+    capacity_rejections: int
     stop_exits: int
     max_hold_exits: int
     settlements_completed: int
@@ -49,6 +50,8 @@ class StrategySimulationResult:
     total_stop_exits: int
     total_max_hold_exits: int
     total_entry_skips: int
+    total_capacity_overflow_sessions: int
+    total_capacity_rejections: int
     total_blocked_exits: int
     total_corporate_actions: int
     total_corporate_cash_payments: int
@@ -97,7 +100,8 @@ class CanonicalStrategySimulator:
         if missing:
             raise ValueError(f"signals missing columns: {missing}")
 
-        out = signals[["signal_date", "stock_id"]].copy()
+        optional = [c for c in ("turnover_value", "breakout_excess") if c in signals.columns]
+        out = signals[["signal_date", "stock_id", *optional]].copy()
         out["signal_date"] = pd.to_datetime(
             out["signal_date"], errors="coerce"
         ).dt.normalize()
@@ -178,13 +182,13 @@ class CanonicalStrategySimulator:
         normalized_signals = self._normalize_signals(signals)
         session_index = {day: i for i, day in enumerate(calendar)}
 
-        entry_signals: dict[date, list[str]] = {}
-        for row in normalized_signals.itertuples(index=False):
-            signal_day = pd.Timestamp(row.signal_date).date()
+        entry_signals: dict[date, list[dict[str, object]]] = {}
+        for row in normalized_signals.to_dict("records"):
+            signal_day = pd.Timestamp(row["signal_date"]).date()
             idx = session_index.get(signal_day)
             if idx is None or idx + 1 >= len(calendar):
                 continue
-            entry_signals.setdefault(calendar[idx + 1], []).append(str(row.stock_id))
+            entry_signals.setdefault(calendar[idx + 1], []).append(row)
 
         ca_by_day: dict[date, list[HistoricalCorporateActionInstruction]] = {}
         terminal_stale_windows: dict[str, tuple[date, date]] = {}
@@ -206,6 +210,8 @@ class CanonicalStrategySimulator:
         total_stop_exits = 0
         total_max_hold_exits = 0
         total_entry_skips = 0
+        total_capacity_overflow_sessions = 0
+        total_capacity_rejections = 0
         total_blocked_exits = 0
         total_ca = 0
         total_ca_payments = 0
@@ -337,9 +343,11 @@ class CanonicalStrategySimulator:
 
             held_before_open = set(self.policy.managed_positions)
 
-            tickers = sorted(set(entry_signals.get(day, [])))
+            signal_rows = sorted(entry_signals.get(day, []), key=lambda row: str(row["stock_id"]))
+            tickers = [str(row["stock_id"]) for row in signal_rows]
             candidates: list[EntryCandidate] = []
-            for ticker in tickers:
+            for row in signal_rows:
+                ticker = str(row["stock_id"])
                 sizing = self.execution.sizing_price(
                     ticker=ticker,
                     session_date=day,
@@ -351,6 +359,9 @@ class CanonicalStrategySimulator:
                     EntryCandidate(
                         ticker=ticker,
                         sizing_decision=sizing,
+                        signal_date=str(pd.Timestamp(row["signal_date"]).date()),
+                        turnover_value=(None if pd.isna(row.get("turnover_value")) else float(row["turnover_value"])),
+                        breakout_excess=(None if pd.isna(row.get("breakout_excess")) else float(row["breakout_excess"])),
                     )
                 )
 
@@ -373,6 +384,13 @@ class CanonicalStrategySimulator:
                 available_cash=self.portfolio.cash.available_to_commit_cash,
             )
             entry_skips = len(skipped)
+            capacity_rejections = sum(
+                reason == "NO_POSITION_SLOT" or reason.startswith("CAPACITY_")
+                for reason in skipped.values()
+            )
+            if capacity_rejections:
+                total_capacity_overflow_sessions += 1
+                total_capacity_rejections += capacity_rejections
 
             entries = 0
             for n, plan in enumerate(planned):
@@ -521,6 +539,7 @@ class CanonicalStrategySimulator:
                     signals_for_open=len(tickers),
                     entries_executed=entries,
                     entries_skipped=entry_skips,
+                    capacity_rejections=capacity_rejections,
                     stop_exits=stop_exits,
                     max_hold_exits=max_hold_exits,
                     settlements_completed=len(due),
@@ -536,6 +555,8 @@ class CanonicalStrategySimulator:
             total_stop_exits=total_stop_exits,
             total_max_hold_exits=total_max_hold_exits,
             total_entry_skips=total_entry_skips,
+            total_capacity_overflow_sessions=total_capacity_overflow_sessions,
+            total_capacity_rejections=total_capacity_rejections,
             total_blocked_exits=total_blocked_exits,
             total_corporate_actions=total_ca,
             total_corporate_cash_payments=total_ca_payments,

@@ -11,6 +11,7 @@ from astraquant.execution.market_data import (
 )
 from astraquant.portfolio.corporate_actions import CorporateActionEvent, CorporateActionType
 from astraquant.portfolio.policy import (
+    CapacitySelectionRule,
     EntryCandidate,
     PortfolioIntentPolicy,
     PortfolioPolicyConfig,
@@ -244,3 +245,60 @@ def test_policy_cash_dividend_reduces_raw_stop_without_changing_quantity():
     assert state.quantity == 100
     assert state.entry_price == 100.0
     assert state.stop_price == 83.0
+
+
+def test_deterministic_capacity_rules_use_prespecified_metadata():
+    candidates = [
+        EntryCandidate("1003", _sizing("1003", 10.0), signal_date="2026-01-02", turnover_value=300.0, breakout_excess=0.03),
+        EntryCandidate("1001", _sizing("1001", 10.0), signal_date="2026-01-02", turnover_value=100.0, breakout_excess=0.01),
+        EntryCandidate("1002", _sizing("1002", 10.0), signal_date="2026-01-02", turnover_value=200.0, breakout_excess=0.05),
+    ]
+    expected = {
+        CapacitySelectionRule.TICKER_ASC: ["1001"],
+        CapacitySelectionRule.TURNOVER_DESC: ["1003"],
+        CapacitySelectionRule.TURNOVER_ASC: ["1001"],
+        CapacitySelectionRule.BREAKOUT_EXCESS_DESC: ["1002"],
+    }
+    for rule, tickers in expected.items():
+        policy = PortfolioIntentPolicy(
+            PortfolioPolicyConfig(
+                position_fraction=0.10,
+                max_positions=1,
+                capacity_selection_rule=rule,
+            )
+        )
+        planned, skipped = policy.plan_entries(
+            candidates=candidates,
+            session_index=1,
+            current_nav=1_000_000.0,
+            available_cash=1_000_000.0,
+        )
+        assert [x.ticker for x in planned] == tickers
+        assert sum(reason.startswith("CAPACITY_") for reason in skipped.values()) == 2
+
+
+def test_hash_capacity_rule_is_reproducible_and_order_independent():
+    candidates = [
+        EntryCandidate(str(1000 + i), _sizing(str(1000 + i), 10.0), signal_date="2026-01-02")
+        for i in range(6)
+    ]
+    config = PortfolioPolicyConfig(
+        position_fraction=0.10,
+        max_positions=2,
+        capacity_selection_rule=CapacitySelectionRule.HASH_ASC,
+    )
+    first = PortfolioIntentPolicy(config)
+    second = PortfolioIntentPolicy(config)
+    p1, _ = first.plan_entries(
+        candidates=candidates,
+        session_index=1,
+        current_nav=1_000_000.0,
+        available_cash=1_000_000.0,
+    )
+    p2, _ = second.plan_entries(
+        candidates=list(reversed(candidates)),
+        session_index=1,
+        current_nav=1_000_000.0,
+        available_cash=1_000_000.0,
+    )
+    assert [x.ticker for x in p1] == [x.ticker for x in p2]

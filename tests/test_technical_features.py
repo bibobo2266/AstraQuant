@@ -68,6 +68,8 @@ def test_simple_breakout_matches_prior_high_rule():
     assert signals["stock_id"].tolist() == ["2330"]
     assert signals["signal_date"].tolist() == [pd.Timestamp("2026-01-08")]
     assert signals["adjusted_close"].tolist() == [13.0]
+    assert signals["breakout_prior_high"].tolist() == [12.0]
+    assert signals["breakout_excess"].iloc[0] == pytest.approx(13.0 / 12.0 - 1.0)
     assert signals["price_semantics"].tolist() == ["SCALE_SENSITIVE"]
 
 

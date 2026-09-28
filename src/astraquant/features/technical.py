@@ -143,6 +143,8 @@ def build_simple_breakout_signals(
                 "available_date",
                 "stock_id",
                 "adjusted_close",
+                "breakout_prior_high",
+                "breakout_excess",
                 "turnover_value",
                 "turnover_percentile",
                 "lookback",
@@ -197,6 +199,8 @@ def build_simple_breakout_signals(
                 "available_date",
                 "stock_id",
                 "adjusted_close",
+                "breakout_prior_high",
+                "breakout_excess",
                 "turnover_value",
                 "turnover_percentile",
                 "lookback",
@@ -207,9 +211,19 @@ def build_simple_breakout_signals(
             ]
         )
 
+    prior_high_long = (
+        prior_high.stack(future_stack=True)
+        .rename("breakout_prior_high")
+        .reset_index()
+    )
     meta = eligible[
         ["date", "stock_id", "close", "Trading_money", "turnover_percentile"]
-    ].rename(
+    ].merge(
+        prior_high_long,
+        on=["date", "stock_id"],
+        how="left",
+        validate="one_to_one",
+    ).rename(
         columns={
             "date": "signal_date",
             "close": "adjusted_close",
@@ -224,6 +238,9 @@ def build_simple_breakout_signals(
         validate="one_to_one",
     )
     out["available_date"] = out["signal_date"]
+    out["breakout_excess"] = (
+        out["adjusted_close"] / out["breakout_prior_high"] - 1.0
+    )
     out["lookback"] = cfg.lookback
     out["feature_name"] = cfg.feature_name
     out["feature_version"] = cfg.feature_version
@@ -238,6 +255,8 @@ def build_simple_breakout_signals(
             "available_date",
             "stock_id",
             "adjusted_close",
+            "breakout_prior_high",
+            "breakout_excess",
             "turnover_value",
             "turnover_percentile",
             "lookback",
