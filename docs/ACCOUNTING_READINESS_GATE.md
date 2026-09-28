@@ -32,15 +32,20 @@ AstraQuant now has an explicit accounting-readiness gate. Performance metrics ma
 
 `docs/SOURCE_FULL_HISTORY_PROBE.md` passes a 2,859-session 2015–2026 RAW accounting replay for 2330 with daily RAW NAV snapshots and 28 canonical cash-dividend events. This proves the canonical historical runtime/accounting path can span the full frozen history range.
 
+## Latest strategy-path integration evidence
+
+- `docs/SOURCE_STRATEGY_INTEGRATION_SMOKE.md` — real canonical breakout candidates now pass through the causal RAW strategy simulator for the 2026-01-02 through 2026-04-02 integration window, including corporate actions and RAW NAV snapshots.
+- Calendar mapping and combined ex-right/dividend opening-share entitlement are explicit; no adjusted execution fallback is used.
+
 ## Performance lock
 
 The active legacy `minervini_picks/scripts/portfolio_backtest.py` remains read-only and is not accounting-valid. AstraQuant will not modify that repository.
 
 The AstraQuant canonical service, event-driven replay, and a 2015–2026 full-history accounting probe now pass real-source integration tests. Performance nevertheless remains locked until the legacy strategy's actual signal/order-intent generation is migrated into this canonical path under declared PIT signal semantics.
 
-The unlock condition is:
+The canonical strategy path now passes a real-source integration smoke. The remaining unlock condition is:
 
-> run the portfolio simulation through an AstraQuant-owned canonical execution path that uses RAW execution prices, explicit tradability, explicit corporate-action accounting, and RAW NAV reconciliation.
+> run the required historical strategy/accounting horizon through the AstraQuant-owned canonical path, preserve all accounting/calendar/CA gates, freeze the resulting audit evidence, and only then permit performance metrics.
 
 ## Source limitations retained
 
