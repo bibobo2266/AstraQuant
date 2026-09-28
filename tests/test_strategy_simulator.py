@@ -429,3 +429,147 @@ def test_ca_transformed_mark_handles_invalid_ohlc_on_event_day(tmp_path):
     pos = next(x for x in day.snapshot.valuation.positions if x.ticker == "2330")
     assert pos.raw_mark == pytest.approx(102.0 / 1.1)
     assert pos.market_value == pytest.approx(2000.0 * 102.0)
+
+
+def test_successor_security_conversion_moves_position_and_policy_state(tmp_path):
+    from astraquant.portfolio.corporate_actions import (
+        CorporateActionEvent,
+        CorporateActionType,
+    )
+    from astraquant.portfolio.historical_runner import HistoricalCorporateActionInstruction
+    from astraquant.portfolio.models import Fill
+
+    root = tmp_path / "successor_source"
+    (root / "raw").mkdir(parents=True)
+    (root / "reference").mkdir(parents=True)
+
+    pd.DataFrame([
+        {
+            "date": "2022-08-12",
+            "stock_id": "6251",
+            "open": 20.25,
+            "max": 20.35,
+            "min": 20.10,
+            "close": 20.30,
+        },
+        {
+            "date": "2022-08-25",
+            "stock_id": "3715",
+            "open": 20.40,
+            "max": 21.00,
+            "min": 20.20,
+            "close": 20.80,
+        },
+    ]).to_parquet(root / "raw" / "prices_raw_2022.parquet", index=False)
+
+    pd.DataFrame([
+        {
+            "date": "2022-08-12",
+            "stock_id": "6251",
+            "observed_trade": True,
+            "valid_ohlc": True,
+            "buy_blocked": False,
+            "sell_blocked": False,
+            "reason": "OBSERVED",
+        },
+        {
+            "date": "2022-08-25",
+            "stock_id": "3715",
+            "observed_trade": True,
+            "valid_ohlc": True,
+            "buy_blocked": False,
+            "sell_blocked": False,
+            "reason": "OBSERVED",
+        },
+    ]).to_parquet(root / "reference" / "tradability.parquet", index=False)
+
+    portfolio = PortfolioEngine(opening_cash=0.0)
+    portfolio.positions.apply_fill(
+        Fill(
+            fill_id="seed-6251",
+            order_id="seed-order-6251",
+            ticker="6251",
+            side="buy",
+            quantity=1000,
+            price=20.0,
+            filled_at=datetime(2022, 8, 11),
+        )
+    )
+    execution = CanonicalExecutionService(
+        market_data=ExecutionMarketData(SourceDataAdapter(root)),
+        fill_factory=ExecutionFillFactory(
+            fee_model=ZeroFeeModel(),
+            slippage_model=FixedBpsSlippage(bps=0),
+        ),
+        portfolio=portfolio,
+    )
+    policy = PortfolioIntentPolicy(
+        PortfolioPolicyConfig(
+            position_fraction=0.20,
+            max_positions=1,
+            stop_fraction=0.12,
+            reentry_gap_sessions=20,
+            max_hold_sessions=250,
+            lot_size=1000,
+            random_seed=1,
+        )
+    )
+    policy.register_entry(
+        ticker="6251",
+        quantity=1000,
+        fill_price=20.0,
+        session_index=0,
+    )
+    sim = CanonicalStrategySimulator(
+        execution=execution,
+        portfolio=portfolio,
+        policy=policy,
+        signal=SignalDeclaration(
+            source="successor test",
+            price_semantics=SignalPriceSemantics.SCALE_SENSITIVE,
+        ),
+        config=StrategySimulationConfig(settlement_lag_sessions=1),
+    )
+
+    event = CorporateActionEvent(
+        event_id="SUCCESSOR-6251-3715",
+        ticker="6251",
+        event_type=CorporateActionType.MERGER,
+        effective_at=datetime(2022, 8, 25),
+        known_at=datetime(2022, 7, 4, 8, 50),
+        source="TWSE/MOPS",
+    )
+    sessions = [
+        date(2022, 8, 12),
+        date(2022, 8, 15),
+        date(2022, 8, 16),
+        date(2022, 8, 17),
+        date(2022, 8, 18),
+        date(2022, 8, 19),
+        date(2022, 8, 22),
+        date(2022, 8, 23),
+        date(2022, 8, 24),
+        date(2022, 8, 25),
+    ]
+
+    result = sim.run(
+        sessions=sessions,
+        signals=pd.DataFrame(columns=["signal_date", "stock_id"]),
+        corporate_actions=[
+            HistoricalCorporateActionInstruction(
+                event=event,
+                applied_at=event.effective_at,
+                terminal_stale_from=date(2022, 8, 15),
+                successor_ticker="3715",
+                successor_multiplier=1.0,
+            )
+        ],
+    )
+
+    assert result.total_corporate_actions == 1
+    assert portfolio.positions.positions["6251"].quantity == 0
+    assert portfolio.positions.positions["3715"].quantity == 1000
+    assert "6251" not in policy.managed_positions
+    assert policy.managed_positions["3715"].quantity == 1000
+    assert result.sessions[1].snapshot.valuation.nav == 20300.0
+    assert result.sessions[-1].snapshot.valuation.nav == 20800.0
