@@ -25,7 +25,7 @@ Purpose: rerun the exact audited strategy configuration from fresh capital in no
 | Era | PIT-unsafe tickers quarantined | Signal rows removed | Blocked exits | CA applied | CA payments settled |
 |---|---:|---:|---:|---:|---:|
 | era_2016_2019 | 3 | 21 | 8 | 4,292 | 3,626 |
-| era_2020_2022 | 0 | 0 | 5 | 3,341 | 2,946 |
+| era_2020_2022 | 0 | 0 | 5 | 3,342 | 2,946 |
 | era_2023_2026H1 | 1 | 5 | 2 | 4,256 | 3,514 |
 
 ## Operational gate
