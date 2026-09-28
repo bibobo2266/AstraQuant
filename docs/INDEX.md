@@ -46,3 +46,5 @@ Phase-1 runtime/data audit is complete with explicit limitations. Phase-2 execut
 - `PERSISTENCE.md` — append-only governance persistence conventions
 
 - [Corporate-action source semantics clarification](CORPORATE_ACTION_SOURCE_SEMANTICS_CLARIFICATION.md) — verified source-builder meanings, entitlement basis, known/payment-date limitations, and conversion guardrails.
+
+- [Corporate-action source risk addendum](CORPORATE_ACTION_SOURCE_RISK_ADDENDUM.md) — mixed-unit/date/amount risks and required read-only runtime audits before further CA normalization.
