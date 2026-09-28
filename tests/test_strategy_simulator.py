@@ -234,3 +234,132 @@ def test_strategy_simulator_settles_dividend_on_payment_date(tmp_path):
     assert result.sessions[3].corporate_cash_payments == 1
     assert portfolio.cash.pending_receivables == 0.0
     assert "DIV-PAY" in portfolio.corporate_actions.completed_dividends
+
+
+def test_terminal_merger_carries_last_raw_then_extinguishes_and_pays(tmp_path):
+    from astraquant.portfolio.corporate_actions import (
+        CashEntitlementBasis,
+        CorporateActionEvent,
+        CorporateActionType,
+    )
+    from astraquant.portfolio.historical_runner import HistoricalCorporateActionInstruction
+    from astraquant.portfolio.models import Fill
+
+    root = tmp_path / "terminal_source"
+    (root / "raw").mkdir(parents=True)
+    (root / "reference").mkdir(parents=True)
+
+    pd.DataFrame([{
+        "date": "2022-04-26",
+        "stock_id": "4141",
+        "open": 26.10,
+        "max": 26.15,
+        "min": 26.10,
+        "close": 26.10,
+    }]).to_parquet(root / "raw" / "prices_raw_2022.parquet", index=False)
+
+    pd.DataFrame([{
+        "date": "2022-04-26",
+        "stock_id": "4141",
+        "observed_trade": True,
+        "valid_ohlc": True,
+        "buy_blocked": False,
+        "sell_blocked": False,
+        "reason": "OBSERVED",
+    }]).to_parquet(root / "reference" / "tradability.parquet", index=False)
+
+    portfolio = PortfolioEngine(opening_cash=0.0)
+    portfolio.positions.apply_fill(
+        Fill(
+            fill_id="seed-4141",
+            order_id="seed-order-4141",
+            ticker="4141",
+            side="buy",
+            quantity=1000,
+            price=26.0,
+            filled_at=datetime(2022, 4, 25),
+        )
+    )
+    execution = CanonicalExecutionService(
+        market_data=ExecutionMarketData(SourceDataAdapter(root)),
+        fill_factory=ExecutionFillFactory(
+            fee_model=ZeroFeeModel(),
+            slippage_model=FixedBpsSlippage(bps=0),
+        ),
+        portfolio=portfolio,
+    )
+    policy = PortfolioIntentPolicy(
+        PortfolioPolicyConfig(
+            position_fraction=0.20,
+            max_positions=1,
+            stop_fraction=0.12,
+            reentry_gap_sessions=20,
+            max_hold_sessions=250,
+            lot_size=1000,
+            random_seed=1,
+        )
+    )
+    policy.register_entry(
+        ticker="4141",
+        quantity=1000,
+        fill_price=26.0,
+        session_index=0,
+    )
+    sim = CanonicalStrategySimulator(
+        execution=execution,
+        portfolio=portfolio,
+        policy=policy,
+        signal=SignalDeclaration(
+            source="terminal test",
+            price_semantics=SignalPriceSemantics.SCALE_SENSITIVE,
+        ),
+        config=StrategySimulationConfig(settlement_lag_sessions=1),
+    )
+
+    event = CorporateActionEvent(
+        event_id="MERGER-4141",
+        ticker="4141",
+        event_type=CorporateActionType.MERGER,
+        effective_at=datetime(2022, 5, 3),
+        known_at=datetime(2022, 3, 30, 18, 31, 29),
+        payment_at=datetime(2022, 5, 10),
+        cash_per_share=26.23,
+        source="MOPS/TWSE",
+    )
+    sessions = [
+        date(2022, 4, 26),
+        date(2022, 4, 27),
+        date(2022, 4, 28),
+        date(2022, 4, 29),
+        date(2022, 5, 2),
+        date(2022, 5, 3),
+        date(2022, 5, 4),
+        date(2022, 5, 5),
+        date(2022, 5, 6),
+        date(2022, 5, 9),
+        date(2022, 5, 10),
+    ]
+
+    result = sim.run(
+        sessions=sessions,
+        signals=pd.DataFrame(columns=["signal_date", "stock_id"]),
+        corporate_actions=[
+            HistoricalCorporateActionInstruction(
+                event=event,
+                applied_at=event.effective_at,
+                component="MERGER_CASHOUT",
+                cash_share_basis_mode=CashEntitlementBasis.OPENING_POSITION,
+                terminal_stale_from=date(2022, 4, 27),
+                extinguish_position=True,
+            )
+        ],
+    )
+
+    assert result.total_corporate_actions == 1
+    assert result.total_corporate_cash_payments == 1
+    assert portfolio.positions.positions["4141"].quantity == 0
+    assert "4141" not in policy.managed_positions
+    assert portfolio.cash.pending_receivables == 0.0
+    assert portfolio.cash.settled_cash == 26230.0
+    assert result.sessions[1].snapshot.valuation.nav == 26100.0
+    assert result.sessions[5].snapshot.valuation.nav == 26230.0
