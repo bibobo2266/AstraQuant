@@ -32,6 +32,10 @@ The future attribution runner must load the frozen exclusion ledger, derive the 
 
 The event-level CSV is the authoritative explicit list. Each excluded event is named by ticker, effective date, event type, source, and reason. Duplicate ticker events remain separate rows for auditability.
 
+## External-validity boundary
+
+The frozen common-support set excludes 355 of 1,986 eligible-universe tickers, or 17.9%. Because the exclusions are concentrated in securities with capital reductions or par-value/share-coordinate changes plus four late-known dividend events, the resulting attribution applies to the common-support sub-universe, not automatically to the full Taiwan top-25%-turnover universe. This restriction is methodological rather than performance-driven and must accompany any interpretation of the attribution results.
+
 ## Decision boundary
 
 This policy does not promote a strategy, select a capacity rule, alter signal parameters, or unlock locked OOS. It only defines the common-support universe required before policy/capacity attribution.
