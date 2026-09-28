@@ -7,6 +7,7 @@ Purpose: connect real canonical breakout candidates to the causal RAW portfolio 
 ## Integration window
 
 - signal window: 2026-01-01 through 2026-03-31
+- post-signal drain sessions requested: 2
 - simulation sessions: 2026-01-02 through 2026-04-02
 - session count / RAW NAV snapshots: 57
 - canonical signal candidates supplied: 972
