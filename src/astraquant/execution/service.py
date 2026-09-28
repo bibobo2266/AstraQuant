@@ -93,13 +93,15 @@ class CanonicalExecutionService:
         session_date: date | datetime,
         side: str = "sell",
         field: str = "close",
+        not_before: date | datetime | None = None,
     ) -> ExecutionPriceDecision:
-        return self.market_data.resolve(
+        if side.lower() != "sell":
+            raise ValueError("mark side is informational and must be sell")
+        return self.market_data.resolve_mark(
             ticker=ticker,
             session_date=session_date,
-            side=side,
-            use=PriceUse.MARK,
             field=field,
+            not_before=not_before,
         )
 
     def execute(
