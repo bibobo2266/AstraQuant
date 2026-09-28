@@ -1,6 +1,6 @@
 # Canonical FIFO Trade Reconstruction
 
-Status: **IMPLEMENTED_PENDING_CI**
+Status: **IMPLEMENTED_CI_BLOCKED**
 
 AstraQuant trade-level reconstruction must not infer position history from fills alone. Canonical holdings can also change through explicit corporate-action share mutations and successor-security conversions.
 
