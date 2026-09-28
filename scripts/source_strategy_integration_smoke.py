@@ -55,6 +55,19 @@ CURATED_TERMINAL_EVENTS = [
     },
 ]
 
+CURATED_SUCCESSOR_CONVERSIONS = [
+    {
+        "ticker": "6251",
+        "known_at": datetime(2022, 7, 4, 8, 50),
+        "terminal_stale_from": pd.Timestamp("2022-08-15").date(),
+        "effective_at": datetime(2022, 8, 25),
+        "successor_ticker": "3715",
+        "successor_multiplier": 1.0,
+        "source": "TWSE/MOPS share-conversion disclosure",
+        "source_url": "https://www.moneydj.com/KMDJ/news/newsviewer.aspx?a=3dbfbc6a-01a5-4eda-87f9-d2aa3530a649",
+    },
+]
+
 
 def load_adjusted() -> pd.DataFrame:
     parts = []
@@ -269,6 +282,36 @@ def build_supported_ca(
                 cash_share_basis_mode=CashEntitlementBasis.OPENING_POSITION,
                 terminal_stale_from=item["terminal_stale_from"],
                 extinguish_position=True,
+            )
+        )
+
+    for item in CURATED_SUCCESSOR_CONVERSIONS:
+        ticker = str(item["ticker"])
+        effective_at = item["effective_at"]
+        if (
+            ticker not in candidate_tickers
+            or effective_at.date() < session_start.date()
+            or effective_at.date() > session_end.date()
+        ):
+            continue
+        successor_ticker = str(item["successor_ticker"])
+        candidate_tickers.add(successor_ticker)
+        event = CorporateActionEvent(
+            event_id=f"successor:{ticker}:{effective_at.date()}:{successor_ticker}",
+            ticker=ticker,
+            event_type=CorporateActionType.MERGER,
+            effective_at=effective_at,
+            known_at=item["known_at"],
+            source=str(item["source"]),
+            notes=str(item["source_url"]),
+        )
+        instructions.append(
+            HistoricalCorporateActionInstruction(
+                event=event,
+                applied_at=event.effective_at,
+                terminal_stale_from=item["terminal_stale_from"],
+                successor_ticker=successor_ticker,
+                successor_multiplier=float(item["successor_multiplier"]),
             )
         )
 
