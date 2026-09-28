@@ -57,3 +57,21 @@ class PositionExtinguishment:
     effective_at: datetime
     source: str = ""
 
+
+
+@dataclass(frozen=True)
+class PositionSecurityConversion:
+    event_id: str
+    from_ticker: str
+    to_ticker: str
+    quantity_multiplier: float
+    effective_at: datetime
+    source: str = ""
+
+    def __post_init__(self) -> None:
+        if not self.from_ticker or not self.to_ticker:
+            raise ValueError("security conversion tickers must be non-empty")
+        if self.from_ticker == self.to_ticker:
+            raise ValueError("security conversion requires distinct tickers")
+        if self.quantity_multiplier <= 0:
+            raise ValueError("quantity_multiplier must be positive")
