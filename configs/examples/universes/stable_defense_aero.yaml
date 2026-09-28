@@ -1,0 +1,31 @@
+schema_version: "1"
+name: stable_defense_aero
+base:
+  ticker_pattern: "^[1-9]\\d{3}$"
+  min_close_twd: 10
+  require_observed_trade: true
+  require_valid_ohlc: true
+  p2_060_exclusion_sha256: "379d58f6a8aa06b1e020d56911930f4bc01861d3eeca109613d9e5b1e490d134"
+combine: AND
+pools:
+  - type: ALL
+    turnover_top_fraction: 0.25
+  - type: STABLE
+    index_down_threshold: -0.01
+    downside_rs_multiplier: 0.70
+    downside_rs_lookback: 250
+    rv60_bottom_fraction: 0.40
+    max_drawdown_multiplier: 1.20
+    max_drawdown_lookback: 250
+    large_holder_min_fraction: 0.60
+    large_holder_max_change_pp: 5.0
+    holder_lookback: 250
+    consecutive_dividend_years: 5
+    turnover_ratio_bottom_fraction: 0.50
+  - type: INDUSTRY_THEME
+    combine: AND
+    groups:
+      - mode: THEME
+        themes: ["軍工航太"]
+        combine: OR
+        dated_membership_required: true

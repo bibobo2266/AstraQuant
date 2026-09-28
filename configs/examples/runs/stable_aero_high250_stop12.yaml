@@ -1,0 +1,7 @@
+schema_version: "1"
+run_name: stable_aero_high250_stop12
+universe: configs/universes/stable_defense_aero.yaml
+signal: configs/signals/high250_quality_momentum.yaml
+exit: configs/exits/stop12_target30_time250.yaml
+execution_assumptions_id: taiwan-zero-cost-signal-isolation-v1
+report_trade_stats_first: true

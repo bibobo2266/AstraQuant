@@ -1,0 +1,17 @@
+schema_version: "1"
+name: high250_quality_momentum
+trigger:
+  type: N_SESSION_HIGH
+  params:
+    lookback: 250
+filter_combine: AND
+filters:
+  - type: RSI
+    params: {lookback: 14, min: 50}
+  - type: MONTHLY_REVENUE_YOY
+    params: {min: 0}
+ranking:
+  - type: RELATIVE_STRENGTH
+    params: {lookback: 120, direction: DESC, weight: 1.0}
+  - type: ROE
+    params: {trailing_quarters: 4, direction: DESC, weight: 0.5}

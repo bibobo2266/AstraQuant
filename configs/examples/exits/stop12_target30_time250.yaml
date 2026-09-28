@@ -1,0 +1,8 @@
+schema_version: "1"
+name: stop12_target30_time250
+first_trigger_wins: true
+rules:
+  - type: FIXED_STOP_TARGET
+    params: {stop_pct: 0.12, target_pct: 0.30}
+  - type: TIME_EXIT
+    params: {sessions: 250}

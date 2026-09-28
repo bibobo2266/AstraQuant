@@ -1,0 +1,12 @@
+schema_version: "1"
+theme: "軍工航太"
+members:
+  - ticker: "2634"
+    from: 2022-02-24
+    to: null
+    source: "owner research note / cited source"
+  - ticker: "8033"
+    from: 2023-06-01
+    to: 2025-03-31
+    source: "owner research note / cited source"
+notes: "Example only; membership is user-authored and dated."
