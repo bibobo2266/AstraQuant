@@ -130,9 +130,11 @@ class CanonicalStrategySimulator:
         day: date,
         *,
         mark_not_before: dict[str, date] | None = None,
+        terminal_stale_tickers: set[str] | None = None,
     ) -> float:
         decisions = {}
         mark_not_before = mark_not_before or {}
+        terminal_stale_tickers = terminal_stale_tickers or set()
         for ticker, position in self.portfolio.positions.positions.items():
             if position.quantity == 0:
                 continue
@@ -142,6 +144,7 @@ class CanonicalStrategySimulator:
                 side="sell",
                 field="open",
                 not_before=mark_not_before.get(ticker),
+                allow_terminal_stale_without_tradability=ticker in terminal_stale_tickers,
             )
         return value_portfolio(
             cash=self.portfolio.cash,
@@ -171,6 +174,7 @@ class CanonicalStrategySimulator:
             entry_signals.setdefault(calendar[idx + 1], []).append(str(row.stock_id))
 
         ca_by_day: dict[date, list[HistoricalCorporateActionInstruction]] = {}
+        terminal_stale_windows: dict[str, tuple[date, date]] = {}
         for item in corporate_actions or []:
             if item.applied_at < item.event.effective_at:
                 raise ValueError(
@@ -178,6 +182,11 @@ class CanonicalStrategySimulator:
                 )
             day = trading_calendar.map_effective_date(item.event.effective_at)
             ca_by_day.setdefault(day, []).append(item)
+            if item.terminal_stale_from is not None:
+                terminal_stale_windows[str(item.event.ticker)] = (
+                    item.terminal_stale_from,
+                    day,
+                )
 
         audits: list[StrategySessionAudit] = []
         total_entries = 0
@@ -191,6 +200,11 @@ class CanonicalStrategySimulator:
 
         for idx, day in enumerate(calendar):
             start = self._session_start(day)
+            terminal_stale_tickers = {
+                ticker
+                for ticker, (stale_from, effective_day) in terminal_stale_windows.items()
+                if stale_from <= day < effective_day
+            }
 
             due = sorted(
                 settlement_id
@@ -271,6 +285,14 @@ class CanonicalStrategySimulator:
                     )
 
                 self.policy.apply_corporate_action(event)
+                if item.extinguish_position:
+                    self.portfolio.corporate_actions.extinguish_position(
+                        event=event,
+                        positions=self.portfolio.positions,
+                        applied_at=economic_apply_at,
+                    )
+                    if str(event.ticker) in self.policy.managed_positions:
+                        self.policy.register_exit(str(event.ticker))
                 latest_ca_session[str(event.ticker)] = day
                 ca_count += 1
             total_ca += ca_count
@@ -298,6 +320,7 @@ class CanonicalStrategySimulator:
                 opening_nav = self._opening_nav(
                     day,
                     mark_not_before=latest_ca_session,
+                    terminal_stale_tickers=terminal_stale_tickers,
                 )
             except Exception as exc:
                 raise type(exc)(f"opening NAV failed on {day}: {exc}") from exc
@@ -444,6 +467,7 @@ class CanonicalStrategySimulator:
             snapshot = self.replay.snapshot(
                 at=datetime.combine(day, datetime.max.time()),
                 mark_not_before=latest_ca_session,
+                terminal_stale_tickers=terminal_stale_tickers,
             )
             audits.append(
                 StrategySessionAudit(
