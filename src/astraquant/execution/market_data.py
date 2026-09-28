@@ -148,12 +148,13 @@ class ExecutionMarketData:
                 stock = df.xs(str(ticker), level="_stock_key", drop_level=False)
             except KeyError:
                 continue
-            candidates = stock[stock["_date_key"] < day].sort_values(
-                "_date_key",
+            date_index = stock.index.get_level_values("_date_key")
+            candidates = stock[date_index < day].sort_index(
+                level="_date_key",
                 ascending=False,
             )
-            for _, row in candidates.iterrows():
-                source_day = pd.Timestamp(row["_date_key"]).normalize()
+            for idx, row in candidates.iterrows():
+                source_day = pd.Timestamp(idx[0]).normalize()
                 if self._bar_from_row(str(ticker), source_day, row) is not None:
                     return source_day, row
         return None
