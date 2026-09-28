@@ -34,3 +34,7 @@ The source repository boundary is unchanged:
 - source checkout is made filesystem read-only before source-backed scripts run.
 
 No failed pre-resolution job is interpreted as evidence about strategy correctness or source quality.
+
+## Ubuntu runner reproducibility note
+
+GitHub has announced a future `ubuntu-latest` migration to Ubuntu 26 beginning 2026-10-19. Current evidence-producing workflows should therefore be migrated to an explicitly pinned runner (for example `ubuntu-24.04`) in a separate infrastructure-only change before that migration can alter the runtime environment. This note does not retroactively change any existing evidence.
