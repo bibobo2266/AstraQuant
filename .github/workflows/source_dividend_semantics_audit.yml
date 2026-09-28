@@ -1,6 +1,7 @@
 name: Source dividend semantics audit
 # read-only source audit
 # credential recheck
+# credential retry 2
 
 on:
   workflow_dispatch:
