@@ -6,6 +6,7 @@ from typing import Iterable
 
 from astraquant.data.market_coordinates import PriceUse
 from astraquant.execution.service import SignalDeclaration
+from astraquant.portfolio.calendar import NonSessionEventPolicy, TradingCalendar
 from astraquant.portfolio.corporate_actions import CorporateActionEvent, CorporateActionType
 from astraquant.portfolio.models import OrderIntent
 from astraquant.portfolio.replay_runner import CanonicalPortfolioReplay, ReplaySnapshot
@@ -67,8 +68,14 @@ class HistoricalPortfolioRunner:
     compute performance metrics.
     """
 
-    def __init__(self, replay: CanonicalPortfolioReplay) -> None:
+    def __init__(
+        self,
+        replay: CanonicalPortfolioReplay,
+        *,
+        non_session_ca_policy: NonSessionEventPolicy = NonSessionEventPolicy.NEXT_SESSION,
+    ) -> None:
         self.replay = replay
+        self.non_session_ca_policy = non_session_ca_policy
 
     @staticmethod
     def _day(value: date | datetime) -> date:
@@ -81,9 +88,8 @@ class HistoricalPortfolioRunner:
         trades: Iterable[HistoricalTradeInstruction] = (),
         corporate_actions: Iterable[HistoricalCorporateActionInstruction] = (),
     ) -> HistoricalReplayResult:
-        calendar = tuple(sorted(set(sessions)))
-        if not calendar:
-            raise ValueError("sessions must not be empty")
+        trading_calendar = TradingCalendar(sessions)
+        calendar = trading_calendar.sessions
 
         trade_by_day: dict[date, list[HistoricalTradeInstruction]] = {}
         for trade in trades:
@@ -93,26 +99,22 @@ class HistoricalPortfolioRunner:
 
         ca_by_day: dict[date, list[HistoricalCorporateActionInstruction]] = {}
         for item in corporate_actions:
-            effective_day = self._day(item.event.effective_at)
-            applied_day = self._day(item.applied_at)
-            if applied_day != effective_day:
+            if item.applied_at < item.event.effective_at:
                 raise ValueError(
-                    f"corporate action {item.event.event_id} must apply on effective date"
+                    f"corporate action {item.event.event_id} cannot apply before effective date"
                 )
-            ca_by_day.setdefault(effective_day, []).append(item)
+            mapped_day = trading_calendar.map_effective_date(
+                item.event.effective_at,
+                policy=self.non_session_ca_policy,
+            )
+            ca_by_day.setdefault(mapped_day, []).append(item)
 
         known_days = set(calendar)
         unknown_trade_days = set(trade_by_day) - known_days
-        unknown_ca_days = set(ca_by_day) - known_days
         if unknown_trade_days:
             raise HistoricalReplayError(
                 f"trade instructions outside session calendar: {sorted(unknown_trade_days)}"
             )
-        if unknown_ca_days:
-            raise HistoricalReplayError(
-                f"corporate actions outside session calendar: {sorted(unknown_ca_days)}"
-            )
-
         results: list[HistoricalSessionResult] = []
         total_trades = 0
         total_ca = 0
@@ -133,16 +135,17 @@ class HistoricalPortfolioRunner:
             ca_count = 0
             for item in ca_by_day.get(session_day, ()):
                 event = item.event
+                economic_apply_at = max(item.applied_at, session_start)
                 if event.share_multiplier is not None:
                     self.replay.apply_share_mutation(
                         event=event,
-                        applied_at=item.applied_at,
+                        applied_at=economic_apply_at,
                     )
                 if event.cash_per_share is not None:
                     if event.event_type is CorporateActionType.CASH_DIVIDEND:
                         self.replay.accrue_cash_dividend(
                             event=event,
-                            accrued_at=item.applied_at,
+                            accrued_at=economic_apply_at,
                         )
                     else:
                         if not item.component:
@@ -156,7 +159,7 @@ class HistoricalPortfolioRunner:
                         self.replay.portfolio.corporate_actions.accrue_cash_entitlement(
                             event=event,
                             shares_entitled=item.cash_share_basis,
-                            accrued_at=item.applied_at,
+                            accrued_at=economic_apply_at,
                             component=item.component,
                         )
                 ca_count += 1
