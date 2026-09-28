@@ -7,7 +7,11 @@ from typing import Iterable
 from astraquant.data.market_coordinates import PriceUse
 from astraquant.execution.service import SignalDeclaration
 from astraquant.portfolio.calendar import NonSessionEventPolicy, TradingCalendar
-from astraquant.portfolio.corporate_actions import CorporateActionEvent, CorporateActionType
+from astraquant.portfolio.corporate_actions import (
+    CashEntitlementBasis,
+    CorporateActionEvent,
+    CorporateActionType,
+)
 from astraquant.portfolio.models import OrderIntent
 from astraquant.portfolio.replay_runner import CanonicalPortfolioReplay, ReplaySnapshot
 
@@ -32,6 +36,7 @@ class HistoricalCorporateActionInstruction:
     applied_at: datetime
     component: str | None = None
     cash_share_basis: float | None = None
+    cash_share_basis_mode: CashEntitlementBasis = CashEntitlementBasis.EXPLICIT
 
 
 @dataclass(frozen=True)
@@ -136,11 +141,11 @@ class HistoricalPortfolioRunner:
             for item in ca_by_day.get(session_day, ()):
                 event = item.event
                 economic_apply_at = max(item.applied_at, session_start)
-                if event.share_multiplier is not None:
-                    self.replay.apply_share_mutation(
-                        event=event,
-                        applied_at=economic_apply_at,
-                    )
+                position = self.replay.portfolio.positions.positions.get(event.ticker)
+                opening_shares = 0.0 if position is None else position.quantity
+
+                # Cash entitlements are accrued from opening/pre-mutation shares
+                # before any same-event share multiplier changes quantity.
                 if event.cash_per_share is not None:
                     if event.event_type is CorporateActionType.CASH_DIVIDEND:
                         self.replay.accrue_cash_dividend(
@@ -152,16 +157,26 @@ class HistoricalPortfolioRunner:
                             raise HistoricalReplayError(
                                 f"cash component required for event {event.event_id}"
                             )
-                        if item.cash_share_basis is None:
-                            raise HistoricalReplayError(
-                                f"cash_share_basis required for event {event.event_id}"
-                            )
+                        if item.cash_share_basis_mode is CashEntitlementBasis.OPENING_POSITION:
+                            shares_entitled = opening_shares
+                        else:
+                            if item.cash_share_basis is None:
+                                raise HistoricalReplayError(
+                                    f"cash_share_basis required for event {event.event_id}"
+                                )
+                            shares_entitled = item.cash_share_basis
                         self.replay.portfolio.corporate_actions.accrue_cash_entitlement(
                             event=event,
-                            shares_entitled=item.cash_share_basis,
+                            shares_entitled=shares_entitled,
                             accrued_at=economic_apply_at,
                             component=item.component,
                         )
+
+                if event.share_multiplier is not None:
+                    self.replay.apply_share_mutation(
+                        event=event,
+                        applied_at=economic_apply_at,
+                    )
                 ca_count += 1
             total_ca += ca_count
 
