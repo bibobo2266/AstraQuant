@@ -196,7 +196,7 @@ def _year_block_bootstrap_mean(trades: pd.DataFrame, *, seed: int) -> tuple[floa
         draw = np.concatenate([by_year[int(year)] for year in sampled])
         values[i] = float(draw.mean())
     low, high = np.quantile(values, [0.025, 0.975])
-    return float(low), float(high)
+    return float(low), float(high), len(years)
 
 
 def _paired_year_block_difference(
@@ -223,7 +223,7 @@ def _paired_year_block_difference(
         b = np.concatenate([second_by_year[int(year)] for year in sampled])
         values[i] = float(a.mean() - b.mean())
     low, high = np.quantile(values, [0.025, 0.975])
-    return observed, float(low), float(high)
+    return observed, float(low), float(high), len(years)
 
 
 def _run_rule(*, name, rule, signals, sim_sessions, ca_instructions, ticker_scope):
@@ -274,7 +274,7 @@ def _run_rule(*, name, rule, signals, sim_sessions, ca_instructions, ticker_scop
 
     trades = _trade_frame(portfolio)
     trade_metrics = _trade_metrics(trades)
-    ci_low, ci_high = _year_block_bootstrap_mean(
+    ci_low, ci_high, bootstrap_year_blocks = _year_block_bootstrap_mean(
         trades,
         seed=BOOTSTRAP_SEED + [x[0] for x in RULES].index(name),
     )
@@ -288,6 +288,7 @@ def _run_rule(*, name, rule, signals, sim_sessions, ca_instructions, ticker_scop
         "capacity_only_rejections": result.total_capacity_rejections,
         "expectancy_ci_low": ci_low,
         "expectancy_ci_high": ci_high,
+        "bootstrap_year_blocks": bootstrap_year_blocks,
         **_path_metrics(nav),
         **trade_metrics,
     }
@@ -354,7 +355,7 @@ def main() -> None:
     desc = frame[frame["rule"].eq("breakout_excess_desc")].iloc[0]
     asc = frame[frame["rule"].eq("breakout_excess_asc")].iloc[0]
     neutral = frame[frame["rule"].isin(["ticker_asc", "hash_asc"])]
-    diff_obs, diff_low, diff_high = _paired_year_block_difference(
+    diff_obs, diff_low, diff_high, paired_year_blocks = _paired_year_block_difference(
         trade_frames["breakout_excess_desc"],
         trade_frames["hash_asc"],
     )
@@ -377,6 +378,11 @@ def main() -> None:
         "",
         "Purpose: follow up P2-061 without interpreting its path-only result prematurely. This diagnostic adds the reverse breakout-strength rule, reconstructs single-trade outcomes through canonical fills plus corporate-action share mutations, successor conversions, and cash-extinguishment entitlements, and adds a fixed calendar-year block-bootstrap uncertainty scale.",
         "",
+        "## Rule provenance",
+        "",
+        "- ticker_asc, turnover_desc, turnover_asc, breakout_excess_desc, hash_asc were preregistered in P2-061 before any result was observed.",
+        "- breakout_excess_asc was added in P2-062 AFTER the P2-061 result was observed, at external-reviewer request, as the symmetric counterpart required to distinguish directional signal information from dispersion-selection effects. It is NOT preregistered-blind and must not be represented as such.",
+        "",
         "## Frozen design",
         "",
         "- P2-060 exclusion ledger is unchanged and hash-gated.",
@@ -385,7 +391,7 @@ def main() -> None:
         "- new directional falsification rule: weakest causal breakout excess first (breakout_excess_asc).",
         "- trade unit: one entry fill, aggregated across any FIFO lot fragments until fully closed. Partially open entry lots are excluded from closed-trade statistics and counted separately.",
         "- cash mergers close lots from explicit cash-entitlement economics at the extinguishment effective date; no synthetic market sell fill is created.",
-        f"- uncertainty scale: {BOOTSTRAP_REPS:,} calendar-year block-bootstrap replications, fixed seed {BOOTSTRAP_SEED}. The same sampled years are used for the breakout-desc minus hash difference.",
+        f"- uncertainty scale: {BOOTSTRAP_REPS:,} calendar-year block-bootstrap replications, fixed seed {BOOTSTRAP_SEED}. The number of resamples controls Monte Carlo precision; the effective block count is the number of distinct calendar-year blocks, not 5,000.",
         "",
         "## Path + single-trade results",
         "",
@@ -413,6 +419,7 @@ def main() -> None:
         f"- neutral deterministic single-trade expectancy range (ticker/hash): {neutral['expectancy'].min()*100:.2f}% to {neutral['expectancy'].max()*100:.2f}%",
         f"- strongest-breakout-first minus hash single-trade expectancy difference: {diff_obs*100:.2f} percentage points",
         f"- paired calendar-year block-bootstrap 95% interval for that difference: [{diff_low*100:.2f}, {diff_high*100:.2f}] percentage points",
+        f"- paired bootstrap effective calendar-year blocks: {paired_year_blocks}; resamples: {BOOTSTRAP_REPS:,}",
         "",
         "## Operational gates",
         "",
@@ -428,7 +435,7 @@ def main() -> None:
         "",
         "This is an attribution/falsification diagnostic, not a promotion test. No deterministic rule is selected, no strategy parameter is changed, and locked OOS remains locked.",
         "",
-        "The year-block bootstrap is a descriptive uncertainty scale, not a claim that trades are independent or that the interval has exact frequentist coverage under portfolio dependence. Its purpose is to avoid treating one ten-year deterministic CAGR spread as self-interpreting.",
+        "The year-block bootstrap is a descriptive uncertainty scale, not a claim that trades are independent or that the interval has exact frequentist coverage under portfolio dependence. Its effective information count is the number of calendar-year blocks (reported above), while 5,000 is only the number of Monte Carlo resamples. Its purpose is to avoid treating one deterministic CAGR spread as self-interpreting.",
         "",
         "Closed-trade expectancy is return on entry cost. Stop-normalized expectancy means closed-trade expectancy divided by the frozen 12% stop fraction; it is not realized R because realized losses need not equal the stop fraction.",
         "",

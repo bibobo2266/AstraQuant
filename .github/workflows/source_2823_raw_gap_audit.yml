@@ -1,0 +1,47 @@
+name: 2823 RAW gap audit
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/source_2823_raw_gap_audit.yml"
+      - "scripts/source_2823_raw_gap_audit.py"
+
+permissions:
+  contents: write
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: AstraQuant
+      - uses: actions/checkout@v4
+        with:
+          repository: bibobo2266/minervini_picks
+          token: ${{ secrets.MINERVINI_READ_TOKEN }}
+          path: source_runtime/minervini_picks
+          persist-credentials: false
+      - run: chmod -R a-w source_runtime/minervini_picks
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - working-directory: AstraQuant
+        run: python -m pip install --quiet pandas pyarrow tabulate
+      - name: Audit 2823 source rows
+        working-directory: AstraQuant
+        env:
+          SOURCE_ROOT: ../source_runtime/minervini_picks/data
+        run: python scripts/source_2823_raw_gap_audit.py
+      - name: Commit audit report to AstraQuant only
+        working-directory: AstraQuant
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add docs/SOURCE_2823_RAW_GAP_AUDIT.md
+          if git diff --cached --quiet; then exit 0; fi
+          git commit -m "report: audit 2823 RAW gap"
+          git pull --rebase origin main
+          git push origin HEAD:main
