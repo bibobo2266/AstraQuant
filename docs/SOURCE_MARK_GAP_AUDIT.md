@@ -1,63 +1,66 @@
 # Source RAW Mark Gap Audit
 
-- ticker: 8271
-- target session: 2016-09-13
+- ticker: 3665
+- target session: 2026-06-10
 
 ## Target tradability
 
-- observed_trade: False
+- observed_trade: True
 - valid_ohlc: False
 - buy_blocked: True
 - sell_blocked: True
-- reason: NO_TRADE_ROW_WITHIN_ACTIVE_SPAN
+- reason: INVALID_OHLC
 
 ## Previous RAW observations
 
 | Date | Open | High | Low | Close |
 |---|---:|---:|---:|---:|
-| 2016-09-07 | 26.45 | 27.15 | 26.35 | 26.35 |
-| 2016-09-08 | 26.4 | 26.6 | 26.3 | 26.3 |
-| 2016-09-09 | 26.2 | 26.2 | 25.85 | 26.0 |
-| 2016-09-10 | 25.5 | 25.6 | 25.3 | 25.5 |
-| 2016-09-12 | 26.0 | 26.15 | 25.6 | 25.6 |
+| 2026-06-03 | 2345.0 | 2385.0 | 2265.0 | 2305.0 |
+| 2026-06-04 | 2265.0 | 2275.0 | 2130.0 | 2155.0 |
+| 2026-06-05 | 2120.0 | 2260.0 | 2120.0 | 2200.0 |
+| 2026-06-08 | 1980.0 | 2120.0 | 1980.0 | 2095.0 |
+| 2026-06-09 | 2120.0 | 2180.0 | 2090.0 | 2155.0 |
 
 ## Next RAW observations
 
 | Date | Open | High | Low | Close |
 |---|---:|---:|---:|---:|
-| 2016-09-29 | 36.5 | 36.55 | 34.75 | 34.75 |
-| 2016-09-30 | 34.7 | 34.7 | 33.8 | 34.0 |
-| 2016-10-03 | 34.25 | 34.45 | 33.55 | 33.6 |
-| 2016-10-04 | 34.0 | 34.65 | 33.85 | 33.85 |
-| 2016-10-05 | 33.8 | 34.05 | 33.55 | 33.9 |
+| 2026-06-11 | 2230.0 | 2280.0 | 2005.0 | 2160.0 |
+| 2026-06-12 | 2300.0 | 2350.0 | 2235.0 | 2310.0 |
+| 2026-06-15 | 2420.0 | 2425.0 | 2250.0 | 2265.0 |
+| 2026-06-16 | 2265.0 | 2275.0 | 2110.0 | 2120.0 |
+| 2026-06-17 | 2145.0 | 2150.0 | 2060.0 | 2090.0 |
 
 ## Local tradability sequence
 
 | Date | Observed | Valid | Buy blocked | Sell blocked | Reason |
 |---|---|---|---|---|---|
-| 2016-08-29 | True | True | False | False | OBSERVED |
-| 2016-08-30 | True | True | False | False | OBSERVED |
-| 2016-08-31 | True | True | False | False | OBSERVED |
-| 2016-09-01 | True | True | False | False | OBSERVED |
-| 2016-09-02 | True | True | False | False | OBSERVED |
-| 2016-09-05 | True | True | False | False | OBSERVED |
-| 2016-09-06 | True | True | False | False | OBSERVED |
-| 2016-09-07 | True | True | False | False | OBSERVED |
-| 2016-09-08 | True | True | False | False | OBSERVED |
-| 2016-09-09 | True | True | False | False | OBSERVED |
-| 2016-09-10 | True | True | False | False | OBSERVED |
-| 2016-09-12 | True | True | False | False | OBSERVED |
-| 2016-09-13 | False | False | True | True | NO_TRADE_ROW_WITHIN_ACTIVE_SPAN |
-| 2016-09-14 | False | False | True | True | NO_TRADE_ROW_WITHIN_ACTIVE_SPAN |
-| 2016-09-19 | False | False | True | True | NO_TRADE_ROW_WITHIN_ACTIVE_SPAN |
-| 2016-09-20 | False | False | True | True | NO_TRADE_ROW_WITHIN_ACTIVE_SPAN |
-| 2016-09-21 | False | False | True | True | NO_TRADE_ROW_WITHIN_ACTIVE_SPAN |
-| 2016-09-22 | False | False | True | True | NO_TRADE_ROW_WITHIN_ACTIVE_SPAN |
-| 2016-09-23 | False | False | True | True | NO_TRADE_ROW_WITHIN_ACTIVE_SPAN |
-| 2016-09-26 | False | False | True | True | NO_TRADE_ROW_WITHIN_ACTIVE_SPAN |
+| 2026-05-26 | True | True | False | False | OBSERVED |
+| 2026-05-27 | True | True | False | False | OBSERVED |
+| 2026-05-28 | True | True | False | False | OBSERVED |
+| 2026-05-29 | True | True | False | False | OBSERVED |
+| 2026-06-01 | True | True | False | False | OBSERVED |
+| 2026-06-02 | True | True | False | False | OBSERVED |
+| 2026-06-03 | True | True | False | False | OBSERVED |
+| 2026-06-04 | True | True | False | False | OBSERVED |
+| 2026-06-05 | True | True | False | False | OBSERVED |
+| 2026-06-08 | True | True | False | False | OBSERVED |
+| 2026-06-09 | True | True | False | False | OBSERVED |
+| 2026-06-10 | True | False | True | True | INVALID_OHLC |
+| 2026-06-11 | True | True | False | False | OBSERVED |
+| 2026-06-12 | True | True | False | False | OBSERVED |
+| 2026-06-15 | True | True | False | False | OBSERVED |
+| 2026-06-16 | True | True | False | False | OBSERVED |
+| 2026-06-17 | True | True | False | False | OBSERVED |
+| 2026-06-18 | True | True | False | False | OBSERVED |
+| 2026-06-22 | True | True | False | False | OBSERVED |
+| 2026-06-23 | True | True | False | False | OBSERVED |
+| 2026-06-24 | True | True | False | False | OBSERVED |
+| 2026-06-25 | True | True | False | False | OBSERVED |
 
 ## Corporate actions ±60 days
 
 | Event date | Type | Cash/share | Share multiplier | Source |
 |---|---|---:|---:|---|
-| 2016-09-29 | capital_reduction | nan | nan | TWSE TWTAUU |
+| 2026-07-15 | ex_right_dividend | nan | nan | TWSE TWT49U |
+| 2026-07-21 | dividend | 15.18493889 | nan | FinMind TaiwanStockDividend |
