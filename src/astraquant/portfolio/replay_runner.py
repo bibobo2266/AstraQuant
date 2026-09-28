@@ -113,9 +113,11 @@ class CanonicalPortfolioReplay:
         *,
         at: datetime,
         mark_fields: Mapping[str, str] | None = None,
+        mark_not_before: Mapping[str, date | datetime] | None = None,
     ) -> ReplaySnapshot:
         decisions = {}
         mark_fields = mark_fields or {}
+        mark_not_before = mark_not_before or {}
         for ticker, position in self.portfolio.positions.positions.items():
             if position.quantity == 0:
                 continue
@@ -124,6 +126,7 @@ class CanonicalPortfolioReplay:
                 session_date=at,
                 side="sell",
                 field=mark_fields.get(ticker, "close"),
+                not_before=mark_not_before.get(ticker),
             )
 
         snap = ReplaySnapshot(
