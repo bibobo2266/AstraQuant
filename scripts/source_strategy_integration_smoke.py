@@ -53,6 +53,16 @@ CURATED_TERMINAL_EVENTS = [
         "source": "MOPS/TWSE public merger-delisting disclosure",
         "source_url": "https://news.cnyes.com/news/id/4844580",
     },
+    {
+        "ticker": "5305",
+        "known_at": datetime(2020, 9, 24, 15, 6),
+        "terminal_stale_from": pd.Timestamp("2020-11-24").date(),
+        "effective_at": datetime(2020, 11, 30),
+        "payment_at": datetime(2020, 12, 4),
+        "cash_per_share": 42.5,
+        "source": "MOPS/TWSE cash share-conversion disclosure",
+        "source_url": "https://www.moneydj.com/kmdj/news/newsviewer.aspx?a=08e82787-ac21-4b82-a7e5-0457c205ba74",
+    },
 ]
 
 CURATED_SUCCESSOR_CONVERSIONS = [
