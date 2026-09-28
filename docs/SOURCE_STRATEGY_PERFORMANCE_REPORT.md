@@ -35,7 +35,7 @@ This report computes descriptive statistics for the exact audited canonical long
 - RAW stop exits: 140
 - RAW max-hold exits: 65
 - blocked exit attempts: 19
-- corporate actions applied: 14,257
+- corporate actions applied: 14,258
 - corporate-action cash payments settled: 12,036
 - ending pending receivables: 328,865.268830
 - ending pending payables: 0.000000
