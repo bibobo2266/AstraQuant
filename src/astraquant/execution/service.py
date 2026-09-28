@@ -106,6 +106,66 @@ class CanonicalExecutionService:
             allow_terminal_stale_without_tradability=allow_terminal_stale_without_tradability,
         )
 
+    def mark_after_corporate_actions(
+        self,
+        *,
+        ticker: str,
+        session_date: date | datetime,
+        transformations: tuple[tuple[float, float], ...],
+        field: str = "close",
+        not_before: date | datetime | None = None,
+        allow_terminal_stale_without_tradability: bool = False,
+    ) -> ExecutionPriceDecision:
+        """Resolve a valuation-only RAW-equivalent mark across explicit same-session CAs.
+
+        The primary mark remains same-session RAW. If a stale RAW mark is blocked
+        solely because it is on the pre-CA economic coordinate, this method may
+        transform that stale RAW close using only the explicitly applied
+        corporate-action cash/share economics. It never creates an executable
+        fill price and never reads adjusted prices.
+        """
+
+        decision = self.mark(
+            ticker=ticker,
+            session_date=session_date,
+            field=field,
+            not_before=not_before,
+            allow_terminal_stale_without_tradability=allow_terminal_stale_without_tradability,
+        )
+        if decision.availability is ExecutionAvailability.EXECUTABLE:
+            return decision
+        if decision.reason != "STALE_RAW_MARK_BLOCKED_BY_CA" or not transformations:
+            return decision
+
+        stale = self.mark(
+            ticker=ticker,
+            session_date=session_date,
+            field=field,
+            not_before=None,
+            allow_terminal_stale_without_tradability=allow_terminal_stale_without_tradability,
+        )
+        if stale.availability is not ExecutionAvailability.EXECUTABLE or stale.price is None:
+            return decision
+
+        price = float(stale.price)
+        for cash_per_share, share_multiplier in transformations:
+            if share_multiplier <= 0:
+                raise ValueError("CA mark share multiplier must be positive")
+            price = (price - cash_per_share) / share_multiplier
+            if price <= 0:
+                raise ValueError("CA-transformed RAW mark must remain positive")
+
+        return ExecutionPriceDecision(
+            availability=ExecutionAvailability.EXECUTABLE,
+            use=PriceUse.MARK,
+            side="sell",
+            field="ca_transformed_stale_close",
+            price=price,
+            reason="CA_TRANSFORMED_STALE_RAW_MARK",
+            bar=stale.bar,
+            tradability=stale.tradability,
+        )
+
     def execute(
         self,
         *,
