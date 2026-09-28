@@ -9,7 +9,7 @@ Purpose: hold the audited strategy configuration fixed while varying only explic
 - signal window: 2016-01-04 through 2026-06-30
 - simulation/drain horizon: 2016-01-04 through 2026-07-07
 - canonical signals supplied: 35,592
-- candidate tickers: 1,550
+- candidate tickers: 1,551
 - PIT-unsafe CA tickers quarantined: 4
 - policy unchanged: 10% NAV target, max 10 positions, 12% RAW stop, 20-session re-entry gap, 250-session max hold, 1000-share lot, seed 0
 
