@@ -184,7 +184,7 @@ def _trade_metrics(trades: pd.DataFrame) -> dict[str, float]:
 def _year_block_bootstrap_mean(trades: pd.DataFrame, *, seed: int) -> tuple[float, float, int]:
     years = sorted(trades["entry_year"].unique().tolist())
     if len(years) < 2:
-        return float("nan"), float("nan")
+        return float("nan"), float("nan"), len(years)
     by_year = {
         year: trades.loc[trades["entry_year"].eq(year), "return_on_cost"].to_numpy(float)
         for year in years
@@ -205,7 +205,7 @@ def _paired_year_block_difference(
 ) -> tuple[float, float, float, int]:
     years = sorted(set(first["entry_year"]) & set(second["entry_year"]))
     if len(years) < 2:
-        return float("nan"), float("nan"), float("nan")
+        return float("nan"), float("nan"), float("nan"), len(years)
     first_by_year = {
         year: first.loc[first["entry_year"].eq(year), "return_on_cost"].to_numpy(float)
         for year in years
