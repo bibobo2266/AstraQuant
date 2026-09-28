@@ -9,6 +9,7 @@ from astraquant.data.market_coordinates import PriceUse
 from astraquant.execution.fills import NotExecutableError
 from astraquant.execution.market_data import ExecutionAvailability
 from astraquant.execution.service import CanonicalExecutionService, SignalDeclaration
+from astraquant.portfolio.calendar import TradingCalendar
 from astraquant.portfolio.corporate_actions import CorporateActionType
 from astraquant.portfolio.engine import PortfolioEngine, SettlementInstruction
 from astraquant.portfolio.historical_runner import HistoricalCorporateActionInstruction
@@ -146,9 +147,8 @@ class CanonicalStrategySimulator:
         signals: pd.DataFrame,
         corporate_actions: list[HistoricalCorporateActionInstruction] | None = None,
     ) -> StrategySimulationResult:
-        calendar = tuple(sorted(set(sessions)))
-        if not calendar:
-            raise ValueError("sessions must not be empty")
+        trading_calendar = TradingCalendar(sessions)
+        calendar = trading_calendar.sessions
 
         normalized_signals = self._normalize_signals(signals)
         session_index = {day: i for i, day in enumerate(calendar)}
@@ -163,11 +163,11 @@ class CanonicalStrategySimulator:
 
         ca_by_day: dict[date, list[HistoricalCorporateActionInstruction]] = {}
         for item in corporate_actions or []:
-            day = item.event.effective_at.date()
-            if day not in session_index:
+            if item.applied_at < item.event.effective_at:
                 raise ValueError(
-                    f"corporate action outside simulation calendar: {item.event.event_id}"
+                    f"corporate action {item.event.event_id} cannot apply before effective date"
                 )
+            day = trading_calendar.map_effective_date(item.event.effective_at)
             ca_by_day.setdefault(day, []).append(item)
 
         audits: list[StrategySessionAudit] = []
@@ -195,6 +195,7 @@ class CanonicalStrategySimulator:
                 key=lambda x: x.event.event_id,
             ):
                 event = item.event
+                economic_apply_at = max(item.applied_at, start)
                 position = self.portfolio.positions.positions.get(event.ticker)
                 opening_shares = 0.0 if position is None else position.quantity
 
@@ -203,7 +204,7 @@ class CanonicalStrategySimulator:
                         self.portfolio.corporate_actions.accrue_cash_dividend(
                             event=event,
                             shares_entitled=opening_shares,
-                            accrued_at=item.applied_at,
+                            accrued_at=economic_apply_at,
                         )
                     else:
                         if not item.component:
@@ -217,7 +218,7 @@ class CanonicalStrategySimulator:
                         self.portfolio.corporate_actions.accrue_cash_entitlement(
                             event=event,
                             shares_entitled=item.cash_share_basis,
-                            accrued_at=item.applied_at,
+                            accrued_at=economic_apply_at,
                             component=item.component,
                         )
 
@@ -225,7 +226,7 @@ class CanonicalStrategySimulator:
                     self.portfolio.corporate_actions.apply_share_multiplier(
                         event=event,
                         positions=self.portfolio.positions,
-                        applied_at=item.applied_at,
+                        applied_at=economic_apply_at,
                     )
 
                 self.policy.apply_corporate_action(event)
