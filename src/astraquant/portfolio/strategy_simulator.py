@@ -465,7 +465,7 @@ class CanonicalStrategySimulator:
             # on the following session, preserving the legacy one-session delay.
             for ticker in sorted(held_before_open):
                 state = self.policy.managed_positions.get(ticker)
-                if state is None:
+                if state is None or state.stop_price is None:
                     continue
                 decision = self.execution.market_data.resolve_stop_fill(
                     ticker=ticker,
