@@ -47,3 +47,6 @@
 | SOURCE_ANCHOR_UP_DAILY_SWEEP | 2016-01-04 ~ 2021-12-31 | 2026-09-29 | candidate path diagnostics; epoch=E1; direction=LONG; windows=5/10/20; source_revision=39eb22662f74a4591b1e57795174ffc2f7585f44 |
 | SOURCE_ANCHOR_DOWN_DAILY_SWEEP | 2016-01-04 ~ 2021-12-31 | 2026-09-29 | candidate path diagnostics; epoch=E1; direction=SHORT; windows=5/10/20; source_revision=39eb22662f74a4591b1e57795174ffc2f7585f44 |
 | SOURCE_RSI_DAILY_SWEEP | 2016-01-04 ~ 2021-12-31 | 2026-09-29 | candidate path diagnostics; epoch=E1; direction=LONG; windows=5/10/20; source_revision=39eb22662f74a4591b1e57795174ffc2f7585f44 |
+| SOURCE_STRATEGY_PERFORMANCE_REPORT | 2016-01-04 ~ 2021-12-31 | 2026-09-29 | strategy effect report; strategy_version=legacy_breakout_v1; epoch=E1; source_revision=39eb22662f74a4591b1e57795174ffc2f7585f44 |
+| SOURCE_RSI_PULLBACK_RECLAIM_ALL_LIQUID_STOP12_TIME250_STRATEGY_PERFORMANCE | 2016-01-04 ~ 2021-12-31 | 2026-09-29 | strategy effect report; strategy_version=rsi_pullback_reclaim_all_liquid_stop12_time250; epoch=E1; source_revision=39eb22662f74a4591b1e57795174ffc2f7585f44 |
+| SOURCE_VCP_ALL_LIQUID_STOP12_TIME250_STRATEGY_PERFORMANCE | 2016-01-04 ~ 2021-12-31 | 2026-09-29 | strategy effect report; strategy_version=vcp_all_liquid_stop12_time250; epoch=E1; source_revision=39eb22662f74a4591b1e57795174ffc2f7585f44 |
