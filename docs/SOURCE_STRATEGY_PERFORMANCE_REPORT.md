@@ -51,6 +51,10 @@ Open FIFO lots are reported separately and excluded from the table above: **9** 
 | MaxDD | -36.42% | -28.55% |
 | Sharpe (daily, rf=0, sqrt(252)) | 0.794 | 1.245 |
 
+## 判讀原則
+
+輸給基準不是淘汰標準。本專案的目的是尋找 0050 以外的機會，評估重點是「超額有多大、代價是什麼、與大盤的相關性多低」。一條報酬較低但相關性低的策略，配置價值可能高於報酬較高但高度同向的策略。不得以「未跑贏大盤」為由停止研究某條訊號。
+
 ## Accounting/activity audit
 
 - final strategy NAV: 51,696,620.30
@@ -75,9 +79,5 @@ Open FIFO lots are reported separately and excluded from the table above: **9** 
 | positive_nav_all_sessions | PASS |
 | frozen_long_nav_exact_float_check | PASS |
 | benchmark_same_trading_days | PASS |
-
-## 判讀原則
-
-輸給基準不是淘汰標準。本專案的目的是尋找 0050 以外的機會，評估重點是「超額有多大、代價是什麼、與大盤的相關性多低」。一條報酬較低但相關性低的策略，配置價值可能高於報酬較高但高度同向的策略。不得以「未跑贏大盤」為由停止研究某條訊號。
 
 Trade-level returns are reconstructed from canonical fills plus CA-aware FIFO events. Open lots are not mixed into closed-trade statistics. Portfolio-path metrics are secondary descriptive context.
