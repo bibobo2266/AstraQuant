@@ -55,6 +55,7 @@ class ConfigTradeSimulation:
     ignored_while_holding: int
     chase_reject_count: int
     other_unfilled_count: int
+    unfilled_reason_counts: dict[str, int]
     unverified_terminal_trade_count: int
 
 
@@ -920,6 +921,7 @@ class VCPRound1TradeRunner:
         ignored = 0
         chase_reject = 0
         other_unfilled = 0
+        unfilled_reasons: dict[str, int] = {}
         unverified_terminal = 0
         sequence = 0
 
@@ -941,6 +943,8 @@ class VCPRound1TradeRunner:
                     continue
                 if status == "UNFILLED":
                     other_unfilled += 1
+                    reason = str(result.get("reason") or "UNSPECIFIED")
+                    unfilled_reasons[reason] = unfilled_reasons.get(reason, 0) + 1
                     i += 1
                     continue
 
@@ -985,5 +989,6 @@ class VCPRound1TradeRunner:
             ignored_while_holding=ignored,
             chase_reject_count=chase_reject,
             other_unfilled_count=other_unfilled,
+            unfilled_reason_counts=dict(sorted(unfilled_reasons.items())),
             unverified_terminal_trade_count=unverified_terminal,
         )
