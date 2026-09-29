@@ -372,12 +372,12 @@ def bollinger_compression(*, panel, spec: ComponentSpec, cache, context) -> pd.S
         ),
     )
     bandwidth = (2.0 * stddev * std / mid.replace(0, np.nan)).abs()
-    pct = bandwidth.groupby(panel["stock_id"], sort=False).transform(
+    threshold = bandwidth.groupby(panel["stock_id"], sort=False).transform(
         lambda s: s.rolling(
             percentile_lookback, min_periods=percentile_lookback
-        ).rank(pct=True)
+        ).quantile(max_percentile)
     )
-    return pct.le(max_percentile).fillna(False)
+    return bandwidth.le(threshold).fillna(False)
 
 
 def bollinger_compression_breakout(*, panel, spec: ComponentSpec, cache, context) -> pd.Series:
