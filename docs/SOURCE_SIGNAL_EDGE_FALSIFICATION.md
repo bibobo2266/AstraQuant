@@ -19,14 +19,14 @@ Purpose: test breakout-specific cross-sectional information without portfolio-ca
 ## Baseline candidate-level statistics
 
 - raw baseline signal pairs: 35,569
-- valid fixed-horizon outcomes: 31,503
-- valid-outcome coverage: 88.57%
-- per-candidate expectancy: 18.6076%
-- median return: 3.0683%
-- win rate: 53.67%
-- mean winner: 53.7248%
-- mean loser: -22.0892%
-- payoff ratio: 2.4322
+- valid fixed-horizon outcomes: 31,517
+- valid-outcome coverage: 88.61%
+- per-candidate expectancy: 18.6356%
+- median return: 3.0721%
+- win rate: 53.68%
+- mean winner: 53.7729%
+- mean loser: -22.0869%
+- payoff ratio: 2.4346
 
 ## Empirical null distribution
 
@@ -37,11 +37,11 @@ Purpose: test breakout-specific cross-sectional information without portfolio-ca
 
 | Quantile | Expectancy | Win rate | Payoff ratio |
 |---:|---:|---:|---:|
-| 1% | 12.9645% | 49.85% | 2.1273 |
-| 5% | 13.0997% | 50.11% | 2.1432 |
-| 50% | 13.6755% | 50.56% | 2.1863 |
-| 95% | 14.2007% | 50.94% | 2.2368 |
-| 99% | 14.4519% | 51.13% | 2.2529 |
+| 1% | 13.0034% | 49.85% | 2.1302 |
+| 5% | 13.1174% | 50.12% | 2.1447 |
+| 50% | 13.6917% | 50.57% | 2.1880 |
+| 95% | 14.2396% | 50.94% | 2.2392 |
+| 99% | 14.4743% | 51.13% | 2.2554 |
 
 ## Operational gates
 
