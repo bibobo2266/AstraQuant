@@ -1,0 +1,3 @@
+vcp_round1_three_segment_v1
+code_gate=bac52e178bf19923ccd8215c965c4c38242c17e9
+requested_at=2026-09-29
