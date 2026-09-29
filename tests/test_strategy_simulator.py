@@ -15,6 +15,8 @@ from astraquant.portfolio.strategy_simulator import (
     CanonicalStrategySimulator,
     StrategySimulationConfig,
 )
+from astraquant.portfolio.performance_reporting import build_trade_report
+from astraquant.research.candidates import legacy_signals_to_candidates
 
 
 def _simulator(tmp_path, *, max_positions=1, max_hold=250):
@@ -573,3 +575,44 @@ def test_successor_security_conversion_moves_position_and_policy_state(tmp_path)
     assert policy.managed_positions["3715"].quantity == 1000
     assert result.sessions[1].snapshot.valuation.nav == 20300.0
     assert result.sessions[-1].snapshot.valuation.nav == 20800.0
+
+
+def test_strategy_simulator_accepts_canonical_candidate_contract(tmp_path):
+    sim, portfolio, _ = _simulator(tmp_path)
+    sessions = [
+        date(2026, 1, 2),
+        date(2026, 1, 5),
+        date(2026, 1, 6),
+        date(2026, 1, 7),
+    ]
+    legacy = pd.DataFrame(
+        [{"signal_date": "2026-01-02", "stock_id": "2330"}]
+    )
+    candidates = legacy_signals_to_candidates(
+        legacy,
+        declaration=sim.signal,
+    )
+    result = sim.run(sessions=sessions, candidates=candidates)
+    assert result.total_entries == 1
+    assert result.total_stop_exits == 1
+    assert portfolio.positions.positions["2330"].quantity == 0
+
+
+def test_trade_report_uses_fifo_and_excludes_open_lots(tmp_path):
+    sim, portfolio, _ = _simulator(tmp_path)
+    sessions = [
+        date(2026, 1, 2),
+        date(2026, 1, 5),
+        date(2026, 1, 6),
+        date(2026, 1, 7),
+    ]
+    signals = pd.DataFrame(
+        [{"signal_date": "2026-01-02", "stock_id": "2330"}]
+    )
+    sim.run(sessions=sessions, signals=signals)
+    report = build_trade_report(portfolio)
+    assert report.statistics.n == 1
+    assert report.statistics.win_rate == 0.0
+    assert report.statistics.average_loss == pytest.approx(-0.15)
+    assert report.statistics.expectancy == pytest.approx(-0.15)
+    assert len(report.reconstruction.open_lots) == 0

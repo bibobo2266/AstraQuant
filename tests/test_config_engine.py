@@ -136,6 +136,10 @@ def test_config_engine_prepares_existing_canonical_slice_without_new_script(tmp_
         prepared.signal_frame["counts_as_candidate"]
     ]
     assert list(candidates["signal_date"]) == [pd.Timestamp("2026-01-06")]
+    assert list(prepared.candidates["stock_id"]) == ["2330"]
+    assert prepared.candidates.iloc[0]["signal_source"] == "CONFIG:high3"
+    assert prepared.candidates.iloc[0]["signal_price_semantics"] == "SCALE_SENSITIVE"
+    assert prepared.candidates.iloc[0]["available_at"] > pd.Timestamp("2026-01-06")
 
 
 def test_feature_cache_is_shared_across_config_runs(tmp_path):
@@ -175,3 +179,37 @@ def test_unimplemented_signal_component_fails_at_compile_time():
 
     with pytest.raises(UnsupportedComponentError, match="ICHIMOKU"):
         compiler.compile(cfg)
+
+
+def test_config_engine_simulate_prepared_passes_canonical_candidates(tmp_path):
+    run = _configs(tmp_path)
+    engine = ResearchConfigEngine()
+    prepared = engine.prepare(
+        run_config_path=run,
+        root=tmp_path,
+        panel=_panel(),
+        universe_context=UniverseContext(
+            p2_060_excluded_tickers=frozenset(),
+            p2_060_exclusion_sha256=P2_SHA,
+        ),
+        signal_context=SignalContext(source_revision="fixture-v1"),
+        base_policy=PortfolioPolicyConfig(position_fraction=0.10, max_positions=10),
+    )
+
+    class StubSimulator:
+        def __init__(self):
+            self.received = None
+
+        def run(self, **kwargs):
+            self.received = kwargs
+            return "ok"
+
+    simulator = StubSimulator()
+    out = engine.simulate_prepared(
+        prepared=prepared,
+        simulator=simulator,
+        sessions=[pd.Timestamp("2026-01-06").date(), pd.Timestamp("2026-01-07").date()],
+    )
+    assert out == "ok"
+    assert simulator.received["signals"] is None if "signals" in simulator.received else True
+    assert list(simulator.received["candidates"]["stock_id"]) == ["2330"]

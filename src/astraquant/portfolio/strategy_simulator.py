@@ -17,6 +17,11 @@ from astraquant.portfolio.models import OrderIntent
 from astraquant.portfolio.policy import EntryCandidate, PortfolioIntentPolicy
 from astraquant.portfolio.replay_runner import CanonicalPortfolioReplay, ReplaySnapshot
 from astraquant.portfolio.valuation import value_portfolio
+from astraquant.research.candidates import (
+    declaration_from_candidate,
+    legacy_signals_to_candidates,
+    normalize_candidates,
+)
 
 
 @dataclass(frozen=True)
@@ -94,25 +99,6 @@ class CanonicalStrategySimulator:
         )
 
     @staticmethod
-    def _normalize_signals(signals: pd.DataFrame) -> pd.DataFrame:
-        required = {"signal_date", "stock_id"}
-        missing = sorted(required - set(signals.columns))
-        if missing:
-            raise ValueError(f"signals missing columns: {missing}")
-
-        optional = [c for c in ("turnover_value", "breakout_excess") if c in signals.columns]
-        out = signals[["signal_date", "stock_id", *optional]].copy()
-        out["signal_date"] = pd.to_datetime(
-            out["signal_date"], errors="coerce"
-        ).dt.normalize()
-        out["stock_id"] = out["stock_id"].astype(str)
-        if out[["signal_date", "stock_id"]].isna().any(axis=1).any():
-            raise ValueError("signals contain null logical keys")
-        if out.duplicated(["signal_date", "stock_id"]).any():
-            raise ValueError("signals contain duplicate (signal_date, stock_id)")
-        return out.sort_values(["signal_date", "stock_id"]).reset_index(drop=True)
-
-    @staticmethod
     def _session_start(day: date) -> datetime:
         return datetime.combine(day, datetime.min.time())
 
@@ -173,22 +159,36 @@ class CanonicalStrategySimulator:
         self,
         *,
         sessions: list[date],
-        signals: pd.DataFrame,
+        candidates: pd.DataFrame | None = None,
+        signals: pd.DataFrame | None = None,
         corporate_actions: list[HistoricalCorporateActionInstruction] | None = None,
     ) -> StrategySimulationResult:
         trading_calendar = TradingCalendar(sessions)
         calendar = trading_calendar.sessions
 
-        normalized_signals = self._normalize_signals(signals)
+        if (candidates is None) == (signals is None):
+            raise ValueError("provide exactly one of candidates or legacy signals")
+        normalized_candidates = (
+            normalize_candidates(candidates)
+            if candidates is not None
+            else legacy_signals_to_candidates(signals, declaration=self.signal)
+        )
         session_index = {day: i for i, day in enumerate(calendar)}
 
         entry_signals: dict[date, list[dict[str, object]]] = {}
-        for row in normalized_signals.to_dict("records"):
+        for row in normalized_candidates.to_dict("records"):
             signal_day = pd.Timestamp(row["signal_date"]).date()
             idx = session_index.get(signal_day)
             if idx is None or idx + 1 >= len(calendar):
                 continue
-            entry_signals.setdefault(calendar[idx + 1], []).append(row)
+            entry_day = calendar[idx + 1]
+            available_at = pd.Timestamp(row["available_at"]).to_pydatetime()
+            if available_at >= self._session_start(entry_day):
+                raise ValueError(
+                    f"candidate {row['stock_id']} on {signal_day} was not available "
+                    f"before next-session entry: available_at={available_at}"
+                )
+            entry_signals.setdefault(entry_day, []).append(row)
 
         ca_by_day: dict[date, list[HistoricalCorporateActionInstruction]] = {}
         terminal_stale_windows: dict[str, tuple[date, date]] = {}
@@ -365,17 +365,20 @@ class CanonicalStrategySimulator:
 
             signal_rows = sorted(entry_signals.get(day, []), key=lambda row: str(row["stock_id"]))
             tickers = [str(row["stock_id"]) for row in signal_rows]
-            candidates: list[EntryCandidate] = []
+            entry_candidates: list[EntryCandidate] = []
+            candidate_signal_by_ticker: dict[str, SignalDeclaration] = {}
             for row in signal_rows:
                 ticker = str(row["stock_id"])
+                candidate_signal = declaration_from_candidate(row)
+                candidate_signal_by_ticker[ticker] = candidate_signal
                 sizing = self.execution.sizing_price(
                     ticker=ticker,
                     session_date=day,
                     side="buy",
                     field="open",
-                    signal=self.signal,
+                    signal=candidate_signal,
                 )
-                candidates.append(
+                entry_candidates.append(
                     EntryCandidate(
                         ticker=ticker,
                         sizing_decision=sizing,
@@ -398,7 +401,7 @@ class CanonicalStrategySimulator:
             except Exception as exc:
                 raise type(exc)(f"opening NAV failed on {day}: {exc}") from exc
             planned, skipped = self.policy.plan_entries(
-                candidates=candidates,
+                candidates=entry_candidates,
                 session_index=idx,
                 current_nav=opening_nav,
                 available_cash=self.portfolio.cash.available_to_commit_cash,
@@ -425,7 +428,7 @@ class CanonicalStrategySimulator:
                 try:
                     out = self.execution.execute(
                         intent=intent,
-                        signal=self.signal,
+                        signal=candidate_signal_by_ticker[plan.ticker],
                         order_id=f"order:entry:{day}:{plan.ticker}:{n}",
                         fill_id=f"fill:entry:{day}:{plan.ticker}:{n}",
                         submitted_at=start,

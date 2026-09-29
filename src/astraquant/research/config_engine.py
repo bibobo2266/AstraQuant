@@ -5,7 +5,11 @@ from pathlib import Path
 
 import pandas as pd
 
+from astraquant.data.market_coordinates import SignalPriceSemantics
+from astraquant.execution.service import SignalDeclaration
 from astraquant.portfolio.policy import PortfolioPolicyConfig
+from astraquant.portfolio.strategy_simulator import CanonicalStrategySimulator, StrategySimulationResult
+from astraquant.research.candidates import candidates_from_signal_frame
 from astraquant.research.config_io import (
     load_exit_config,
     load_run_config,
@@ -41,6 +45,7 @@ class PreparedResearchRun:
     exit_config: ExitConfig
     universe_mask: UniverseMask
     signal_frame: pd.DataFrame
+    candidates: pd.DataFrame
     signal_plan: SignalPlan
     exit_plan: CompiledExitPlan
     portfolio_policy: PortfolioPolicyConfig
@@ -105,6 +110,14 @@ class ResearchConfigEngine:
         )
         exit_plan = self.exit_compiler.compile(exit_config)
         policy = exit_plan.apply_to_policy(base_policy)
+        declaration = SignalDeclaration(
+            source=f"CONFIG:{signal_config.name}",
+            price_semantics=SignalPriceSemantics.SCALE_SENSITIVE,
+        )
+        candidates = candidates_from_signal_frame(
+            signal_frame,
+            declaration=declaration,
+        )
 
         return PreparedResearchRun(
             run_config=run_config,
@@ -113,6 +126,7 @@ class ResearchConfigEngine:
             exit_config=exit_config,
             universe_mask=mask,
             signal_frame=signal_frame,
+            candidates=candidates,
             signal_plan=signal_plan,
             exit_plan=exit_plan,
             portfolio_policy=policy,
@@ -144,4 +158,20 @@ class ResearchConfigEngine:
             universe_context=universe_context,
             signal_context=signal_context,
             base_policy=base_policy,
+        )
+
+
+    def simulate_prepared(
+        self,
+        *,
+        prepared: PreparedResearchRun,
+        simulator: CanonicalStrategySimulator,
+        sessions,
+        corporate_actions=None,
+    ) -> StrategySimulationResult:
+        """Run prepared config candidates through the unchanged canonical simulator."""
+        return simulator.run(
+            sessions=list(sessions),
+            candidates=prepared.candidates,
+            corporate_actions=corporate_actions,
         )
