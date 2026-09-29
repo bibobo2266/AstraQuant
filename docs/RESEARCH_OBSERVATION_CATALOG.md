@@ -10,6 +10,8 @@ No entry in this catalog is automatically promoted, tuned into locked OOS, or tr
 
 ## OBS-001 — Taiwan overnight futures and U.S. market context
 
+Status: **DEFERRED_BY_OWNER**
+
 ### Original observation
 
 1. Compare the 05:00 Taiwan index-futures night-session close with the previous Taiwan Weighted Index close:
@@ -62,10 +64,18 @@ The eventual source adapter must explicitly handle:
 
 ### Current status
 
-- Component contract implemented.
-- Missing required columns hard-fail.
-- Real source-backed historical test: **NOT RUN** because a canonical overseas/night-session source with frozen timestamp semantics has not yet been established.
-- No synthetic fallback or present-value substitution is allowed.
+**DEFERRED_BY_OWNER**
+
+owner 於 2026-09-29 決定暫緩。理由不是資料不存在，而是成本效益：
+該觀察每交易日僅產生一個方向判斷，統計密度低；而正確實作需處理台美
+日光節約時間、假日錯開、ADR 交易日對應、SOX/Nasdaq 收盤時戳、夜盤
+契約轉倉、期貨對現貨尺度等六項 look-ahead 風險點，任一處理錯誤都會
+產生看似優異但虛假的結果。
+
+解除條件：當 AstraQuant 具備帶明確時戳語意的夜盤與海外 canonical 來源，
+且該來源能提供 known_at 欄位時，重新啟動。
+
+元件契約與必要欄位定義保留不動，不刪除。
 
 ---
 
@@ -574,3 +584,44 @@ hold_floor < pullback_ceiling < reclaim_level
 The raw Cartesian surface contains 432 cells. The constraint removes structurally nonsensical RSI states, leaving 276 legal combinations. Those removals are not result-driven tuning.
 
 The goal is to inspect the entire legal surface for broad plateaus, signal-count tradeoffs, and marginal stability. The maximum cell is not a promotion rule.
+
+
+---
+
+## 盤中資料來源評估
+
+Status: **DEFERRED_BY_OWNER**
+
+owner 於 2026-09-29 查證後決定暫緩。
+
+候選來源：FinMind `TaiwanStockKBar`（分 K），限 sponsor 會員。
+欄位 `date / minute / stock_id / open / high / low / close / volume`，
+`minute` 自 09:00:00 起每分鐘一筆。
+
+五項已確認的限制：
+
+1. 個股資料區間 2019-01-01 起（加權指數 TAIEX 為 2005-01-03 起）。
+   現行凍結研究窗自 2016-01-04 開始，盤中研究無法與既有 baseline
+   使用相同共同母體。
+2. 無 `available_at / known_at` 欄位。整表於交易日 15:50 盤後一次更新，
+   非逐 bar 推送。PIT 語意必須由 AstraQuant 自行宣告（bar 收盤時間
+   加宣告延遲），無法自資料推導。
+3. 同源資料有回溯修訂前科：逐筆表 `TickType` 曾全面重製
+   2018-12-07~2023-03-10 全部交易日，且無版本號。分 K 須自存快照
+   並記錄 hash，否則 PIT 不可重現。
+4. 僅提供分 K，無 15 分 / 60 分。聚合邊界須明確宣告
+   （09:00-09:59 或 09:00-10:00），否則跨人不可比。
+5. 已知缺漏：2019-02-20、02-21、02-22 僅有 TAIEX 無個股；
+   2019-05-16 個股僅少數 ETF。volume 單位上市櫃為「張」、
+   興櫃為「股」，同日混用。
+
+結論：技術上可補，但資料本身不自帶 PIT。啟動前置條件是先完成
+一份分 K 資料契約（時戳語意、聚合邊界、快照與 hash、缺漏處理），
+而非先抓資料。
+
+受此影響而維持 **BLOCKED** 的項目：
+
+- OBS-005 多時間框架 RSI SOP 的 60 分 / 15 分部分；
+- OBS-002 Bollinger 壓縮的 60 分版本。
+
+不得以日線資料合成盤中序列替代。

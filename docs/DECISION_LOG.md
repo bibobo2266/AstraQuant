@@ -100,3 +100,58 @@ Corporate-action quantity mutations preserve total cost basis by inversely adjus
 ### Revisit condition
 
 Only if a different accounting representation is explicitly adopted and preserves equivalent economic/audit semantics.
+
+
+## DEC-005 — Narrow P2-063 source-repair authorization
+
+**Status:** Accepted
+
+### Decision
+
+owner 於 2026-09-29 明確授權 `bibobo2266/minervini_picks` 的 P2-063 最小來源修復，
+因此本次視為 DEC-001 / DEC-002 的明確、有限例外。
+
+授權範圍只包含：
+
+- 五個 execution / tradability ticker regex 從四位純數字放寬為可帶一個大寫字母後綴；
+- 2883B 自 2021-12-30 起、涵蓋 P2-062 所需窗口的 RAW 與 tradability 定向回補。
+
+不得藉此更動研究候選母體、P2-060 排除名單、調整價替代品或合成成交。
+本次修復完成後，source repo 再度回到 AstraQuant 正常研究流程的唯讀依賴。
+
+
+## DEC-006 — Defer overnight futures and U.S. context
+
+**Status:** DEFERRED_BY_OWNER
+
+owner 於 2026-09-29 決定暫緩。理由不是資料不存在，而是成本效益：
+該觀察每交易日僅產生一個方向判斷，統計密度低；而正確實作需處理台美
+日光節約時間、假日錯開、ADR 交易日對應、SOX/Nasdaq 收盤時戳、夜盤
+契約轉倉、期貨對現貨尺度等六項 look-ahead 風險點，任一處理錯誤都會
+產生看似優異但虛假的結果。
+
+解除條件：當 AstraQuant 具備帶明確時戳語意的夜盤與海外 canonical 來源，
+且該來源能提供 known_at 欄位時，重新啟動。
+
+OBS-001 的元件契約與必要欄位定義保留不動。
+
+
+## DEC-007 — Defer intraday data acquisition until PIT contract exists
+
+**Status:** DEFERRED_BY_OWNER
+
+owner 於 2026-09-29 查證 FinMind `TaiwanStockKBar` 後決定暫緩。
+
+已確認限制：
+
+1. 個股自 2019-01-01 起，無法與 2016-01-04 起的凍結研究窗使用相同共同母體。
+2. 無 `available_at / known_at`；資料於 15:50 盤後整表更新，PIT 時戳需 AstraQuant 自行宣告。
+3. 同源曾有無版本號回溯重製；若未自存快照與 hash，PIT 不可重現。
+4. 僅有分 K，15 分 / 60 分聚合邊界需先明確宣告。
+5. 2019-02-20~22、2019-05-16 有已知個股缺漏，且 volume 單位可在不同市場混用「張」與「股」。
+
+決策：技術上可補，但啟動前先完成分 K 資料契約（時戳語意、聚合邊界、
+快照/hash、缺漏處理），而不是先抓資料。
+
+因此 OBS-005 的 60 分 / 15 分部分與 OBS-002 的 60 分版本維持 BLOCKED；
+不得以日線資料合成盤中序列替代。

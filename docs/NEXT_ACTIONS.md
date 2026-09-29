@@ -24,7 +24,8 @@ Proceed with Phase-2 execution/accounting repair in small, recoverable tasks:
 - PIT industry: READY_WITH_LIMITATION; uncovered history remains excluded
 - Tradability: READY_WITH_LIMITATION; block states must be enforced
 - PIT-bearing fundamentals: PASS_WITH_LIMITATIONS under declared availability rules
-- source repository remains immutable/read-only
+- source repository is consumed read-only during normal AstraQuant research; owner-authorized P2-063 source remediation is a narrow exception
+- P1-007 is the canonical runtime-access mode: GitHub Actions transient read-only checkout via MINERVINI_READ_TOKEN; no local sibling-directory mount action remains
 - Phase-1 summary: `docs/DATA_AUDIT.md`
 
 ## PERFORMANCE LOCK
