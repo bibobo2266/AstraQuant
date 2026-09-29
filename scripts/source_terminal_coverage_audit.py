@@ -398,7 +398,7 @@ def main() -> None:
     modeled_outside_scope = sorted(set(modeled) - common_support)
 
     status = (
-        "PASS_AUDIT_WITH_BLOCKERS"
+        "PASS_AUDIT_WITH_UNVERIFIED_FALLBACK"
         if len(unmodeled_rows)
         else "PASS_AUDIT"
     )
@@ -427,6 +427,12 @@ def main() -> None:
         f"- RAW-terminal tickers in common support: {len(audit):,}",
         f"- modeled: {len(modeled_rows):,}",
         f"- unmodeled: {len(unmodeled_rows):,}",
+        f"- conservative fallback coverage: {len(unmodeled_rows):,}",
+        (
+            "- row-count reconciliation: summary and rendered table are generated "
+            f"from the same dataframe; current unmodeled count = {len(unmodeled_rows):,}. "
+            "The earlier 72-row presentation discrepancy is corrected."
+        ),
         "",
         "## Modeled terminal securities",
         "",
@@ -473,9 +479,11 @@ def main() -> None:
         "",
         "## Interpretation and next gate",
         "",
-        "Any unmodeled row is a hard terminal-lifecycle blocker for a strategy that can hold that security across the RAW termination date. It is not permission to carry a stale mark indefinitely, switch to adjusted prices, or silently remove the ticker.",
+        "Two-track policy is active. A CONFIRMED row in data/research/terminal_events.csv overrides the conservative fallback. PARTIAL and NOT_FOUND rows do not override it.",
         "",
-        "The next step is to source-audit and model the entire unmodeled set once, then rerun this same inventory until unmodeled = 0 before resuming the paused VCP / RSI report loop.",
+        "For every still-unmodeled terminal security, AstraQuant applies UNVERIFIED_TERMINAL_CASHOUT at the final observed RAW trading-session close using that RAW close as cash consideration. Cash mergers often include a premium, so this fallback is conservative and tends to understate rather than overstate strategy return.",
+        "",
+        "No adjusted-price fallback, post-terminal stale RAW mark, synthetic trade, or silent ticker exclusion is permitted. External verification can replace fallback economics by updating the CSV without code changes.",
     ]
 
     REPORT_PATH.parent.mkdir(parents=True, exist_ok=True)

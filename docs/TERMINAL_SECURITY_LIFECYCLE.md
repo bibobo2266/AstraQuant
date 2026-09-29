@@ -104,3 +104,44 @@ Additional terminal securities must be added only from explicit source-backed su
 ## Repository boundary
 
 The source repository `bibobo2266/minervini_picks` remains read-only. All terminal-event handling and regression logic are implemented in AstraQuant.
+
+
+## Two-track terminal policy
+
+Status: **ACTIVE**
+
+### Track 1 — conservative default
+
+For a RAW-terminal security whose terminal economics are not yet modeled from a CONFIRMED external record, AstraQuant applies:
+
+- event component: `UNVERIFIED_TERMINAL_CASHOUT`;
+- event timing: after the final observed RAW trading session has completed;
+- cash consideration: that final session's RAW close;
+- no synthetic sell fill;
+- no adjusted-price fallback;
+- no post-terminal stale RAW mark;
+- no silent ticker exclusion.
+
+This is intentionally conservative. Cash takeovers commonly include a control premium above the final market price. Using the final RAW close therefore tends to **understate**, not overstate, realized return for such cases.
+
+If a normal RAW stop or max-hold exit executes on the final trading session before the fallback close event, that real canonical exit takes precedence and the fallback has no held shares to extinguish.
+
+### Track 2 — external verification overlay
+
+Externally verified terminal facts are loaded from:
+
+`data/research/terminal_events.csv`
+
+Required columns:
+
+`ticker,last_trading_date,event_type,suspension_from,effective_date,cash_per_share,payment_date,successor_ticker,share_ratio,confidence,source_url,source_quote`
+
+Only rows with `confidence=CONFIRMED` override Track 1. `PARTIAL` and `NOT_FOUND` remain on the conservative fallback.
+
+The current CSV loader supports simple cash extinguishments and single-successor share conversions. The already-modeled 2823 multi-leg common/preferred/cash conversion remains on its dedicated composite accounting representation because the external-delivery schema does not contain the value-allocation fields required to reconstruct that event without inventing economics.
+
+Updating or appending ordinary verified cases requires changing the CSV only, not Python code.
+
+### Reporting
+
+Every benchmark-aware performance report includes the number and fraction of closed FIFO trades whose lifecycle involved `UNVERIFIED_TERMINAL_CASHOUT`. Open lots remain separate and are never mixed into that statistic.

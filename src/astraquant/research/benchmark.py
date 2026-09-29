@@ -232,6 +232,13 @@ def render_benchmark_report_sections(
     closed-trade concept.
     """
     stats = trade_report.statistics
+    unverified_terminal = sum(
+        "UNVERIFIED_TERMINAL_CASHOUT" in trade.exit_components
+        for trade in trade_report.closed_trades
+    )
+    unverified_share = (
+        unverified_terminal / stats.n if stats.n else float("nan")
+    )
     return [
         "## 一、單筆層（主表）",
         "",
@@ -243,6 +250,10 @@ def render_benchmark_report_sections(
         f"| Average loss | {_pct_text(stats.average_loss)} |",
         f"| Payoff ratio | {_num_text(stats.payoff_ratio)} |",
         f"| Expectancy per trade | {_pct_text(stats.expectancy)} |",
+        (
+            "| Closed trades involving UNVERIFIED_TERMINAL_CASHOUT | "
+            f"{unverified_terminal:,} ({_pct_text(unverified_share)}) |"
+        ),
         "",
         (
             "Open FIFO lots are reported separately and excluded from the table "

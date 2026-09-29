@@ -31,6 +31,10 @@ from astraquant.portfolio.strategy_simulator import (
     CanonicalStrategySimulator,
     StrategySimulationConfig,
 )
+from astraquant.research.terminal_events import (
+    confirmed_terminal_events,
+    load_terminal_event_records,
+)
 
 SOURCE_ROOT = Path(os.environ.get("SOURCE_ROOT", "source_runtime/minervini_picks/data")).resolve()
 REPORT_PATH = Path(os.environ.get("REPORT_PATH", "docs/SOURCE_STRATEGY_INTEGRATION_SMOKE.md"))
@@ -41,40 +45,12 @@ REPORT_TITLE = os.environ.get(
     "REPORT_TITLE",
     "Source Canonical Strategy Integration Smoke",
 )
-
-
-CURATED_TERMINAL_EVENTS = [
-    {
-        "ticker": "6286",
-        "known_at": datetime(2016, 4, 6, 14, 40),
-        "terminal_stale_from": pd.Timestamp("2016-04-21").date(),
-        "effective_at": datetime(2016, 4, 29),
-        "payment_at": datetime(2016, 5, 5),
-        "cash_per_share": 195.0,
-        "source": "MOPS/TWSE cash share-conversion disclosure",
-        "source_url": "https://news.cnyes.com/news/id/748023",
-    },
-    {
-        "ticker": "4141",
-        "known_at": datetime(2022, 3, 30, 18, 31, 29),
-        "terminal_stale_from": pd.Timestamp("2022-04-27").date(),
-        "effective_at": datetime(2022, 5, 3),
-        "payment_at": datetime(2022, 5, 10),
-        "cash_per_share": 26.23,
-        "source": "MOPS/TWSE public merger-delisting disclosure",
-        "source_url": "https://news.cnyes.com/news/id/4844580",
-    },
-    {
-        "ticker": "5305",
-        "known_at": datetime(2020, 9, 24, 15, 6),
-        "terminal_stale_from": pd.Timestamp("2020-11-24").date(),
-        "effective_at": datetime(2020, 11, 30),
-        "payment_at": datetime(2020, 12, 4),
-        "cash_per_share": 42.5,
-        "source": "MOPS/TWSE cash share-conversion disclosure",
-        "source_url": "https://www.moneydj.com/kmdj/news/newsviewer.aspx?a=08e82787-ac21-4b82-a7e5-0457c205ba74",
-    },
-]
+TERMINAL_EVENT_PATH = Path(
+    os.environ.get(
+        "TERMINAL_EVENT_PATH",
+        "data/research/terminal_events.csv",
+    )
+)
 
 CURATED_COMPOSITE_CONVERSIONS = [
     {
@@ -101,18 +77,54 @@ CURATED_COMPOSITE_CONVERSIONS = [
     },
 ]
 
-CURATED_SUCCESSOR_CONVERSIONS = [
-    {
-        "ticker": "6251",
-        "known_at": datetime(2022, 7, 4, 8, 50),
-        "terminal_stale_from": pd.Timestamp("2022-08-15").date(),
-        "effective_at": datetime(2022, 8, 25),
-        "successor_ticker": "3715",
-        "successor_multiplier": 1.0,
-        "source": "TWSE/MOPS share-conversion disclosure",
-        "source_url": "https://www.moneydj.com/KMDJ/news/newsviewer.aspx?a=3dbfbc6a-01a5-4eda-87f9-d2aa3530a649",
-    },
-]
+
+
+def load_confirmed_terminal_overrides():
+    return confirmed_terminal_events(
+        load_terminal_event_records(TERMINAL_EVENT_PATH)
+    )
+
+
+def load_raw_terminal_rows(
+    *,
+    candidate_tickers: set[str],
+    session_end: pd.Timestamp,
+) -> pd.DataFrame:
+    parts: list[pd.DataFrame] = []
+    for path in sorted((SOURCE_ROOT / "raw").glob("prices_raw_*.parquet")):
+        part = pd.read_parquet(
+            path,
+            columns=["date", "stock_id", "close"],
+        )
+        part["date"] = pd.to_datetime(
+            part["date"], errors="coerce"
+        ).dt.normalize()
+        part["stock_id"] = part["stock_id"].astype(str)
+        part = part[part["stock_id"].isin(candidate_tickers)]
+        if not part.empty:
+            parts.append(part)
+    if not parts:
+        return pd.DataFrame(
+            columns=["ticker", "last_raw_date", "last_raw_close"]
+        )
+    raw = pd.concat(parts, ignore_index=True)
+    raw["close"] = pd.to_numeric(raw["close"], errors="coerce")
+    raw = raw[raw["date"].notna() & raw["close"].gt(0)].copy()
+    last = (
+        raw.sort_values(["stock_id", "date"], kind="stable")
+        .groupby("stock_id", as_index=False)
+        .tail(1)
+        .rename(
+            columns={
+                "stock_id": "ticker",
+                "date": "last_raw_date",
+                "close": "last_raw_close",
+            }
+        )
+    )
+    return last[
+        last["last_raw_date"].lt(pd.Timestamp(session_end).normalize())
+    ].reset_index(drop=True)
 
 
 def load_adjusted() -> pd.DataFrame:
@@ -300,66 +312,79 @@ def build_supported_ca(
             )
         )
 
-    for item in CURATED_TERMINAL_EVENTS:
-        ticker = str(item["ticker"])
-        effective_at = item["effective_at"]
+    confirmed_overrides = load_confirmed_terminal_overrides()
+    for ticker, item in sorted(confirmed_overrides.items()):
+        if ticker not in candidate_tickers:
+            continue
+        effective_at = datetime.combine(
+            item.effective_date,
+            datetime.min.time(),
+        )
         if (
-            ticker not in candidate_tickers
-            or effective_at.date() < session_start.date()
+            effective_at.date() < session_start.date()
             or effective_at.date() > session_end.date()
         ):
             continue
-        event = CorporateActionEvent(
-            event_id=f"terminal:{ticker}:{effective_at.date()}:cash_merger",
-            ticker=ticker,
-            event_type=CorporateActionType.MERGER,
-            effective_at=effective_at,
-            known_at=item["known_at"],
-            payment_at=item["payment_at"],
-            cash_per_share=float(item["cash_per_share"]),
-            source=str(item["source"]),
-            notes=str(item["source_url"]),
+        source = "terminal_events.csv"
+        notes = " | ".join(
+            x for x in [item.source_url, item.source_quote] if x
         )
-        instructions.append(
-            HistoricalCorporateActionInstruction(
-                event=event,
-                applied_at=event.effective_at,
-                component="MERGER_CASHOUT",
-                cash_share_basis_mode=CashEntitlementBasis.OPENING_POSITION,
-                terminal_stale_from=item["terminal_stale_from"],
-                extinguish_position=True,
+        if item.successor_ticker is not None:
+            successor_ticker = str(item.successor_ticker)
+            candidate_tickers.add(successor_ticker)
+            event = CorporateActionEvent(
+                event_id=(
+                    f"terminal-confirmed:{ticker}:{item.effective_date}:"
+                    f"{successor_ticker}"
+                ),
+                ticker=ticker,
+                event_type=CorporateActionType.MERGER,
+                effective_at=effective_at,
+                known_at=None,
+                source=source,
+                notes=notes,
             )
-        )
-
-    for item in CURATED_SUCCESSOR_CONVERSIONS:
-        ticker = str(item["ticker"])
-        effective_at = item["effective_at"]
-        if (
-            ticker not in candidate_tickers
-            or effective_at.date() < session_start.date()
-            or effective_at.date() > session_end.date()
-        ):
-            continue
-        successor_ticker = str(item["successor_ticker"])
-        candidate_tickers.add(successor_ticker)
-        event = CorporateActionEvent(
-            event_id=f"successor:{ticker}:{effective_at.date()}:{successor_ticker}",
-            ticker=ticker,
-            event_type=CorporateActionType.MERGER,
-            effective_at=effective_at,
-            known_at=item["known_at"],
-            source=str(item["source"]),
-            notes=str(item["source_url"]),
-        )
-        instructions.append(
-            HistoricalCorporateActionInstruction(
-                event=event,
-                applied_at=event.effective_at,
-                terminal_stale_from=item["terminal_stale_from"],
-                successor_ticker=successor_ticker,
-                successor_multiplier=float(item["successor_multiplier"]),
+            instructions.append(
+                HistoricalCorporateActionInstruction(
+                    event=event,
+                    applied_at=event.effective_at,
+                    terminal_stale_from=item.suspension_from,
+                    successor_ticker=successor_ticker,
+                    successor_multiplier=float(item.share_ratio),
+                )
             )
-        )
+        else:
+            payment_at = (
+                None
+                if item.payment_date is None
+                else datetime.combine(
+                    item.payment_date,
+                    datetime.min.time(),
+                )
+            )
+            event = CorporateActionEvent(
+                event_id=(
+                    f"terminal-confirmed:{ticker}:{item.effective_date}:cash"
+                ),
+                ticker=ticker,
+                event_type=CorporateActionType.MERGER,
+                effective_at=effective_at,
+                known_at=None,
+                payment_at=payment_at,
+                cash_per_share=float(item.cash_per_share),
+                source=source,
+                notes=notes,
+            )
+            instructions.append(
+                HistoricalCorporateActionInstruction(
+                    event=event,
+                    applied_at=event.effective_at,
+                    component="MERGER_CASHOUT",
+                    cash_share_basis_mode=CashEntitlementBasis.OPENING_POSITION,
+                    terminal_stale_from=item.suspension_from,
+                    extinguish_position=True,
+                )
+            )
 
     for item in CURATED_COMPOSITE_CONVERSIONS:
         ticker = str(item["ticker"])
@@ -391,6 +416,53 @@ def build_supported_ca(
                 terminal_stale_from=item["terminal_stale_from"],
                 successor_legs=tuple(item["successor_legs"]),
                 cash_value_weight=float(item["cash_value_weight"]),
+            )
+        )
+
+    modeled_terminal_tickers = set(confirmed_overrides) | {
+        str(item["ticker"]) for item in CURATED_COMPOSITE_CONVERSIONS
+    }
+    terminal_rows = load_raw_terminal_rows(
+        candidate_tickers=set(candidate_tickers),
+        session_end=session_end,
+    )
+    for row in terminal_rows.itertuples(index=False):
+        ticker = str(row.ticker)
+        if ticker in modeled_terminal_tickers:
+            continue
+        last_raw_date = pd.Timestamp(row.last_raw_date).date()
+        if (
+            last_raw_date < session_start.date()
+            or last_raw_date > session_end.date()
+        ):
+            continue
+        last_raw_close = float(row.last_raw_close)
+        effective_at = datetime.combine(
+            last_raw_date,
+            datetime.max.time(),
+        )
+        event = CorporateActionEvent(
+            event_id=f"terminal-unverified:{ticker}:{last_raw_date}",
+            ticker=ticker,
+            event_type=CorporateActionType.MERGER,
+            effective_at=effective_at,
+            known_at=None,
+            payment_at=effective_at,
+            cash_per_share=last_raw_close,
+            source="AstraQuant conservative terminal fallback",
+            notes=(
+                "UNVERIFIED_TERMINAL_CASHOUT at final observed RAW close; "
+                "confirmed external facts may override via terminal_events.csv"
+            ),
+        )
+        instructions.append(
+            HistoricalCorporateActionInstruction(
+                event=event,
+                applied_at=effective_at,
+                component="UNVERIFIED_TERMINAL_CASHOUT",
+                cash_share_basis_mode=CashEntitlementBasis.OPENING_POSITION,
+                extinguish_position=True,
+                apply_at_close=True,
             )
         )
 

@@ -169,6 +169,7 @@ def _write_trade_tables(trade_report) -> None:
                 "entry_cost": x.entry_cost,
                 "return_on_cost": x.return_on_cost,
                 "holding_days": x.holding_days,
+                "exit_components": ";".join(x.exit_components),
             }
             for x in trade_report.closed_trades
         ]
@@ -340,7 +341,7 @@ def main() -> None:
         f"- PIT-unsafe CA tickers quarantined: {len(quarantined_tickers):,}",
         f"- legacy signal rows removed by PIT CA quarantine: {quarantined_signal_rows:,}",
         "- executable exit layer in this round remains limited to fixed stop + time/max-hold only",
-        "- execution/accounting/CA/terminal lifecycle logic is unchanged",
+        "- execution/accounting and verified CA semantics remain unchanged; this round adds the documented conservative unverified-terminal cashout overlay",
         "- strategy execution assumptions: zero explicit fees and zero slippage in this descriptive run",
         "- benchmark: FinMind TaiwanStockTotalReturnIndex (TAIEX), buy-and-hold, same starting capital and exact strategy trading dates, no benchmark transaction-cost deduction",
         f"- closed FIFO trade table: `{TRADE_CSV_PATH.as_posix()}`",

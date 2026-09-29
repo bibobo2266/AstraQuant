@@ -191,6 +191,7 @@ class CanonicalStrategySimulator:
             entry_signals.setdefault(entry_day, []).append(row)
 
         ca_by_day: dict[date, list[HistoricalCorporateActionInstruction]] = {}
+        close_ca_by_day: dict[date, list[HistoricalCorporateActionInstruction]] = {}
         terminal_stale_windows: dict[str, tuple[date, date]] = {}
         for item in corporate_actions or []:
             if item.applied_at < item.event.effective_at:
@@ -198,7 +199,8 @@ class CanonicalStrategySimulator:
                     f"corporate action {item.event.event_id} cannot apply before effective date"
                 )
             day = trading_calendar.map_effective_date(item.event.effective_at)
-            ca_by_day.setdefault(day, []).append(item)
+            target = close_ca_by_day if item.apply_at_close else ca_by_day
+            target.setdefault(day, []).append(item)
             if item.terminal_stale_from is not None:
                 terminal_stale_windows[str(item.event.ticker)] = (
                     item.terminal_stale_from,
@@ -359,8 +361,6 @@ class CanonicalStrategySimulator:
                         self.policy.register_exit(str(event.ticker))
                 latest_ca_session[str(event.ticker)] = day
                 ca_count += 1
-            total_ca += ca_count
-
             held_before_open = set(self.policy.managed_positions)
 
             signal_rows = sorted(entry_signals.get(day, []), key=lambda row: str(row["stock_id"]))
@@ -546,6 +546,50 @@ class CanonicalStrategySimulator:
 
             total_stop_exits += stop_exits
             total_max_hold_exits += max_hold_exits
+
+            # Conservative terminal fallback events are close-applied so the
+            # final RAW trading session remains fully executable. They use the
+            # observed final RAW close as cash consideration and never create a
+            # synthetic sell fill or stale post-terminal mark.
+            for item in sorted(
+                close_ca_by_day.get(day, []),
+                key=lambda x: x.event.event_id,
+            ):
+                event = item.event
+                if (
+                    not item.extinguish_position
+                    or event.cash_per_share is None
+                    or not item.component
+                    or item.successor_ticker is not None
+                    or item.successor_legs
+                    or event.share_multiplier is not None
+                ):
+                    raise ValueError(
+                        "close-applied corporate actions are restricted to "
+                        f"cash extinguishments: {event.event_id}"
+                    )
+                close_at = datetime.combine(day, datetime.max.time())
+                economic_apply_at = max(item.applied_at, close_at)
+                position = self.portfolio.positions.positions.get(event.ticker)
+                closing_shares = 0.0 if position is None else position.quantity
+                self.portfolio.corporate_actions.accrue_cash_entitlement(
+                    event=event,
+                    shares_entitled=closing_shares,
+                    accrued_at=economic_apply_at,
+                    component=item.component,
+                )
+                self.policy.apply_corporate_action(event)
+                self.portfolio.corporate_actions.extinguish_position(
+                    event=event,
+                    positions=self.portfolio.positions,
+                    applied_at=economic_apply_at,
+                )
+                if str(event.ticker) in self.policy.managed_positions:
+                    self.policy.register_exit(str(event.ticker))
+                latest_ca_session[str(event.ticker)] = day
+                ca_count += 1
+
+            total_ca += ca_count
 
             snapshot = self.replay.snapshot(
                 at=datetime.combine(day, datetime.max.time()),

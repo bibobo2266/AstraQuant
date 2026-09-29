@@ -616,3 +616,57 @@ def test_trade_report_uses_fifo_and_excludes_open_lots(tmp_path):
     assert report.statistics.average_loss == pytest.approx(-0.15)
     assert report.statistics.expectancy == pytest.approx(-0.15)
     assert len(report.reconstruction.open_lots) == 0
+
+
+
+def test_unverified_terminal_cashout_applies_after_final_raw_session(tmp_path):
+    from astraquant.portfolio.corporate_actions import (
+        CashEntitlementBasis,
+        CorporateActionEvent,
+        CorporateActionType,
+    )
+    from astraquant.portfolio.historical_runner import HistoricalCorporateActionInstruction
+
+    sim, portfolio, policy = _simulator(tmp_path)
+    sessions = [
+        date(2026, 1, 2),
+        date(2026, 1, 5),
+        date(2026, 1, 6),
+    ]
+    event = CorporateActionEvent(
+        event_id="terminal-unverified:2330:2026-01-05",
+        ticker="2330",
+        event_type=CorporateActionType.MERGER,
+        effective_at=datetime.combine(date(2026, 1, 5), datetime.max.time()),
+        payment_at=datetime.combine(date(2026, 1, 5), datetime.max.time()),
+        cash_per_share=102.0,
+        source="AstraQuant conservative terminal fallback",
+    )
+
+    result = sim.run(
+        sessions=sessions,
+        signals=pd.DataFrame(
+            [{"signal_date": "2026-01-02", "stock_id": "2330"}]
+        ),
+        corporate_actions=[
+            HistoricalCorporateActionInstruction(
+                event=event,
+                applied_at=event.effective_at,
+                component="UNVERIFIED_TERMINAL_CASHOUT",
+                cash_share_basis_mode=CashEntitlementBasis.OPENING_POSITION,
+                extinguish_position=True,
+                apply_at_close=True,
+            )
+        ],
+    )
+
+    assert result.total_entries == 1
+    assert result.total_corporate_actions == 1
+    assert portfolio.positions.positions["2330"].quantity == 0
+    assert "2330" not in policy.managed_positions
+    report = build_trade_report(portfolio)
+    assert report.statistics.n == 1
+    assert report.closed_trades[0].return_on_cost == pytest.approx(0.02)
+    assert report.closed_trades[0].exit_components == (
+        "UNVERIFIED_TERMINAL_CASHOUT",
+    )

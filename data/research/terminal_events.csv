@@ -1,0 +1,5 @@
+ticker,last_trading_date,event_type,suspension_from,effective_date,cash_per_share,payment_date,successor_ticker,share_ratio,confidence,source_url,source_quote
+6286,2016-04-20,CASH_MERGER_EXTINGUISHMENT,2016-04-21,2016-04-29,195.0,2016-05-05,,,CONFIRMED,https://news.cnyes.com/news/id/748023,Existing curated MOPS/TWSE cash share-conversion disclosure.
+5305,2020-11-23,CASH_MERGER_EXTINGUISHMENT,2020-11-24,2020-11-30,42.5,2020-12-04,,,CONFIRMED,https://www.moneydj.com/kmdj/news/newsviewer.aspx?a=08e82787-ac21-4b82-a7e5-0457c205ba74,Existing curated cash conversion evidence used by AstraQuant.
+4141,2022-04-26,CASH_MERGER_EXTINGUISHMENT,2022-04-27,2022-05-03,26.23,2022-05-10,,,CONFIRMED,https://news.cnyes.com/news/id/4844580,Existing curated public merger-delisting disclosure used by AstraQuant.
+6251,2022-08-12,SUCCESSOR_SHARE_CONVERSION,2022-08-15,2022-08-25,,,3715,1.0,CONFIRMED,https://www.moneydj.com/KMDJ/news/newsviewer.aspx?a=3dbfbc6a-01a5-4eda-87f9-d2aa3530a649,6251 converts one-for-one into successor 3715 on the effective date.

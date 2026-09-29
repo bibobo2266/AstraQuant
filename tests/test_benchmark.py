@@ -147,4 +147,5 @@ def test_reusable_benchmark_renderer_preserves_governed_section_order():
     assert trade_pos < excess_pos < path_pos < interpretation_pos
     assert "Total-return benchmark" not in text[trade_pos:excess_pos]
     assert "Open FIFO lots" in text[trade_pos:excess_pos]
+    assert "UNVERIFIED_TERMINAL_CASHOUT" in text[trade_pos:excess_pos]
     assert BENCHMARK_INTERPRETATION_TW in text

@@ -38,6 +38,7 @@ class ReconstructedClosedLot:
     realized_pnl: float
     exit_event_id: str | None = None
     exit_kind: str = "MARKET_FILL"
+    exit_component: str | None = None
 
     @property
     def return_on_cost(self) -> float:
@@ -214,6 +215,7 @@ def reconstruct_fifo_trades(
                         realized_pnl=realized,
                         exit_event_id=event.event_id,
                         exit_kind="CASH_EXTINGUISHMENT",
+                        exit_component=entitlement.component,
                     )
                 )
             continue

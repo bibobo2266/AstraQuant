@@ -218,3 +218,46 @@ def test_fifo_reconstruction_rejects_cash_extinguishment_without_entitlement():
                 )
             ],
         )
+
+
+
+def test_cash_extinguishment_preserves_component_label():
+    from astraquant.portfolio.corporate_actions import CorporateActionCashReceivable
+    from astraquant.portfolio.models import Fill, PositionExtinguishment
+
+    fill = Fill(
+        fill_id="buy-unverified",
+        order_id="order-unverified",
+        ticker="1111",
+        side="buy",
+        quantity=1000,
+        price=20.0,
+        filled_at=datetime(2024, 1, 2),
+    )
+    event_id = "terminal-unverified:1111:2024-02-01"
+    out = reconstruct_fifo_trades(
+        fills=[fill],
+        position_extinguishments=[
+            PositionExtinguishment(
+                event_id=event_id,
+                ticker="1111",
+                effective_at=datetime(2024, 2, 1, 23, 59),
+                source="fallback",
+            )
+        ],
+        cash_entitlements=[
+            CorporateActionCashReceivable(
+                event_id=event_id,
+                ticker="1111",
+                component="UNVERIFIED_TERMINAL_CASHOUT",
+                shares_entitled=1000,
+                cash_per_share=18.0,
+                amount=18000.0,
+                accrued_at=datetime(2024, 2, 1, 23, 59),
+                payment_at=datetime(2024, 2, 1, 23, 59),
+            )
+        ],
+    )
+    assert len(out.closed_lots) == 1
+    assert out.closed_lots[0].exit_kind == "CASH_EXTINGUISHMENT"
+    assert out.closed_lots[0].exit_component == "UNVERIFIED_TERMINAL_CASHOUT"

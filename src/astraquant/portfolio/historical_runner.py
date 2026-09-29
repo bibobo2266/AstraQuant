@@ -109,6 +109,7 @@ class HistoricalPortfolioRunner:
             trade_by_day.setdefault(trade.session_date, []).append(trade)
 
         ca_by_day: dict[date, list[HistoricalCorporateActionInstruction]] = {}
+        close_ca_by_day: dict[date, list[HistoricalCorporateActionInstruction]] = {}
         for item in corporate_actions:
             if item.applied_at < item.event.effective_at:
                 raise ValueError(
@@ -118,7 +119,8 @@ class HistoricalPortfolioRunner:
                 item.event.effective_at,
                 policy=self.non_session_ca_policy,
             )
-            ca_by_day.setdefault(mapped_day, []).append(item)
+            target = close_ca_by_day if item.apply_at_close else ca_by_day
+            target.setdefault(mapped_day, []).append(item)
 
         known_days = set(calendar)
         unknown_trade_days = set(trade_by_day) - known_days
@@ -214,8 +216,6 @@ class HistoricalPortfolioRunner:
                         applied_at=economic_apply_at,
                     )
                 ca_count += 1
-            total_ca += ca_count
-
             trade_count = 0
             for trade in sorted(
                 trade_by_day.get(session_day, ()),
@@ -235,6 +235,42 @@ class HistoricalPortfolioRunner:
                 )
                 trade_count += 1
             total_trades += trade_count
+
+            for item in sorted(
+                close_ca_by_day.get(session_day, ()),
+                key=lambda x: x.event.event_id,
+            ):
+                event = item.event
+                if (
+                    not item.extinguish_position
+                    or event.cash_per_share is None
+                    or not item.component
+                    or item.successor_ticker is not None
+                    or item.successor_legs
+                    or event.share_multiplier is not None
+                ):
+                    raise HistoricalReplayError(
+                        "close-applied corporate actions are restricted to "
+                        f"cash extinguishments: {event.event_id}"
+                    )
+                close_at = datetime.combine(session_day, datetime.max.time())
+                economic_apply_at = max(item.applied_at, close_at)
+                position = self.replay.portfolio.positions.positions.get(event.ticker)
+                closing_shares = 0.0 if position is None else position.quantity
+                self.replay.portfolio.corporate_actions.accrue_cash_entitlement(
+                    event=event,
+                    shares_entitled=closing_shares,
+                    accrued_at=economic_apply_at,
+                    component=item.component,
+                )
+                self.replay.portfolio.corporate_actions.extinguish_position(
+                    event=event,
+                    positions=self.replay.portfolio.positions,
+                    applied_at=economic_apply_at,
+                )
+                ca_count += 1
+
+            total_ca += ca_count
 
             snapshot = self.replay.snapshot(
                 at=datetime.combine(session_day, datetime.max.time()),

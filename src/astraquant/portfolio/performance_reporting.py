@@ -23,6 +23,7 @@ class ClosedTrade:
     entry_cost: float
     return_on_cost: float
     holding_days: float
+    exit_components: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -93,6 +94,15 @@ def aggregate_closed_trades(
                 entry_cost=entry_cost,
                 return_on_cost=(realized / entry_cost if entry_cost > 0 else float("nan")),
                 holding_days=float((exit_at.date() - entry_at.date()).days),
+                exit_components=tuple(
+                    sorted(
+                        {
+                            str(x.exit_component)
+                            for x in lots
+                            if x.exit_component is not None
+                        }
+                    )
+                ),
             )
         )
     return tuple(trades)

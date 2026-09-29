@@ -8,6 +8,7 @@ on:
       - ".github/workflows/source_strategy_performance_report.yml"
       - "scripts/source_strategy_performance_report.py"
       - "scripts/source_strategy_integration_smoke.py"
+      - "data/research/terminal_events.csv"
       - "configs/research/runs/**"
       - "configs/examples/universes/**"
       - "configs/examples/signals/**"
