@@ -170,8 +170,8 @@ def test_unimplemented_signal_component_fails_at_compile_time():
     cfg = SignalConfig(
         name="not_ready",
         trigger=ComponentSpec(type="N_SESSION_HIGH", params={"lookback": 20}),
-        filters=(ComponentSpec(type="RSI", params={"lookback": 14}),),
+        filters=(ComponentSpec(type="ICHIMOKU", params={"mode": "CLOUD_BREAK"}),),
     )
 
-    with pytest.raises(UnsupportedComponentError, match="RSI"):
+    with pytest.raises(UnsupportedComponentError, match="ICHIMOKU"):
         compiler.compile(cfg)

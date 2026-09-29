@@ -1,15 +1,21 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-import hashlib
+from pathlib import Path
 from typing import Protocol
 
 import pandas as pd
 
-from astraquant.research.component_registry import ComponentRegistry
+from astraquant.research.component_registry import ComponentRegistry, UnsupportedComponentError
+from astraquant.research.config_io import load_theme_file
 from astraquant.research.strategy_config import (
     AllPoolConfig,
+    EarningsStreakConfig,
+    FundamentalFloorConfig,
+    IndustryThemePoolConfig,
     LogicalOp,
+    StablePoolConfig,
+    ThemeGroupingConfig,
     UniverseConfig,
 )
 
@@ -18,6 +24,7 @@ from astraquant.research.strategy_config import (
 class UniverseContext:
     p2_060_excluded_tickers: frozenset[str]
     p2_060_exclusion_sha256: str
+    theme_root: Path | None = None
 
 
 @dataclass(frozen=True)
@@ -33,6 +40,29 @@ class UniverseMask:
         if self.frame.duplicated(["date", "stock_id"]).any():
             raise ValueError("universe mask contains duplicate logical keys")
 
+    def theme_member_counts_over_time(self) -> pd.DataFrame:
+        theme_cols = [c for c in self.frame.columns if c.startswith("theme_")]
+        rows: list[pd.DataFrame] = []
+        for col in theme_cols:
+            counts = (
+                self.frame.groupby("date", as_index=False)[col]
+                .sum()
+                .rename(columns={col: "member_count"})
+            )
+            counts["theme"] = col.removeprefix("theme_")
+            rows.append(counts[["date", "theme", "member_count"]])
+        if not rows:
+            return pd.DataFrame(columns=["date", "theme", "member_count"])
+        return pd.concat(rows, ignore_index=True).sort_values(
+            ["theme", "date"], kind="stable"
+        ).reset_index(drop=True)
+
+
+@dataclass(frozen=True)
+class PoolEvaluation:
+    mask: pd.Series
+    details: dict[str, pd.Series]
+
 
 class UniversePoolEvaluator(Protocol):
     def __call__(
@@ -42,7 +72,7 @@ class UniversePoolEvaluator(Protocol):
         base_pass: pd.Series,
         config: object,
         context: UniverseContext,
-    ) -> pd.Series: ...
+    ) -> PoolEvaluation: ...
 
 
 def _normalized_panel(panel: pd.DataFrame) -> pd.DataFrame:
@@ -82,12 +112,182 @@ def _all_pool(
         ascending=False,
         method="average",
     )
-    return base_pass & pct.le(float(config.turnover_top_fraction)).fillna(False)
+    mask = base_pass & pct.le(float(config.turnover_top_fraction)).fillna(False)
+    return PoolEvaluation(mask=mask, details={"turnover_percentile": pct})
+
+
+
+
+def _require_feature_columns(panel: pd.DataFrame, *columns: str) -> None:
+    missing = set(columns) - set(panel.columns)
+    if missing:
+        raise ValueError(
+            "universe feature panel missing standardized columns: "
+            f"{sorted(missing)}"
+        )
+
+
+def _stable_pool(
+    *,
+    panel: pd.DataFrame,
+    base_pass: pd.Series,
+    config: StablePoolConfig,
+    context: UniverseContext,
+) -> PoolEvaluation:
+    required = (
+        "downside_rs_ratio",
+        "rv60_percentile",
+        "max_drawdown_ratio_to_index",
+        "large_holder_fraction",
+        "large_holder_change_pp_250",
+        "consecutive_dividend_years",
+        "turnover_ratio_percentile",
+    )
+    _require_feature_columns(panel, *required)
+    x = panel[list(required)].apply(pd.to_numeric, errors="coerce")
+    mask = (
+        x["downside_rs_ratio"].lt(float(config.downside_rs_multiplier))
+        & x["rv60_percentile"].le(float(config.rv60_bottom_fraction))
+        & x["max_drawdown_ratio_to_index"].lt(float(config.max_drawdown_multiplier))
+        & x["large_holder_fraction"].ge(float(config.large_holder_min_fraction))
+        & x["large_holder_change_pp_250"].abs().lt(float(config.large_holder_max_change_pp))
+        & x["consecutive_dividend_years"].ge(int(config.consecutive_dividend_years))
+        & x["turnover_ratio_percentile"].le(float(config.turnover_ratio_bottom_fraction))
+    ).fillna(False)
+    return PoolEvaluation(mask=base_pass & mask, details={})
+
+
+def _fundamental_floor_pool(
+    *,
+    panel: pd.DataFrame,
+    base_pass: pd.Series,
+    config: FundamentalFloorConfig,
+    context: UniverseContext,
+) -> PoolEvaluation:
+    required = (
+        "max_consecutive_loss_quarters_last4",
+        "debt_ratio",
+        "is_financial",
+        "revenue_decline_streak_months",
+        "roe_4q_avg",
+    )
+    _require_feature_columns(panel, *required)
+    losses = pd.to_numeric(panel["max_consecutive_loss_quarters_last4"], errors="coerce")
+    debt = pd.to_numeric(panel["debt_ratio"], errors="coerce")
+    financial = panel["is_financial"].fillna(False).astype(bool)
+    revenue_streak = pd.to_numeric(panel["revenue_decline_streak_months"], errors="coerce")
+    roe = pd.to_numeric(panel["roe_4q_avg"], errors="coerce")
+
+    debt_ok = debt.le(float(config.max_debt_ratio))
+    if config.exempt_financials:
+        debt_ok |= financial
+    mask = (
+        losses.le(int(config.max_consecutive_loss_quarters))
+        & debt_ok
+        & revenue_streak.le(int(config.max_consecutive_revenue_decline_months))
+        & roe.gt(float(config.roe_quarter_average_min))
+    ).fillna(False)
+    return PoolEvaluation(mask=base_pass & mask, details={})
+
+
+def _earnings_streak_pool(
+    *,
+    panel: pd.DataFrame,
+    base_pass: pd.Series,
+    config: EarningsStreakConfig,
+    context: UniverseContext,
+) -> PoolEvaluation:
+    _require_feature_columns(panel, "eps_yoy_positive_streak")
+    streak = pd.to_numeric(panel["eps_yoy_positive_streak"], errors="coerce")
+    mask = streak.ge(int(config.consecutive_positive_eps_yoy_quarters)).fillna(False)
+    return PoolEvaluation(mask=base_pass & mask, details={})
+
+
+def _theme_group_mask(
+    *,
+    panel: pd.DataFrame,
+    config: ThemeGroupingConfig,
+    context: UniverseContext,
+) -> PoolEvaluation:
+    if context.theme_root is None:
+        raise ValueError("THEME grouping requires UniverseContext.theme_root")
+
+    theme_masks: list[pd.Series] = []
+    details: dict[str, pd.Series] = {}
+    for theme_name in config.themes:
+        path = context.theme_root / f"{theme_name}.yaml"
+        theme = load_theme_file(path)
+        if theme.theme != theme_name:
+            raise ValueError(
+                f"theme file name/content mismatch: requested={theme_name} file={theme.theme}"
+            )
+        mask = pd.Series(False, index=panel.index)
+        for member in theme.members:
+            active = panel["stock_id"].eq(str(member.ticker)) & panel["date"].ge(
+                pd.Timestamp(member.from_date)
+            )
+            if member.to is not None:
+                active &= panel["date"].le(pd.Timestamp(member.to))
+            mask |= active
+        theme_masks.append(mask)
+        details[f"theme_{theme_name}"] = mask
+
+    if not theme_masks:
+        raise ValueError("THEME grouping requires at least one theme")
+    if config.combine is LogicalOp.AND:
+        combined = pd.Series(True, index=panel.index)
+        for mask in theme_masks:
+            combined &= mask
+    else:
+        combined = pd.Series(False, index=panel.index)
+        for mask in theme_masks:
+            combined |= mask
+    return PoolEvaluation(mask=combined, details=details)
+
+
+def _industry_theme_pool(
+    *,
+    panel: pd.DataFrame,
+    base_pass: pd.Series,
+    config: IndustryThemePoolConfig,
+    context: UniverseContext,
+) -> PoolEvaluation:
+    group_results: list[PoolEvaluation] = []
+    for group in config.groups:
+        if isinstance(group, ThemeGroupingConfig):
+            group_results.append(
+                _theme_group_mask(panel=panel, config=group, context=context)
+            )
+        else:
+            raise UnsupportedComponentError(
+                f"grouping mode {group.mode} is declared by schema but has no evaluator yet"
+            )
+
+    if not group_results:
+        raise ValueError("INDUSTRY_THEME requires at least one grouping mode")
+
+    if config.combine is LogicalOp.AND:
+        combined = pd.Series(True, index=panel.index)
+        for result in group_results:
+            combined &= result.mask
+    else:
+        combined = pd.Series(False, index=panel.index)
+        for result in group_results:
+            combined |= result.mask
+
+    details: dict[str, pd.Series] = {}
+    for result in group_results:
+        details.update(result.details)
+    return PoolEvaluation(mask=base_pass & combined, details=details)
 
 
 def default_universe_registry() -> ComponentRegistry[UniversePoolEvaluator]:
     registry: ComponentRegistry[UniversePoolEvaluator] = ComponentRegistry("universe")
     registry.register("ALL", _all_pool)
+    registry.register("STABLE", _stable_pool)
+    registry.register("INDUSTRY_THEME", _industry_theme_pool)
+    registry.register("FUNDAMENTAL_FLOOR", _fundamental_floor_pool)
+    registry.register("EARNINGS_STREAK", _earnings_streak_pool)
     return registry
 
 
@@ -129,16 +329,19 @@ class UniverseCompiler:
 
         pool_values: list[pd.Series] = []
         pool_names: list[str] = []
+        pool_evaluations: list[PoolEvaluation] = []
         for i, pool in enumerate(config.pools):
             handler = self.registry.get(pool.type)
-            value = handler(
+            evaluation = handler(
                 panel=work,
                 base_pass=base_pass,
                 config=pool,
                 context=context,
             )
+            value = evaluation.mask
             if len(value) != len(work):
                 raise ValueError(f"universe pool {pool.type} changed row count")
+            pool_evaluations.append(evaluation)
             pool_values.append(value.fillna(False).astype(bool))
             pool_names.append(f"pool_{i}_{pool.type.lower()}")
 
@@ -154,7 +357,16 @@ class UniverseCompiler:
 
         result = work[["date", "stock_id"]].copy()
         result["base_pass"] = base_pass.to_numpy(bool)
+        detail_columns: dict[str, pd.Series] = {}
+        for evaluation in pool_evaluations:
+            overlap = set(detail_columns) & set(evaluation.details)
+            if overlap:
+                raise ValueError(f"duplicate universe detail columns: {sorted(overlap)}")
+            detail_columns.update(evaluation.details)
+
         for name, value in zip(pool_names, pool_values):
             result[name] = value.to_numpy(bool)
+        for name, value in detail_columns.items():
+            result[name] = value.to_numpy()
         result["counts"] = counts.to_numpy(bool)
         return UniverseMask(frame=result, config_name=config.name)

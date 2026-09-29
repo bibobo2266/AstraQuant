@@ -8,6 +8,22 @@ import pandas as pd
 from astraquant.research.component_registry import ComponentRegistry
 from astraquant.research.feature_cache import FeatureCache, FeatureCacheKey
 from astraquant.research.strategy_config import ComponentSpec, LogicalOp, SignalConfig
+from astraquant.research.technical_components import (
+    bollinger_upper_break,
+    column_threshold,
+    column_value,
+    consecutive_up_days,
+    gap_up,
+    kd_low_zone_golden_cross,
+    ma_golden_cross,
+    macd_cross_above_zero,
+    n_session_high,
+    pullback_reclaim,
+    rsi_cross,
+    rsi_filter,
+    rsi_rank,
+    volume_spike,
+)
 from astraquant.research.universe_engine import UniverseMask
 
 
@@ -87,16 +103,31 @@ def _n_session_high(
 
 def default_trigger_registry() -> ComponentRegistry[SignalComponentEvaluator]:
     registry: ComponentRegistry[SignalComponentEvaluator] = ComponentRegistry("signal trigger")
-    registry.register("N_SESSION_HIGH", _n_session_high)
+    registry.register("N_SESSION_HIGH", n_session_high)
+    registry.register("GAP_UP", gap_up)
+    registry.register("VOLUME_SPIKE", volume_spike)
+    registry.register("MA_GOLDEN_CROSS", ma_golden_cross)
+    registry.register("MACD_CROSS_ABOVE_ZERO", macd_cross_above_zero)
+    registry.register("KD_LOW_ZONE_GOLDEN_CROSS", kd_low_zone_golden_cross)
+    registry.register("RSI_CROSS", rsi_cross)
+    registry.register("BOLLINGER_UPPER_BREAK", bollinger_upper_break)
+    registry.register("PULLBACK_RECLAIM", pullback_reclaim)
+    registry.register("CONSECUTIVE_UP_DAYS", consecutive_up_days)
     return registry
 
 
 def default_filter_registry() -> ComponentRegistry[SignalComponentEvaluator]:
-    return ComponentRegistry("signal filter")
+    registry: ComponentRegistry[SignalComponentEvaluator] = ComponentRegistry("signal filter")
+    registry.register("RSI", rsi_filter)
+    registry.register("COLUMN_THRESHOLD", column_threshold)
+    return registry
 
 
 def default_ranking_registry() -> ComponentRegistry[SignalComponentEvaluator]:
-    return ComponentRegistry("signal ranking")
+    registry: ComponentRegistry[SignalComponentEvaluator] = ComponentRegistry("signal ranking")
+    registry.register("RSI", rsi_rank)
+    registry.register("COLUMN_VALUE", column_value)
+    return registry
 
 
 class SignalCompiler:

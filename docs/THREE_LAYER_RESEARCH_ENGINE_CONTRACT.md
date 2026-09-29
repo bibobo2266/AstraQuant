@@ -592,3 +592,14 @@ Every completed canonical run reports in this order:
 6. config hashes and source revision.
 
 No config can tune or promote itself. Locked OOS remains governed separately.
+
+## 11. Implementation progress
+
+The contract is now partially executable through `ResearchConfigEngine.prepare()`. Implemented registries currently include:
+
+- universe: ALL; dated THEME; STABLE/FUNDAMENTAL_FLOOR/EARNINGS_STREAK masks over standardized PIT feature columns;
+- triggers: N_SESSION_HIGH, immediate GAP_UP, VOLUME_SPIKE, MA_GOLDEN_CROSS, MACD histogram cross above zero, KD low-zone golden cross, RSI cross, Bollinger upper break, pullback/reclaim, consecutive up days;
+- filters/rankings: RSI and generic standardized-panel column threshold/value components;
+- exits: fixed stop with no profit target plus time/max-hold adapter to the existing canonical policy.
+
+Not yet implemented: official eight-group provider, rolling correlation grouping, delayed three-session gap-unfilled confirmation, Ichimoku triggers/exits, fixed profit target, MA/EMA/Bollinger/ATR/trailing/Donchian exit evaluators, and the standardized PIT feature builders feeding STABLE/fundamental columns. Missing evaluators fail at compile time rather than falling back.
