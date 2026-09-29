@@ -16,7 +16,7 @@ This is descriptive in-sample evidence. It is not OOS validation, parameter prom
 - PIT-unsafe CA tickers quarantined: 4
 - legacy signal rows removed by PIT CA quarantine: 0
 - executable exit layer in this round remains limited to fixed stop + time/max-hold only
-- execution/accounting/CA/terminal lifecycle logic is unchanged
+- execution/accounting and verified CA semantics remain unchanged; this round adds the documented conservative unverified-terminal cashout overlay
 - strategy execution assumptions: zero explicit fees and zero slippage in this descriptive run
 - benchmark: FinMind TaiwanStockTotalReturnIndex (TAIEX), buy-and-hold, same starting capital and exact strategy trading dates, no benchmark transaction-cost deduction
 - closed FIFO trade table: `docs/SOURCE_VCP_STRATEGY_PERFORMANCE_TRADES.csv`
@@ -32,6 +32,7 @@ This is descriptive in-sample evidence. It is not OOS validation, parameter prom
 | Average loss | -12.72% |
 | Payoff ratio | 3.805 |
 | Expectancy per trade | 3.30% |
+| Closed trades involving UNVERIFIED_TERMINAL_CASHOUT | 0 (0.00%) |
 
 Open FIFO lots are reported separately and excluded from the table above: **10** open lots.
 
@@ -66,8 +67,8 @@ Open FIFO lots are reported separately and excluded from the table above: **10**
 - RAW stop exits: 139
 - RAW max-hold exits: 66
 - blocked exit attempts: 13
-- corporate actions applied: 10,693
-- corporate-action cash payments settled: 9,215
+- corporate actions applied: 10,739
+- corporate-action cash payments settled: 9,261
 - ending pending receivables: 258,871.491200
 - ending pending payables: 0.000000
 
