@@ -2,11 +2,11 @@
 
 ## 目前狀態
 
-更新時間：2026-09-29T23:30:00Z
-做完：VCP Round 1 unit-gate CI 缺 pytest 已修正，最新 tests 通過
-結果：VCP sweep 36593441912 failure；tests 36645388717 success；regression 36645388725 執行中
-卡住：等待 EX-001 regression 完成後重跑 VCP Round 1
-下一項：3
+更新時間：2026-09-29T23:50:00Z
+做完：第 3 項 VCP Round 1 完成
+結果：workflow 36645632219 success；108 格與既有產物已落盤
+卡住：無
+下一項：4
 
 狀態：ACTIVE
 
@@ -125,9 +125,9 @@ E3 豁免：EX-001 已由 owner 裁定；僅允許 breakout 長窗 final NAV 51,
 
 ---
 
-### 3. [NOW] VCP Round 1 三段收縮完整進出場參數掃描
+### 3. VCP Round 1 三段收縮完整進出場參數掃描
 
-狀態：NOW
+狀態：DONE
 
 版本：`vcp_round1_three_segment_v1`
 
@@ -148,9 +148,25 @@ E3 豁免：EX-001 已由 owner 裁定；僅允許 breakout 長窗 final NAV 51,
 
 ---
 
-### 4. PIT 安全特徵矩陣第一層
+### 4. [NOW] VCP Round 2 前置修正與 Round 1 診斷
 
-狀態：PENDING_AFTER_3
+狀態：NOW
+
+本項不得修改或重跑 round1。Round1 既有 config、程式行為與 out/ 產物視為凍結結果。
+
+要求：
+- 只針對既有 round1 產物建立 amplitude_3 診斷，輸出新檔 `out/vcp_round1_amp3_diagnostic.csv`，不得覆蓋既有 round1 檔案。
+- 新增 round2 版本與 `min_amplitude_3` 參數，round2 預設 0.01；round1 行為維持等價 0.0。
+- 測試 amplitude_3=0 在 round2 不觸發、round1 仍觸發。
+- round2 summary schema 預備 exit_atr_count / exit_ma21_count / exit_both_count / exit_open_count，總和必須等於 n_closed+n_open。
+- round2 trades schema 補 entry_prior_avg_amount_twd / entry_day_amount_twd 與缺值原因；不補零。
+- 本項只做診斷、程式與測試；不得啟動 round2 掃描。
+
+---
+
+### 5. PIT 安全特徵矩陣第一層
+
+狀態：PENDING_AFTER_4
 
 範圍：
 
@@ -165,15 +181,15 @@ E3 豁免：EX-001 已由 owner 裁定；僅允許 breakout 長窗 final NAV 51,
 
 ---
 
-### 5. ML 層
+### 6. ML 層
 
-狀態：BLOCKED_BY_4
+狀態：BLOCKED_BY_5
 
-第 4 項完成後才定義。現在不要動。
+第 5 項完成後才定義。現在不要動。
 
 ---
 
-### 6. 報告合理性自我警示層
+### 7. 報告合理性自我警示層
 
 狀態：PENDING
 
