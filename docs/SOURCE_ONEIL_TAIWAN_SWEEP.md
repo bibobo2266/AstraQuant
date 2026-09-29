@@ -5,7 +5,7 @@ Status: **PASS**
 ## Research boundary
 
 - This is a candidate-level research screen, not executable portfolio evidence.
-- Outcome: adjusted close-to-close return 250 source sessions after the signal date.
+- Outcome: long-direction adjusted close-to-close return 250 source sessions after the signal date.
 - No RAW fill, capacity, corporate-action path, FIFO path, stop execution, or portfolio sequencing is represented here.
 - The sweep does not select or promote a winning parameter combination.
 - Locked OOS remains locked.
