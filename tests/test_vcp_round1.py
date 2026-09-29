@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import date
+from datetime import date, datetime
 
 import numpy as np
 import pandas as pd
@@ -19,6 +19,11 @@ from astraquant.execution.market_data import (
     TradabilityState,
 )
 from astraquant.execution.service import SignalDeclaration
+from astraquant.portfolio.corporate_actions import (
+    CorporateActionEvent,
+    CorporateActionType,
+)
+from astraquant.portfolio.historical_runner import HistoricalCorporateActionInstruction
 from astraquant.portfolio.policy import PortfolioPolicyConfig
 from astraquant.research.exit_engine import ExitCompiler
 from astraquant.research.feature_cache import FeatureCache
@@ -230,7 +235,7 @@ class _FakeMarketData:
         )
 
 
-def _runner(*, sessions, market, exit_features):
+def _runner(*, sessions, market, exit_features, corporate_actions=()):
     return VCPRound1TradeRunner(
         market_data=market,
         fill_factory=ExecutionFillFactory(
@@ -246,7 +251,7 @@ def _runner(*, sessions, market, exit_features):
         ),
         sessions=sessions,
         adjusted_exit_features=exit_features,
-        corporate_actions=(),
+        corporate_actions=corporate_actions,
         exit_settings=VCPRound1ExitSettings(
             atr_period=21,
             atr_multiplier=2.5,
@@ -407,3 +412,165 @@ def test_period_end_open_position_is_not_forced_closed():
 
 def test_constant_adjusted_series_does_not_create_mechanical_exit():
     assert close_exit_reason(close=100.0, atr_trail=95.0, d_ma=100.0) is None
+
+
+def test_entry_day_dividend_maps_pivot_to_raw_without_future_price():
+    sessions = [date(2020, 1, 2), date(2020, 1, 3)]
+    prices = {
+        ("2330", sessions[0], "close"): 100.0,
+        ("2330", sessions[0], "open"): 100.0,
+        ("2330", sessions[0], "high"): 100.0,
+        ("2330", sessions[0], "low"): 100.0,
+        ("2330", sessions[1], "open"): 90.0,
+        ("2330", sessions[1], "high"): 90.0,
+        ("2330", sessions[1], "low"): 90.0,
+        ("2330", sessions[1], "close"): 90.0,
+    }
+    event = CorporateActionEvent(
+        event_id="cash-dividend-entry-day",
+        ticker="2330",
+        event_type=CorporateActionType.CASH_DIVIDEND,
+        effective_at=datetime(2020, 1, 3),
+        cash_per_share=10.0,
+    )
+    instruction = HistoricalCorporateActionInstruction(
+        event=event,
+        applied_at=event.effective_at,
+    )
+    runner = _runner(
+        sessions=sessions,
+        market=_FakeMarketData(prices),
+        exit_features=pd.DataFrame(
+            columns=[
+                "date",
+                "stock_id",
+                "adjusted_high",
+                "adjusted_close",
+                "atr",
+                "d_ma",
+            ]
+        ),
+        corporate_actions=(instruction,),
+    )
+    pivot_raw, reason = runner._pivot_entry_raw(
+        ticker="2330",
+        signal_day=sessions[0],
+        entry_day=sessions[1],
+        pivot_adjusted=100.0,
+        adjusted_signal_close=100.0,
+    )
+    assert reason is None
+    assert pivot_raw == pytest.approx(90.0)
+
+
+def test_blocked_exit_waits_for_later_legal_open():
+    sessions = [
+        date(2020, 1, 2),
+        date(2020, 1, 3),
+        date(2020, 1, 6),
+        date(2020, 1, 7),
+    ]
+    prices = {}
+    for day in (sessions[0], sessions[1], sessions[3]):
+        for field in ("open", "high", "low", "close"):
+            prices[("2330", day, field)] = 100.0
+    # The first requested exit session (2020-01-06) is deliberately absent.
+    features = pd.DataFrame(
+        [
+            {
+                "date": sessions[1],
+                "stock_id": "2330",
+                "adjusted_high": 100.0,
+                "adjusted_close": 90.0,
+                "atr": np.nan,
+                "d_ma": 95.0,
+            }
+        ]
+    )
+    runner = _runner(
+        sessions=sessions,
+        market=_FakeMarketData(prices),
+        exit_features=features,
+    )
+    out = runner.simulate_config(
+        config_id="c1",
+        candidates=pd.DataFrame(
+            [
+                {
+                    "signal_date": sessions[0],
+                    "stock_id": "2330",
+                    "pivot_adjusted": 100.0,
+                    "adjusted_signal_close": 100.0,
+                }
+            ]
+        ),
+    )
+    assert len(out.trades) == 1
+    trade = out.trades.iloc[0]
+    assert trade["exit_date"] == sessions[3].isoformat()
+    assert int(trade["blocked_exit_attempts"]) == 1
+
+
+def test_cash_dividend_does_not_create_adjusted_close_exit():
+    sessions = [
+        date(2020, 1, 2),
+        date(2020, 1, 3),
+        date(2020, 1, 6),
+    ]
+    prices = {}
+    for day, px in zip(sessions, [100.0, 100.0, 90.0]):
+        for field in ("open", "high", "low", "close"):
+            prices[("2330", day, field)] = px
+    event = CorporateActionEvent(
+        event_id="cash-dividend-after-entry",
+        ticker="2330",
+        event_type=CorporateActionType.CASH_DIVIDEND,
+        effective_at=datetime(2020, 1, 6),
+        cash_per_share=10.0,
+    )
+    instruction = HistoricalCorporateActionInstruction(
+        event=event,
+        applied_at=event.effective_at,
+    )
+    features = pd.DataFrame(
+        [
+            {
+                "date": sessions[1],
+                "stock_id": "2330",
+                "adjusted_high": 100.0,
+                "adjusted_close": 100.0,
+                "atr": np.nan,
+                "d_ma": 100.0,
+            },
+            {
+                "date": sessions[2],
+                "stock_id": "2330",
+                "adjusted_high": 100.0,
+                "adjusted_close": 100.0,
+                "atr": np.nan,
+                "d_ma": 100.0,
+            },
+        ]
+    )
+    runner = _runner(
+        sessions=sessions,
+        market=_FakeMarketData(prices),
+        exit_features=features,
+        corporate_actions=(instruction,),
+    )
+    out = runner.simulate_config(
+        config_id="c1",
+        candidates=pd.DataFrame(
+            [
+                {
+                    "signal_date": sessions[0],
+                    "stock_id": "2330",
+                    "pivot_adjusted": 100.0,
+                    "adjusted_signal_close": 100.0,
+                }
+            ]
+        ),
+    )
+    assert out.trades.empty
+    assert len(out.open_positions) == 1
+    assert float(out.open_positions.iloc[0]["ca_entitlement"]) > 0
