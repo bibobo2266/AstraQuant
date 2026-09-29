@@ -1138,6 +1138,12 @@ def _aggregate_row(
         "multi_leg_intraday_unresolved": count_status(
             PathStatus.MULTI_LEG_INTRADAY_UNRESOLVED
         ),
+        "multi_leg_intraday_unresolved_share": (
+            count_status(PathStatus.MULTI_LEG_INTRADAY_UNRESOLVED)
+            / candidate_count
+            if candidate_count
+            else float("nan")
+        ),
         "cross_boundary_excluded": int(
             purge.cross_boundary_count
         ),
@@ -1207,9 +1213,10 @@ def _aggregate_row(
                 pd.to_numeric(
                     calculable["raw_mfe"],
                     errors="coerce",
-                ).gt(0.05).mean()
+                ).gt(0.05).sum()
             )
-            if denom
+            / candidate_count
+            if candidate_count
             else float("nan")
         ),
         "raw_mfe_gt_10pct_share": (
@@ -1217,9 +1224,10 @@ def _aggregate_row(
                 pd.to_numeric(
                     calculable["raw_mfe"],
                     errors="coerce",
-                ).gt(0.10).mean()
+                ).gt(0.10).sum()
             )
-            if denom
+            / candidate_count
+            if candidate_count
             else float("nan")
         ),
         "raw_mfe_gt_20pct_share": (
@@ -1227,9 +1235,10 @@ def _aggregate_row(
                 pd.to_numeric(
                     calculable["raw_mfe"],
                     errors="coerce",
-                ).gt(0.20).mean()
+                ).gt(0.20).sum()
             )
-            if denom
+            / candidate_count
+            if candidate_count
             else float("nan")
         ),
         "raw_mfe_to_abs_mae_median": (
@@ -1946,7 +1955,8 @@ def main() -> None:
         "",
         f"- machine-readable table: {CSV_PATH.as_posix()}",
         f"- rows: {len(results):,}",
-        "- columns include candidate/calculable/unique counts, truncation/missing/terminal/NO_VALID_ENTRY_REF/multi-leg/cross-boundary counts, all requested price-limit strata, demeaned MFE/MAE medians, days-to-extrema medians, three order_state shares, raw MFE threshold shares, and the auxiliary raw MFE / |raw MAE| median plus undefined share.",
+        "- columns include candidate/calculable/unique counts, truncation/missing/terminal/NO_VALID_ENTRY_REF/multi-leg/cross-boundary counts, multi-leg share, all requested price-limit strata, demeaned MFE/MAE medians, days-to-extrema medians, three order_state shares, raw MFE threshold candidate shares, and the auxiliary raw MFE / |raw MAE| median plus undefined share.",
+        "- raw MFE > 5% / 10% / 20% shares use all signal candidates as the denominator; non-calculable candidates remain in that denominator and are separately disclosed by status counts.",
         "",
         "## 比值限制",
         "",
