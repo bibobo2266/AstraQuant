@@ -88,8 +88,8 @@ def test_vcp_breakout_requires_contraction_dryup_and_caps_chase():
 
 
 def test_bollinger_compression_breakout_requires_volume_and_recent_squeeze():
-    close = [90, 110, 91, 109, 92, 108, 93, 107, 94, 106] + [100] * 14 + [110]
-    volume = [1000.0] * 24 + [3000.0]
+    close = [90, 110, 91, 109, 92, 108, 93, 107, 94, 106] * 2 + [100] * 20 + [115]
+    volume = [1000.0] * 40 + [3000.0]
     panel = pd.DataFrame(
         {
             "date": pd.bdate_range("2026-01-02", periods=len(close)),
@@ -101,9 +101,9 @@ def test_bollinger_compression_breakout_requires_volume_and_recent_squeeze():
     spec = ComponentSpec(
         type="BOLLINGER_COMPRESSION_BREAKOUT",
         params={
-            "window": 5,
+            "window": 14,
             "stddev": 2.0,
-            "percentile_lookback": 10,
+            "percentile_lookback": 20,
             "max_bandwidth_percentile": 0.5,
             "recent_compression_sessions": 5,
             "volume_lookback": 10,
