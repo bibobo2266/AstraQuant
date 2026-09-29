@@ -35,7 +35,7 @@ The table above is descriptive source evidence only. Event types are not assigne
 
 ## Canonical builder result
 
-- generated instructions: 16,045
+- generated instructions: 16,046
 - builder unsupported count: 4
 - builder unsupported summary: {'normalized_known_after_effective': 4}
 
