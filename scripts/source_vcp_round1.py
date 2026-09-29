@@ -368,9 +368,13 @@ def main() -> None:
             f"got={eligible_count}"
         )
 
+    e1_observed = pd.to_datetime(
+        panel["date"], errors="coerce"
+    ).le(E1_END)
     numeric_scope = set(
         panel.loc[
-            panel["stock_id"].astype(str).str.fullmatch(
+            e1_observed
+            & panel["stock_id"].astype(str).str.fullmatch(
                 r"[1-9]\d{3}",
                 na=False,
             ),
@@ -593,6 +597,8 @@ def main() -> None:
         (
             "E1 two-config pilot effect contact; "
             f"source_revision={SOURCE_REVISION}; "
+            f"config_hash={config_hashes[SWEEP_PATH.as_posix()]}; "
+            f"code_commit={code_revision}; "
             "definitions frozen before pilot"
         ),
     )
@@ -927,8 +933,9 @@ def main() -> None:
         (
             "E1 full-trade 108-cell effect report; "
             f"source_revision={SOURCE_REVISION}; "
-            "costed independent-trade canonical "
-            "execution"
+            f"config_hash={config_hashes[SWEEP_PATH.as_posix()]}; "
+            f"code_commit={code_revision}; "
+            "costed independent-trade canonical execution"
         ),
     )
 
