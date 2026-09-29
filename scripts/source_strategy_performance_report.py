@@ -33,27 +33,49 @@ from source_config_sweep import (
     _research_panel,
 )
 from source_strategy_integration_smoke import (
-    SIGNAL_START,
-    SIGNAL_END,
-    DRAIN_SESSIONS,
+    SIGNAL_START as DEFAULT_SIGNAL_START,
+    SIGNAL_END as DEFAULT_SIGNAL_END,
+    DRAIN_SESSIONS as DEFAULT_DRAIN_SESSIONS,
     build_supported_ca,
     pit_unsafe_ca_tickers,
 )
 
-REPORT_PATH = Path(os.environ.get("REPORT_PATH", "docs/SOURCE_STRATEGY_PERFORMANCE_REPORT.md"))
+
+def _env_timestamp(name: str, default) -> pd.Timestamp:
+    raw = os.environ.get(name, "").strip()
+    return pd.Timestamp(raw) if raw else pd.Timestamp(default)
+
+
+def _env_int(name: str, default: int) -> int:
+    raw = os.environ.get(name, "").strip()
+    return int(raw) if raw else int(default)
+
+
+SIGNAL_START = _env_timestamp("SIGNAL_START", DEFAULT_SIGNAL_START)
+SIGNAL_END = _env_timestamp("SIGNAL_END", DEFAULT_SIGNAL_END)
+DRAIN_SESSIONS = _env_int("DRAIN_SESSIONS", DEFAULT_DRAIN_SESSIONS)
+
+RUN_CONFIG = os.environ.get("RUN_CONFIG", "").strip()
+
+LEGACY_REPORT_PATH = "docs/SOURCE_STRATEGY_PERFORMANCE_REPORT.md"
+
+
+def _default_report_path() -> str:
+    """Legacy breakout keeps its frozen filename; any config derives its own."""
+    if not RUN_CONFIG:
+        return LEGACY_REPORT_PATH
+    return f"docs/SOURCE_{Path(RUN_CONFIG).stem.upper()}_STRATEGY_PERFORMANCE.md"
+
+
+REPORT_PATH = Path(os.environ.get("REPORT_PATH", "").strip() or _default_report_path())
 TRADE_CSV_PATH = Path(
-    os.environ.get(
-        "TRADE_CSV_PATH",
-        str(REPORT_PATH.with_suffix("")) + "_TRADES.csv",
-    )
+    os.environ.get("TRADE_CSV_PATH", "").strip()
+    or str(REPORT_PATH.with_suffix("")) + "_TRADES.csv"
 )
 OPEN_LOTS_CSV_PATH = Path(
-    os.environ.get(
-        "OPEN_LOTS_CSV_PATH",
-        str(REPORT_PATH.with_suffix("")) + "_OPEN_LOTS.csv",
-    )
+    os.environ.get("OPEN_LOTS_CSV_PATH", "").strip()
+    or str(REPORT_PATH.with_suffix("")) + "_OPEN_LOTS.csv"
 )
-RUN_CONFIG = os.environ.get("RUN_CONFIG", "").strip()
 SOURCE_ROOT = Path(os.environ.get("SOURCE_ROOT", "source_runtime/minervini_picks/data")).resolve()
 SOURCE_REVISION = os.environ.get("SOURCE_REVISION", "source-checkout")
 INITIAL_CASH = 10_000_000.0

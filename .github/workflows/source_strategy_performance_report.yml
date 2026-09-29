@@ -2,6 +2,11 @@ name: Frozen canonical strategy performance report
 
 on:
   workflow_dispatch:
+    inputs:
+      run_config:
+        description: "Optional single run config (e.g. configs/research/runs/vcp_all_liquid_stop12_time250.yaml). Empty = legacy breakout + every run config."
+        required: false
+        default: ""
   push:
     branches: [main]
     paths:
@@ -21,7 +26,7 @@ permissions:
 jobs:
   report:
     runs-on: ubuntu-latest
-    timeout-minutes: 90
+    timeout-minutes: 180
     steps:
       - name: Checkout AstraQuant
         uses: actions/checkout@v4
@@ -59,54 +64,56 @@ jobs:
         working-directory: AstraQuant
         run: python -m pip install --quiet -e .
 
-      - name: Run frozen breakout regression
+      - name: Run performance reports
         working-directory: AstraQuant
+        shell: bash
         env:
           SOURCE_ROOT: ../source_runtime/minervini_picks/data
           SOURCE_REVISION: ${{ steps.source.outputs.sha }}
-          REPORT_PATH: docs/SOURCE_STRATEGY_PERFORMANCE_REPORT.md
-          TRADE_CSV_PATH: docs/SOURCE_STRATEGY_PERFORMANCE_TRADES.csv
-          OPEN_LOTS_CSV_PATH: docs/SOURCE_STRATEGY_PERFORMANCE_OPEN_LOTS.csv
           SIGNAL_START: "2016-01-04"
           SIGNAL_END: "2026-06-30"
           DRAIN_SESSIONS: "5"
-        run: python scripts/source_strategy_performance_report.py
+          ONLY_CONFIG: ${{ github.event.inputs.run_config }}
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
 
-      - name: Run VCP config performance report
-        working-directory: AstraQuant
-        env:
-          SOURCE_ROOT: ../source_runtime/minervini_picks/data
-          SOURCE_REVISION: ${{ steps.source.outputs.sha }}
-          RUN_CONFIG: configs/research/runs/vcp_all_liquid_stop12_time250.yaml
-          REPORT_PATH: docs/SOURCE_VCP_STRATEGY_PERFORMANCE.md
-          TRADE_CSV_PATH: docs/SOURCE_VCP_STRATEGY_PERFORMANCE_TRADES.csv
-          OPEN_LOTS_CSV_PATH: docs/SOURCE_VCP_STRATEGY_PERFORMANCE_OPEN_LOTS.csv
-          SIGNAL_START: "2016-01-04"
-          SIGNAL_END: "2026-06-30"
-          DRAIN_SESSIONS: "5"
-        run: python scripts/source_strategy_performance_report.py
+          if [ -n "${ONLY_CONFIG:-}" ]; then
+            if [ ! -f "${ONLY_CONFIG}" ]; then
+              echo "FAIL: run_config not found: ${ONLY_CONFIG}"
+              exit 1
+            fi
+            echo "::group::${ONLY_CONFIG}"
+            RUN_CONFIG="${ONLY_CONFIG}" python scripts/source_strategy_performance_report.py
+            echo "::endgroup::"
+            exit 0
+          fi
 
-      - name: Run RSI config performance report
-        working-directory: AstraQuant
-        env:
-          SOURCE_ROOT: ../source_runtime/minervini_picks/data
-          SOURCE_REVISION: ${{ steps.source.outputs.sha }}
-          RUN_CONFIG: configs/research/runs/rsi_pullback_reclaim_all_liquid_stop12_time250.yaml
-          REPORT_PATH: docs/SOURCE_RSI_STRATEGY_PERFORMANCE.md
-          TRADE_CSV_PATH: docs/SOURCE_RSI_STRATEGY_PERFORMANCE_TRADES.csv
-          OPEN_LOTS_CSV_PATH: docs/SOURCE_RSI_STRATEGY_PERFORMANCE_OPEN_LOTS.csv
-          SIGNAL_START: "2016-01-04"
-          SIGNAL_END: "2026-06-30"
-          DRAIN_SESSIONS: "5"
-        run: python scripts/source_strategy_performance_report.py
+          echo "::group::legacy breakout regression"
+          python scripts/source_strategy_performance_report.py
+          echo "::endgroup::"
+
+          configs=(configs/research/runs/*.yaml configs/research/runs/*.yml)
+          if [ ${#configs[@]} -eq 0 ]; then
+            echo "no run configs found under configs/research/runs/"
+          fi
+          for cfg in "${configs[@]}"; do
+            echo "::group::${cfg}"
+            RUN_CONFIG="${cfg}" python scripts/source_strategy_performance_report.py
+            echo "::endgroup::"
+          done
 
       - name: Publish summaries
+        if: always()
         working-directory: AstraQuant
         shell: bash
         run: |
-          cat docs/SOURCE_STRATEGY_PERFORMANCE_REPORT.md >> "$GITHUB_STEP_SUMMARY"
-          cat docs/SOURCE_VCP_STRATEGY_PERFORMANCE.md >> "$GITHUB_STEP_SUMMARY"
-          cat docs/SOURCE_RSI_STRATEGY_PERFORMANCE.md >> "$GITHUB_STEP_SUMMARY"
+          set -euo pipefail
+          shopt -s nullglob
+          for report in docs/SOURCE_*STRATEGY_PERFORMANCE*.md; do
+            cat "${report}" >> "$GITHUB_STEP_SUMMARY"
+            printf '\n\n---\n\n' >> "$GITHUB_STEP_SUMMARY"
+          done
 
       - name: Commit reports to AstraQuant only
         working-directory: AstraQuant
@@ -115,7 +122,7 @@ jobs:
           set -euo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add             docs/SOURCE_STRATEGY_PERFORMANCE_REPORT.md             docs/SOURCE_STRATEGY_PERFORMANCE_TRADES.csv             docs/SOURCE_STRATEGY_PERFORMANCE_OPEN_LOTS.csv             docs/SOURCE_VCP_STRATEGY_PERFORMANCE.md             docs/SOURCE_VCP_STRATEGY_PERFORMANCE_TRADES.csv             docs/SOURCE_VCP_STRATEGY_PERFORMANCE_OPEN_LOTS.csv             docs/SOURCE_RSI_STRATEGY_PERFORMANCE.md             docs/SOURCE_RSI_STRATEGY_PERFORMANCE_TRADES.csv             docs/SOURCE_RSI_STRATEGY_PERFORMANCE_OPEN_LOTS.csv
+          git add -A docs/
           if git diff --cached --quiet; then exit 0; fi
           git commit -m "report: record config strategy performance"
           git pull --rebase origin main
