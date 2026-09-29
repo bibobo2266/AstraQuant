@@ -1,0 +1,7 @@
+schema_version: "1"
+name: high250
+trigger:
+  type: N_SESSION_HIGH
+  params: {lookback: 250}
+filters: []
+ranking: []

@@ -191,7 +191,7 @@ class ThemeFile(FrozenModel):
 
 class ComponentSpec(FrozenModel):
     type: str
-    params: dict[str, Any] = {}
+    params: dict[str, Any] = Field(default_factory=dict)
 
 
 class SignalConfig(FrozenModel):
@@ -205,7 +205,7 @@ class SignalConfig(FrozenModel):
 
 class ExitRuleConfig(FrozenModel):
     type: str
-    params: dict[str, Any] = {}
+    params: dict[str, Any] = Field(default_factory=dict)
 
 
 class ExitConfig(FrozenModel):
@@ -233,12 +233,12 @@ class StrategyRunConfig(FrozenModel):
 
 class AvailabilityContract(FrozenModel):
     financial_statements_use_available_date: Literal[True] = True
-    quarterly_deadlines: dict[str, str] = {
+    quarterly_deadlines: dict[str, str] = Field(default_factory=lambda: {
         "Q1": "05-15",
         "Q2": "08-14",
         "Q3": "11-14",
         "Q4": "following-03-31",
-    }
+    })
     monthly_revenue_available_day_next_month: Literal[10] = 10
     institutional_and_margin_usable: Literal["T+1"] = "T+1"
     universe_mask_must_preserve_rows: Literal[True] = True

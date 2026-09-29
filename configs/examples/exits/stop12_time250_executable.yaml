@@ -1,0 +1,7 @@
+schema_version: "1"
+name: stop12_time250
+rules:
+  - type: FIXED_STOP_TARGET
+    params: {stop_pct: 0.12, target_pct: null}
+  - type: TIME_EXIT
+    params: {sessions: 250}
