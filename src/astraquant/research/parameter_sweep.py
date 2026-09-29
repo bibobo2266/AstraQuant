@@ -8,7 +8,10 @@ from typing import Any, Iterable
 
 import pandas as pd
 
+from astraquant.data.market_coordinates import SignalPriceSemantics
+from astraquant.execution.service import SignalDeclaration
 from astraquant.portfolio.policy import PortfolioPolicyConfig
+from astraquant.research.candidates import candidates_from_signal_frame
 from astraquant.research.config_engine import PreparedResearchRun, ResearchConfigEngine
 from astraquant.research.config_io import (
     load_exit_config,
@@ -230,6 +233,14 @@ class ResearchParameterSweepRunner:
                         exit=sweep.exit,
                         execution_assumptions_id=sweep.execution_assumptions_id,
                     )
+                    declaration = SignalDeclaration(
+                        source=f"CONFIG:{scfg.name}",
+                        price_semantics=SignalPriceSemantics.SCALE_SENSITIVE,
+                    )
+                    candidates = candidates_from_signal_frame(
+                        signal_frame,
+                        declaration=declaration,
+                    )
                     prepared = PreparedResearchRun(
                         run_config=run_cfg,
                         universe_config=ucfg,
@@ -237,6 +248,7 @@ class ResearchParameterSweepRunner:
                         exit_config=ecfg,
                         universe_mask=mask,
                         signal_frame=signal_frame,
+                        candidates=candidates,
                         signal_plan=signal_plan,
                         exit_plan=exit_plan,
                         portfolio_policy=policy,
