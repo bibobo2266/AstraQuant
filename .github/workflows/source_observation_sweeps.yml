@@ -1,4 +1,4 @@
-name: Source observation sweeps
+name: Source candidate path diagnostics
 
 on:
   workflow_dispatch:
@@ -11,7 +11,11 @@ on:
     branches: [main]
     paths:
       - ".github/workflows/source_observation_sweeps.yml"
-      - "scripts/source_config_sweep.py"
+      - "scripts/source_path_diagnostics.py"
+      - "src/astraquant/research/path_diagnostics.py"
+      - "src/astraquant/research/epoch_governance.py"
+      - "scripts/source_strategy_integration_smoke.py"
+      - "data/research/terminal_events.csv"
       - "src/astraquant/research/technical_components.py"
       - "src/astraquant/research/signal_engine.py"
       - "configs/research/observations/**"
@@ -33,7 +37,7 @@ permissions:
 jobs:
   report:
     runs-on: ubuntu-latest
-    timeout-minutes: 90
+    timeout-minutes: 180
     steps:
       - name: Checkout AstraQuant
         uses: actions/checkout@v4
@@ -49,7 +53,9 @@ jobs:
           persist-credentials: false
           sparse-checkout: |
             data/adj
+            data/raw
             data/reference
+            data/fundamentals
 
       - name: Make source checkout filesystem read-only
         run: chmod -R a-w source_runtime/minervini_picks
@@ -79,10 +85,9 @@ jobs:
           EXCLUSIONS_PATH: docs/SOURCE_CA_PIT_EXCLUSIONS.csv
           SIGNAL_START: "2016-01-04"
           SIGNAL_END: "2026-06-30"
-          FORWARD_SESSIONS: "60"
           OUTCOME_DIRECTION: "LONG"
           RESEARCH_EPOCH: ${{ github.event.inputs.research_epoch || 'E1' }}
-        run: python scripts/source_config_sweep.py
+        run: python scripts/source_path_diagnostics.py
 
       - name: Run VCP daily sweep
         working-directory: AstraQuant
@@ -95,10 +100,9 @@ jobs:
           EXCLUSIONS_PATH: docs/SOURCE_CA_PIT_EXCLUSIONS.csv
           SIGNAL_START: "2016-01-04"
           SIGNAL_END: "2026-06-30"
-          FORWARD_SESSIONS: "60"
           OUTCOME_DIRECTION: "LONG"
           RESEARCH_EPOCH: ${{ github.event.inputs.research_epoch || 'E1' }}
-        run: python scripts/source_config_sweep.py
+        run: python scripts/source_path_diagnostics.py
 
       - name: Run Anchor-up daily sweep
         working-directory: AstraQuant
@@ -111,10 +115,9 @@ jobs:
           EXCLUSIONS_PATH: docs/SOURCE_CA_PIT_EXCLUSIONS.csv
           SIGNAL_START: "2016-01-04"
           SIGNAL_END: "2026-06-30"
-          FORWARD_SESSIONS: "60"
           OUTCOME_DIRECTION: "LONG"
           RESEARCH_EPOCH: ${{ github.event.inputs.research_epoch || 'E1' }}
-        run: python scripts/source_config_sweep.py
+        run: python scripts/source_path_diagnostics.py
 
       - name: Run Anchor-down daily sweep
         working-directory: AstraQuant
@@ -127,10 +130,9 @@ jobs:
           EXCLUSIONS_PATH: docs/SOURCE_CA_PIT_EXCLUSIONS.csv
           SIGNAL_START: "2016-01-04"
           SIGNAL_END: "2026-06-30"
-          FORWARD_SESSIONS: "60"
           OUTCOME_DIRECTION: "SHORT"
           RESEARCH_EPOCH: ${{ github.event.inputs.research_epoch || 'E1' }}
-        run: python scripts/source_config_sweep.py
+        run: python scripts/source_path_diagnostics.py
 
       - name: Publish summaries
         working-directory: AstraQuant
