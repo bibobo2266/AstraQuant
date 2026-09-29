@@ -1,0 +1,17 @@
+schema_version: "1"
+name: vcp_round1_three_segment_v1
+trigger:
+  type: VCP_THREE_SEGMENT
+  params:
+    base_len: 25
+    contraction_ratio: 0.75
+    last_contraction: 0.08
+    dry_up: 0.50
+    dry_up_window: 5
+    breakout_volume_lookback: 50
+    breakout_vol: 1.5
+    liquidity_lookback: 20
+    min_prior_avg_amount_twd: 20000000
+    entry_chase_multiple: 1.05
+filters: []
+ranking: []
