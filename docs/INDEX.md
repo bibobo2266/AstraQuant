@@ -6,6 +6,7 @@
 - `DECISION_LOG.md` — accepted design decisions
 - `MASTER_PROGRESS.md` — append-only project tracker
 - `NEXT_ACTIONS.md` — current build plan
+- `OWNER_PRIORITY_QUEUE.md` — owner-defined mandatory execution order; read before accepting or starting new work
 - `DATA_SOURCE_POLICY.md` — immutable external-source boundary
 
 ## Research and validation
