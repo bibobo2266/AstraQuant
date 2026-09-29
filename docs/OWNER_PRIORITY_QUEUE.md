@@ -33,9 +33,9 @@
 - #44 三份全期報告標記與接觸補登：DONE
 
 
-### 0. [NOW] 時期治理與接觸清冊
+### 0. 時期治理與接觸清冊
 
-狀態：NOW
+狀態：DONE
 
 建立 strategy-version-specific E1/E2/E3/E4 時期治理、附加式接觸清冊與程式層效果查詢閘門。E3 效果查詢一律阻擋；E1 預設；E2 僅顯式啟用且強制標籤；路徑窗口與完整交易使用不同跨界 purge 規則。
 
@@ -48,40 +48,24 @@ E3 豁免：EX-001 已由 owner 裁定；僅允許 breakout 長窗 final NAV 51,
 
 ---
 
-### 1. 候選級 outcome 去均值修正 + 重算五份 sweep
+### 1. [NOW] 路徑診斷層 + 重算五份 sweep
 
-狀態：DONE
+狀態：NOW
 
-現行 outcome 為 N 日絕對報酬，Bollinger / VCP / Anchor-UP / Anchor-DOWN / RSI 五份報告皆為 100% 組合正期望值，量到的主要是市場漂移而非選股資訊。
+建立候選級 5 / 10 / 20 交易日路徑診斷。entry_ref 為訊號日次一共同交易日 RAW 開盤價（CA 一致口徑）；次日無有效開盤價標 NO_VALID_ENTRY_REF，不延後、不略過。路徑值以一單位初始部位的 CA-aware 部位價值 V_t 計算，沿用既有 CA／終止生命週期語意。
 
-改為：
-
-```text
-個股 N 日報酬 − 同一天同母體全體平均 N 日報酬
-```
-
-去均值母體：
-
-- 當日 P2-060 共同支撐內；
-- tradability 為 `observed_trade` 且 `valid_ohlc`；
-- 當日有效標的少於 200 檔則該日排除。
-
-Anchor-DOWN 空方 outcome 同樣先去均值，再反號。
-
-五份報告需新舊並列，同時列出：
-
-- 絕對期望值；
-- 去均值期望值。
-
-不得更動：
-
-- 訊號定義；
-- 參數網格；
-- 候選母體；
-- P2-060 排除名單。
+要求：
+- 多方與 Anchor-DOWN 空方依 owner 指定 MFE / MAE 定義。
+- MFE / MAE 各自以當日 P2-060 共同支撐母體去均值。
+- order_state 固定三態：MFE_FIRST / MAE_FIRST / SAME_DAY_UNKNOWN。
+- 5 / 10 / 20 三窗口並列，不選最佳窗口。
+- 依 EPOCH_GOVERNANCE：E1 預設、E2 顯式、E3 阻擋；各窗口獨立跨界 purge。
+- 多承接證券日內極值無法可靠聚合時標 MULTI_LEG_INTRADAY_UNRESOLVED；其他不可可靠處理事件標原因，不得靜默刪除或補價。
+- 漲跌停使用市場與日期實際適用限制價；無法取得則記限制價未知，不得用昨收固定乘數代替。
+- 候選層不套用部位上限或資金限制。
+- 重算 Bollinger / VCP / Anchor-UP / Anchor-DOWN / RSI 五份；不得更動訊號、參數網格、母體或 P2-060 排除名單。
 
 ---
-
 ### 1.5 通用 config 報告指令
 
 狀態：DONE
