@@ -64,9 +64,35 @@ def _load_exclusions() -> set[str]:
     return set(frame["ticker"].astype(str))
 
 
+def _load_adjusted_volume(adjusted: pd.DataFrame) -> pd.DataFrame:
+    source_root = Path(os.environ["SOURCE_ROOT"])
+    years = sorted(
+        set(pd.to_datetime(adjusted["date"], errors="coerce").dropna().dt.year.astype(int))
+    )
+    parts: list[pd.DataFrame] = []
+    for year in years:
+        path = source_root / "adj" / f"prices_adj_{year}.parquet"
+        if not path.exists():
+            raise SystemExit(f"BLOCKED: missing adjusted source file for volume: {path}")
+        part = pd.read_parquet(
+            path,
+            columns=["date", "stock_id", "Trading_Volume"],
+        )
+        part["date"] = pd.to_datetime(part["date"], errors="coerce").dt.normalize()
+        part["stock_id"] = part["stock_id"].astype(str)
+        if part.duplicated(["date", "stock_id"]).any():
+            raise SystemExit(
+                f"BLOCKED: duplicate adjusted volume logical keys in {path}"
+            )
+        parts.append(part)
+    volume = pd.concat(parts, ignore_index=True)
+    return volume
+
+
 def _research_panel() -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
     adjusted = load_adjusted()
     tradability = load_tradability(adjusted)
+    volume = _load_adjusted_volume(adjusted)
 
     adjusted = adjusted.copy()
     adjusted["date"] = pd.to_datetime(adjusted["date"], errors="coerce").dt.normalize()
@@ -76,6 +102,17 @@ def _research_panel() -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
     tradability["stock_id"] = tradability["stock_id"].astype(str)
 
     panel = adjusted.merge(
+        volume,
+        on=["date", "stock_id"],
+        how="left",
+        validate="one_to_one",
+    )
+    if panel["Trading_Volume"].isna().any():
+        missing = int(panel["Trading_Volume"].isna().sum())
+        raise SystemExit(
+            f"BLOCKED: canonical adjusted volume missing for {missing} research rows"
+        )
+    panel = panel.merge(
         tradability[["date", "stock_id", "observed_trade", "valid_ohlc"]],
         on=["date", "stock_id"],
         how="left",
