@@ -30,12 +30,12 @@
 - 1.5：DONE
 - legacy 重複報告清理：DONE；保留目前腳本命名規則的 `SOURCE_STRATEGY_PERFORMANCE_REPORT_{TRADES,OPEN_LOTS}.csv`
 - E3 breakout regression-only 豁免：DONE
-- #44 三份全期報告標記與接觸補登：PENDING
+- #44 三份全期報告標記與接觸補登：DONE
 
 
-### 0. 時期治理與接觸清冊
+### 0. [NOW] 時期治理與接觸清冊
 
-狀態：PENDING_PREREQ_4
+狀態：NOW
 
 建立 strategy-version-specific E1/E2/E3/E4 時期治理、附加式接觸清冊與程式層效果查詢閘門。E3 效果查詢一律阻擋；E1 預設；E2 僅顯式啟用且強制標籤；路徑窗口與完整交易使用不同跨界 purge 規則。
 
