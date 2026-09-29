@@ -53,6 +53,10 @@ jobs:
         working-directory: AstraQuant
         run: python -m pip install --quiet -e .
 
+      - name: Run VCP round1 unit gate
+        working-directory: AstraQuant
+        run: pytest -q tests/test_vcp_round1.py
+
       - name: Run frozen E1 VCP round1
         working-directory: AstraQuant
         env:
