@@ -35,7 +35,7 @@ from source_strategy_integration_smoke import (
 REPORT_PATH = Path(os.environ.get("REPORT_PATH", "docs/SOURCE_STRATEGY_PERFORMANCE_REPORT.md"))
 SOURCE_ROOT = Path(os.environ.get("SOURCE_ROOT", "source_runtime/minervini_picks/data")).resolve()
 INITIAL_CASH = 10_000_000.0
-EXPECTED_LONG_NAV = 51_696_620.30
+EXPECTED_LONG_NAV = 51_696_620.29773994
 
 
 def _pct(x: float) -> str:
@@ -165,7 +165,7 @@ def main() -> None:
         "no_unsupported_ca_cash": unsupported_ca_cash == 0,
         "pit_unsafe_ca_tickers_excluded": not bool(candidate_tickers & quarantined_tickers),
         "positive_nav_all_sessions": bool((nav > 0).all()),
-        "frozen_long_nav_bitwise_cent_check": round(float(nav.iloc[-1]), 2) == EXPECTED_LONG_NAV,
+        "frozen_long_nav_exact_float_check": float(nav.iloc[-1]) == EXPECTED_LONG_NAV,
         "benchmark_same_trading_days": comparison.benchmark_nav.index.equals(nav.index),
     }
     status = "PASS" if all(checks.values()) else "FAIL"
