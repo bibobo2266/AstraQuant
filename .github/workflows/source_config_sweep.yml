@@ -28,7 +28,7 @@ on:
       - "docs/SOURCE_CA_PIT_EXCLUSIONS.csv"
 
 concurrency:
-  group: research-effect-publication
+  group: source-config-sweep
   cancel-in-progress: false
 
 permissions:
