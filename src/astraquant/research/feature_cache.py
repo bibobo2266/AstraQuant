@@ -65,6 +65,26 @@ class FeatureCache:
         self.misses += 1
         return value.copy()
 
+    def get_or_compute_view(
+        self,
+        key: FeatureCacheKey,
+        compute: Callable[[], pd.Series],
+    ) -> pd.Series:
+        """Return the shared cached Series without copying.
+
+        Research evaluators using this method must treat the returned Series as
+        read-only. This avoids O(N * configs) memory copies during large sweeps.
+        """
+        if key in self._frames:
+            self.hits += 1
+            return self._frames[key]
+        value = compute()
+        if not isinstance(value, pd.Series):
+            raise TypeError("feature cache values must be pandas Series")
+        self._frames[key] = value.copy()
+        self.misses += 1
+        return self._frames[key]
+
     @property
     def size(self) -> int:
         return len(self._frames)

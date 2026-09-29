@@ -5,6 +5,8 @@ import pandas as pd
 
 from astraquant.portfolio.policy import PortfolioPolicyConfig
 from astraquant.research.parameter_sweep import ResearchParameterSweepRunner
+from astraquant.research.config_engine import ResearchConfigEngine
+from astraquant.research.universe_engine import UniverseCompiler
 from astraquant.research.signal_engine import SignalContext
 from astraquant.research.universe_engine import UniverseContext
 
@@ -184,3 +186,38 @@ def test_theme_scope_is_narrower_than_all_scope(tmp_path):
     )
     counts = result.summary.groupby("universe")["universe_rows_counting"].max()
     assert counts["defense"] < counts["all"]
+
+
+def test_sweep_reuses_universe_compile_per_unique_scope(tmp_path):
+    class CountingUniverseCompiler(UniverseCompiler):
+        def __init__(self):
+            super().__init__()
+            self.calls = 0
+
+        def compile(self, config, panel, context):
+            self.calls += 1
+            return super().compile(config, panel, context)
+
+    sweep = _configs(tmp_path)
+    compiler = CountingUniverseCompiler()
+    runner = ResearchParameterSweepRunner(
+        engine=ResearchConfigEngine(universe_compiler=compiler)
+    )
+    result = runner.prepare_sweep(
+        sweep_config_path=sweep,
+        root=tmp_path,
+        panel=_panel(),
+        universe_context=UniverseContext(
+            p2_060_excluded_tickers=frozenset(),
+            p2_060_exclusion_sha256=P2_SHA,
+            theme_root=tmp_path / "themes",
+        ),
+        signal_context=SignalContext(source_revision="fixture-v1"),
+        base_policy=PortfolioPolicyConfig(
+            position_fraction=0.10,
+            max_positions=10,
+        ),
+    )
+
+    assert len(result.runs) == 16
+    assert compiler.calls == 2

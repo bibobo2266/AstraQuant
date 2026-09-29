@@ -125,6 +125,9 @@ class ResearchParameterSweepRunner:
         prepared: list[PreparedResearchRun] = []
         rows: list[dict[str, object]] = []
 
+        mask_cache: dict[str, object] = {}
+        signal_panel_cache: dict[str, pd.DataFrame] = {}
+
         for universe_path in sweep.universes:
             base_universe = universes[universe_path]
             for values in value_products:
@@ -140,6 +143,34 @@ class ResearchParameterSweepRunner:
                     )
                     params[axis.target] = value
 
+                universe_key = ucfg.model_dump_json(
+                    by_alias=True,
+                    exclude_none=False,
+                )
+                if universe_key not in mask_cache:
+                    mask_cache[universe_key] = self.engine.universe_compiler.compile(
+                        ucfg,
+                        panel,
+                        universe_context,
+                    )
+                    signal_panel_cache[universe_key] = (
+                        self.engine.signal_evaluator.prepare_panel(
+                            panel,
+                            mask_cache[universe_key],
+                        )
+                    )
+                mask = mask_cache[universe_key]
+                prepared_panel = signal_panel_cache[universe_key]
+
+                signal_plan = self.engine.signal_compiler.compile(scfg)
+                signal_frame = self.engine.signal_evaluator.evaluate_prepared(
+                    signal_plan,
+                    prepared_panel,
+                    signal_context,
+                )
+                exit_plan = self.engine.exit_compiler.compile(ecfg)
+                policy = exit_plan.apply_to_policy(base_policy)
+
                 param_key = ",".join(
                     f"{key}={params[key]}" for key in sorted(params)
                 )
@@ -154,15 +185,18 @@ class ResearchParameterSweepRunner:
                     exit=sweep.exit,
                     execution_assumptions_id=sweep.execution_assumptions_id,
                 )
-                result = self.engine.prepare_from_configs(
+                result = PreparedResearchRun(
                     run_config=run_cfg,
                     universe_config=ucfg,
                     signal_config=scfg,
                     exit_config=ecfg,
-                    panel=panel,
-                    universe_context=universe_context,
-                    signal_context=signal_context,
-                    base_policy=base_policy,
+                    universe_mask=mask,
+                    signal_frame=signal_frame,
+                    signal_plan=signal_plan,
+                    exit_plan=exit_plan,
+                    portfolio_policy=policy,
+                    feature_cache_hits=self.engine.feature_cache.hits,
+                    feature_cache_misses=self.engine.feature_cache.misses,
                 )
                 prepared.append(result)
                 rows.append(

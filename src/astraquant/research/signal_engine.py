@@ -160,19 +160,31 @@ class SignalEvaluator:
     def __init__(self, cache: FeatureCache | None = None) -> None:
         self.cache = cache or FeatureCache()
 
-    def evaluate(
+    def prepare_panel(
         self,
-        plan: SignalPlan,
         panel: pd.DataFrame,
         universe_mask: UniverseMask,
-        context: SignalContext,
     ) -> pd.DataFrame:
         work = _normalize_panel(panel)
         mask = universe_mask.frame[["date", "stock_id", "counts"]].copy()
-        merged = work.merge(mask, on=["date", "stock_id"], how="left", validate="one_to_one")
+        merged = work.merge(
+            mask,
+            on=["date", "stock_id"],
+            how="left",
+            validate="one_to_one",
+        )
         if len(merged) != len(work):
             raise ValueError("universe mask changed signal-panel row count")
         merged["counts"] = merged["counts"].fillna(False).astype(bool)
+        return merged
+
+    def evaluate_prepared(
+        self,
+        plan: SignalPlan,
+        prepared_panel: pd.DataFrame,
+        context: SignalContext,
+    ) -> pd.DataFrame:
+        merged = prepared_panel
 
         triggered = plan.trigger(
             panel=merged,
@@ -222,3 +234,13 @@ class SignalEvaluator:
             ).to_numpy()
 
         return result
+
+    def evaluate(
+        self,
+        plan: SignalPlan,
+        panel: pd.DataFrame,
+        universe_mask: UniverseMask,
+        context: SignalContext,
+    ) -> pd.DataFrame:
+        prepared = self.prepare_panel(panel, universe_mask)
+        return self.evaluate_prepared(plan, prepared, context)

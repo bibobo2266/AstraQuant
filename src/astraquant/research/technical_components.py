@@ -36,7 +36,7 @@ def _cached(
         params=params,
         availability_policy=context.availability_policy,
     )
-    return cache.get_or_compute(key, compute)
+    return cache.get_or_compute_view(key, compute)
 
 
 def _ema_by_ticker(values: pd.Series, tickers: pd.Series, span: int) -> pd.Series:
