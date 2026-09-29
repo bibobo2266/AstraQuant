@@ -8,6 +8,10 @@ on:
       - ".github/workflows/source_strategy_performance_report.yml"
       - "scripts/source_strategy_performance_report.py"
       - "scripts/source_strategy_integration_smoke.py"
+      - "configs/research/runs/**"
+      - "configs/examples/universes/**"
+      - "configs/examples/signals/**"
+      - "configs/examples/exits/**"
       - "src/astraquant/**"
 
 permissions:
@@ -16,7 +20,7 @@ permissions:
 jobs:
   report:
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 90
     steps:
       - name: Checkout AstraQuant
         uses: actions/checkout@v4
@@ -30,9 +34,20 @@ jobs:
           token: ${{ secrets.MINERVINI_READ_TOKEN }}
           path: source_runtime/minervini_picks
           persist-credentials: false
+          sparse-checkout: |
+            data/adj
+            data/raw
+            data/reference
+            data/fundamentals
+            data/futures
 
       - name: Make source checkout filesystem read-only
         run: chmod -R a-w source_runtime/minervini_picks
+
+      - name: Record source revision
+        id: source
+        working-directory: source_runtime/minervini_picks
+        run: echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -43,29 +58,64 @@ jobs:
         working-directory: AstraQuant
         run: python -m pip install --quiet -e .
 
-      - name: Build frozen descriptive performance report
+      - name: Run frozen breakout regression
         working-directory: AstraQuant
         env:
           SOURCE_ROOT: ../source_runtime/minervini_picks/data
+          SOURCE_REVISION: ${{ steps.source.outputs.sha }}
           REPORT_PATH: docs/SOURCE_STRATEGY_PERFORMANCE_REPORT.md
+          TRADE_CSV_PATH: docs/SOURCE_STRATEGY_PERFORMANCE_TRADES.csv
+          OPEN_LOTS_CSV_PATH: docs/SOURCE_STRATEGY_PERFORMANCE_OPEN_LOTS.csv
           SIGNAL_START: "2016-01-04"
           SIGNAL_END: "2026-06-30"
           DRAIN_SESSIONS: "5"
         run: python scripts/source_strategy_performance_report.py
 
-      - name: Publish summary
+      - name: Run VCP config performance report
         working-directory: AstraQuant
-        run: cat docs/SOURCE_STRATEGY_PERFORMANCE_REPORT.md >> "$GITHUB_STEP_SUMMARY"
+        env:
+          SOURCE_ROOT: ../source_runtime/minervini_picks/data
+          SOURCE_REVISION: ${{ steps.source.outputs.sha }}
+          RUN_CONFIG: configs/research/runs/vcp_all_liquid_stop12_time250.yaml
+          REPORT_PATH: docs/SOURCE_VCP_STRATEGY_PERFORMANCE.md
+          TRADE_CSV_PATH: docs/SOURCE_VCP_STRATEGY_PERFORMANCE_TRADES.csv
+          OPEN_LOTS_CSV_PATH: docs/SOURCE_VCP_STRATEGY_PERFORMANCE_OPEN_LOTS.csv
+          SIGNAL_START: "2016-01-04"
+          SIGNAL_END: "2026-06-30"
+          DRAIN_SESSIONS: "5"
+        run: python scripts/source_strategy_performance_report.py
 
-      - name: Commit report to AstraQuant only
+      - name: Run RSI config performance report
+        working-directory: AstraQuant
+        env:
+          SOURCE_ROOT: ../source_runtime/minervini_picks/data
+          SOURCE_REVISION: ${{ steps.source.outputs.sha }}
+          RUN_CONFIG: configs/research/runs/rsi_pullback_reclaim_all_liquid_stop12_time250.yaml
+          REPORT_PATH: docs/SOURCE_RSI_STRATEGY_PERFORMANCE.md
+          TRADE_CSV_PATH: docs/SOURCE_RSI_STRATEGY_PERFORMANCE_TRADES.csv
+          OPEN_LOTS_CSV_PATH: docs/SOURCE_RSI_STRATEGY_PERFORMANCE_OPEN_LOTS.csv
+          SIGNAL_START: "2016-01-04"
+          SIGNAL_END: "2026-06-30"
+          DRAIN_SESSIONS: "5"
+        run: python scripts/source_strategy_performance_report.py
+
+      - name: Publish summaries
+        working-directory: AstraQuant
+        shell: bash
+        run: |
+          cat docs/SOURCE_STRATEGY_PERFORMANCE_REPORT.md >> "$GITHUB_STEP_SUMMARY"
+          cat docs/SOURCE_VCP_STRATEGY_PERFORMANCE.md >> "$GITHUB_STEP_SUMMARY"
+          cat docs/SOURCE_RSI_STRATEGY_PERFORMANCE.md >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Commit reports to AstraQuant only
         working-directory: AstraQuant
         shell: bash
         run: |
           set -euo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add docs/SOURCE_STRATEGY_PERFORMANCE_REPORT.md
+          git add             docs/SOURCE_STRATEGY_PERFORMANCE_REPORT.md             docs/SOURCE_STRATEGY_PERFORMANCE_TRADES.csv             docs/SOURCE_STRATEGY_PERFORMANCE_OPEN_LOTS.csv             docs/SOURCE_VCP_STRATEGY_PERFORMANCE.md             docs/SOURCE_VCP_STRATEGY_PERFORMANCE_TRADES.csv             docs/SOURCE_VCP_STRATEGY_PERFORMANCE_OPEN_LOTS.csv             docs/SOURCE_RSI_STRATEGY_PERFORMANCE.md             docs/SOURCE_RSI_STRATEGY_PERFORMANCE_TRADES.csv             docs/SOURCE_RSI_STRATEGY_PERFORMANCE_OPEN_LOTS.csv
           if git diff --cached --quiet; then exit 0; fi
-          git commit -m "report: record frozen canonical strategy performance"
+          git commit -m "report: record config strategy performance"
           git pull --rebase origin main
           git push origin HEAD:main

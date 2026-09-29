@@ -1,0 +1,7 @@
+schema_version: "1"
+run_name: vcp_all_liquid_stop12_time250
+universe: configs/examples/universes/all_liquid.yaml
+signal: configs/examples/signals/vcp_breakout.yaml
+exit: configs/examples/exits/stop12_time250_executable.yaml
+execution_assumptions_id: canonical-zero-fee-zero-slippage
+report_trade_stats_first: true

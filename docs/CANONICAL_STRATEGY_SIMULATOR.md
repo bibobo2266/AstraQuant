@@ -57,3 +57,28 @@ The next gate is a frozen-source integration smoke using real canonical breakout
 Corporate actions whose economic effective date is not a trading session are mapped **forward only** to the first configured trading session after the effective date. The original effective date remains unchanged for audit/provenance. No event is mapped backward, and events beyond the configured calendar horizon hard-fail instead of being guessed.
 
 See `docs/TRADING_CALENDAR_POLICY.md` and `docs/SOURCE_CA_CALENDAR_AUDIT.md`.
+
+
+## Config-driven reporting bridge
+
+`scripts/source_strategy_performance_report.py` accepts a `RUN_CONFIG` path and
+uses `ResearchConfigEngine` to compile the configured universe and signal into
+the canonical candidate contract before passing candidates to
+`CanonicalStrategySimulator`.
+
+The breakout report retains a compatibility regression path solely to verify the
+frozen historical result bit-for-bit. Config-driven signals and that legacy
+adapter both enter the same simulator through the candidate interface.
+
+Every config-driven performance report attaches:
+
+- CA-aware FIFO closed-trade reconstruction;
+- a separate open-lot table;
+- trade-level win rate / average win / average loss / payoff / expectancy;
+- the reusable FinMind total-return benchmark comparison.
+
+**Current exit limitation:** the executable config bridge in this round supports
+only the already-frozen fixed stop plus time/max-hold exit layer. Indicator,
+target, trailing, and other exit families are not expanded here. Execution,
+accounting, corporate-action, terminal-lifecycle, and OOS governance semantics
+are unchanged.
