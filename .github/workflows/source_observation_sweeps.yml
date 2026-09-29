@@ -1,4 +1,4 @@
-name: Source candidate path diagnostics
+name: Source five candidate path diagnostics
 
 on:
   workflow_dispatch:
@@ -23,12 +23,14 @@ on:
       - "configs/examples/signals/vcp_breakout.yaml"
       - "configs/examples/signals/anchor_up_reversal.yaml"
       - "configs/examples/signals/anchor_down_reversal.yaml"
+      - "configs/research/observations/rsi_daily_surface.yaml"
+      - "configs/examples/signals/rsi_pullback_reclaim.yaml"
       - "configs/examples/universes/all_liquid.yaml"
       - "configs/examples/exits/stop12_time250_executable.yaml"
       - "docs/SOURCE_CA_PIT_EXCLUSIONS.csv"
 
 concurrency:
-  group: research-effect-publication
+  group: source-five-candidate-path-diagnostics
   cancel-in-progress: false
 
 permissions:
@@ -134,6 +136,21 @@ jobs:
           RESEARCH_EPOCH: ${{ github.event.inputs.research_epoch || 'E1' }}
         run: python scripts/source_path_diagnostics.py
 
+      - name: Run RSI daily sweep
+        working-directory: AstraQuant
+        env:
+          SOURCE_ROOT: ../source_runtime/minervini_picks/data
+          SOURCE_REVISION: ${{ steps.source.outputs.sha }}
+          SWEEP_PATH: configs/research/observations/rsi_daily_surface.yaml
+          REPORT_PATH: docs/SOURCE_RSI_DAILY_SWEEP.md
+          CSV_PATH: docs/SOURCE_RSI_DAILY_SWEEP.csv
+          EXCLUSIONS_PATH: docs/SOURCE_CA_PIT_EXCLUSIONS.csv
+          SIGNAL_START: "2016-01-04"
+          SIGNAL_END: "2026-06-30"
+          OUTCOME_DIRECTION: "LONG"
+          RESEARCH_EPOCH: ${{ github.event.inputs.research_epoch || 'E1' }}
+        run: python scripts/source_path_diagnostics.py
+
       - name: Publish summaries
         working-directory: AstraQuant
         shell: bash
@@ -142,6 +159,7 @@ jobs:
           cat docs/SOURCE_VCP_DAILY_SWEEP.md >> "$GITHUB_STEP_SUMMARY"
           cat docs/SOURCE_ANCHOR_UP_DAILY_SWEEP.md >> "$GITHUB_STEP_SUMMARY"
           cat docs/SOURCE_ANCHOR_DOWN_DAILY_SWEEP.md >> "$GITHUB_STEP_SUMMARY"
+          cat docs/SOURCE_RSI_DAILY_SWEEP.md >> "$GITHUB_STEP_SUMMARY"
 
       - name: Commit reports to AstraQuant only
         working-directory: AstraQuant
@@ -150,7 +168,7 @@ jobs:
           set -euo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add             docs/SOURCE_BOLLINGER_DAILY_SWEEP.md docs/SOURCE_BOLLINGER_DAILY_SWEEP.csv             docs/SOURCE_VCP_DAILY_SWEEP.md docs/SOURCE_VCP_DAILY_SWEEP.csv             docs/SOURCE_ANCHOR_UP_DAILY_SWEEP.md docs/SOURCE_ANCHOR_UP_DAILY_SWEEP.csv             docs/SOURCE_ANCHOR_DOWN_DAILY_SWEEP.md docs/SOURCE_ANCHOR_DOWN_DAILY_SWEEP.csv             docs/CONTACT_REGISTRY.md
+          git add             docs/SOURCE_BOLLINGER_DAILY_SWEEP.md docs/SOURCE_BOLLINGER_DAILY_SWEEP.csv             docs/SOURCE_VCP_DAILY_SWEEP.md docs/SOURCE_VCP_DAILY_SWEEP.csv             docs/SOURCE_ANCHOR_UP_DAILY_SWEEP.md docs/SOURCE_ANCHOR_UP_DAILY_SWEEP.csv             docs/SOURCE_ANCHOR_DOWN_DAILY_SWEEP.md docs/SOURCE_ANCHOR_DOWN_DAILY_SWEEP.csv             docs/SOURCE_RSI_DAILY_SWEEP.md docs/SOURCE_RSI_DAILY_SWEEP.csv             docs/CONTACT_REGISTRY.md
           if git diff --cached --quiet; then exit 0; fi
           git commit -m "report: record source observation sweeps"
           git pull --rebase origin main
