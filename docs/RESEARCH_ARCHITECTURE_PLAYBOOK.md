@@ -654,3 +654,52 @@ validation / OOS governance
 ```
 
 The engine should become a **research factory**, not a collection of backtest scripts.
+
+
+## 20. Implemented parameter-sweep syntax
+
+AstraQuant parameter sweeps use component paths rather than strategy-specific code.
+
+Example:
+
+```yaml
+schema_version: "1"
+name: oneil_taiwan_surface
+
+universes:
+  - configs/examples/universes/all_liquid.yaml
+  - configs/examples/universes/defense_aero_theme.yaml
+
+signal: configs/examples/signals/high250_oneil_structure.yaml
+exit: configs/examples/exits/stop12_time250_executable.yaml
+
+axes:
+  - target: filter:LONG_TERM_TREND_STRUCTURE.fast_sessions
+    values: [40, 50, 60]
+  - target: filter:LONG_TERM_TREND_STRUCTURE.slow_sessions
+    values: [180, 200, 220]
+  - target: filter:LONG_TERM_TREND_STRUCTURE.slope_lookback_sessions
+    values: [5, 10, 20]
+  - target: filter:LONG_TERM_TREND_STRUCTURE.min_fast_slow_spread
+    values: [0.0, 0.02, 0.05]
+
+execution_assumptions_id: taiwan-zero-cost-signal-isolation-v1
+max_combinations: 1000
+report_trade_stats_first: true
+```
+
+Supported sweep target forms are:
+
+```text
+trigger.<param>
+filter:<TYPE>.<param>
+ranking:<TYPE>.<param>
+exit:<TYPE>.<param>
+universe:<TYPE>.<param>
+```
+
+The same runner can therefore scan an O'Neil trend filter today and later scan RSI thresholds, volume-spike thresholds, universe liquidity cutoffs, or exit parameters without a new sweep script.
+
+Multiple universe files create the scope dimension. This is how the same parameter surface can be evaluated independently in ALL, STABLE, 軍工航太, AI伺服器, or any other dated theme.
+
+The sweep runner expands configurations and prepares research candidates. It does **not** select the winning parameter set. Robust-region analysis and frozen validation remain separate governance steps.

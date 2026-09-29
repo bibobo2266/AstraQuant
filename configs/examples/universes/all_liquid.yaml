@@ -1,0 +1,11 @@
+schema_version: "1"
+name: all_liquid
+base:
+  ticker_pattern: '^[1-9]\d{3}$'
+  min_close_twd: 10
+  require_observed_trade: true
+  require_valid_ohlc: true
+  p2_060_exclusion_sha256: "379d58f6a8aa06b1e020d56911930f4bc01861d3eeca109613d9e5b1e490d134"
+pools:
+  - type: ALL
+    turnover_top_fraction: 0.25

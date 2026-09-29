@@ -8,6 +8,7 @@ from pydantic import BaseModel
 
 from astraquant.research.strategy_config import (
     BatchMatrixConfig,
+    ParameterSweepConfig,
     ExitConfig,
     SignalConfig,
     StrategyRunConfig,
@@ -55,3 +56,7 @@ def load_theme_file(path: str | Path) -> ThemeFile:
 
 def load_batch_matrix_config(path: str | Path) -> BatchMatrixConfig:
     return load_model(path, BatchMatrixConfig)
+
+
+def load_parameter_sweep_config(path: str | Path) -> ParameterSweepConfig:
+    return load_model(path, ParameterSweepConfig)

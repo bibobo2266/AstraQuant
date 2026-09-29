@@ -268,3 +268,51 @@ class BatchMatrixConfig(FrozenModel):
     @property
     def combination_count(self) -> int:
         return len(self.universes) * len(self.signals) * len(self.exits)
+
+
+class SweepAxis(FrozenModel):
+    target: str
+    values: tuple[Any, ...]
+
+    @model_validator(mode="after")
+    def validate_axis(self):
+        if not self.target.strip():
+            raise ValueError("sweep axis target is required")
+        if not self.values:
+            raise ValueError("sweep axis values must be non-empty")
+        return self
+
+
+class ParameterSweepConfig(FrozenModel):
+    schema_version: Literal["1"] = "1"
+    name: str
+    universes: tuple[str, ...]
+    signal: str
+    exit: str
+    axes: tuple[SweepAxis, ...]
+    execution_assumptions_id: str
+    max_combinations: int = Field(default=1000, ge=1)
+    report_trade_stats_first: Literal[True] = True
+
+    @model_validator(mode="after")
+    def validate_sweep(self):
+        if not self.universes:
+            raise ValueError("parameter sweep requires at least one universe")
+        if not self.axes:
+            raise ValueError("parameter sweep requires at least one axis")
+        combinations = len(self.universes)
+        for axis in self.axes:
+            combinations *= len(axis.values)
+        if combinations > self.max_combinations:
+            raise ValueError(
+                f"parameter sweep has {combinations} combinations, "
+                f"exceeds max_combinations={self.max_combinations}"
+            )
+        return self
+
+    @property
+    def combination_count(self) -> int:
+        combinations = len(self.universes)
+        for axis in self.axes:
+            combinations *= len(axis.values)
+        return combinations
