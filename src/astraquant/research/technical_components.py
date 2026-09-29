@@ -522,6 +522,7 @@ def vcp_three_segment_details(
     base_len = int(spec.params["base_len"])
     contraction_ratio = float(spec.params.get("contraction_ratio", 0.75))
     last_contraction = float(spec.params["last_contraction"])
+    min_amplitude_3 = float(spec.params.get("min_amplitude_3", 0.0))
     dry_up = float(spec.params["dry_up"])
     dry_up_window = int(spec.params.get("dry_up_window", 5))
     breakout_volume_lookback = int(
@@ -537,6 +538,8 @@ def vcp_three_segment_details(
         raise ValueError("contraction_ratio must be in (0, 1)")
     if not 0 < last_contraction < 1:
         raise ValueError("last_contraction must be in (0, 1)")
+    if not 0 <= min_amplitude_3 < 1:
+        raise ValueError("min_amplitude_3 must be in [0, 1)")
     if not 0 < dry_up <= 1:
         raise ValueError("dry_up must be in (0, 1]")
     if dry_up_window <= 0 or breakout_volume_lookback <= 0:
@@ -669,6 +672,7 @@ def vcp_three_segment_details(
         & previous_close.notna()
     )
     amp_positive = amplitude1.gt(0) & amplitude2.gt(0)
+    amplitude3_floor_ok = amplitude3.ge(min_amplitude_3)
     contraction12 = amplitude2.le(amplitude1 * contraction_ratio)
     contraction23 = amplitude3.le(amplitude2 * contraction_ratio)
     last_ok = amplitude3.le(last_contraction)
@@ -687,6 +691,7 @@ def vcp_three_segment_details(
     signal = (
         price_ready
         & amp_positive
+        & amplitude3_floor_ok
         & contraction12
         & contraction23
         & last_ok
@@ -706,6 +711,10 @@ def vcp_three_segment_details(
     reason = reason.mask(~dry_ok.fillna(False), "DRY_UP_FAIL")
     reason = reason.mask(~volume_ready, "INSUFFICIENT_VOLUME")
     reason = reason.mask(~last_ok.fillna(False), "LAST_CONTRACTION_FAIL")
+    reason = reason.mask(
+        ~amplitude3_floor_ok.fillna(False),
+        "AMPLITUDE_3_BELOW_MIN",
+    )
     reason = reason.mask(~contraction23.fillna(False), "CONTRACTION_2_TO_3_FAIL")
     reason = reason.mask(~contraction12.fillna(False), "CONTRACTION_1_TO_2_FAIL")
     reason = reason.mask(~amp_positive.fillna(False), "NONPOSITIVE_AMPLITUDE")
