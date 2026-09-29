@@ -50,3 +50,5 @@ Phase-1 runtime/data audit is complete with explicit limitations. Phase-2 execut
 - [Corporate-action source risk addendum](CORPORATE_ACTION_SOURCE_RISK_ADDENDUM.md) — mixed-unit/date/amount risks and required read-only runtime audits before further CA normalization.
 
 - [Three-layer research engine contract](THREE_LAYER_RESEARCH_ENGINE_CONTRACT.md) — config schemas and interfaces for independently swappable universe, signal, and exit layers.
+
+- [Research architecture playbook](RESEARCH_ARCHITECTURE_PLAYBOOK.md) — practical guide to the three-layer engine, reusable components, themes, parameter sweeps, robust-region research, and pool-specific calibration.
