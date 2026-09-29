@@ -604,12 +604,7 @@ def overnight_market_context(*, panel, spec: ComponentSpec, cache, context) -> p
 
 
 def rsi_pullback_reclaim(*, panel, spec: ComponentSpec, cache, context) -> pd.Series:
-    """RSI pullback holds a floor, then reclaims an upper level.
-
-    Intended to encode the observed workflow: strength first, controlled
-    pullback around 50-58, then a fresh reclaim above 60. The evaluator is
-    timeframe-agnostic; PIT legality depends on the input panel timestamps.
-    """
+    """RSI pullback holds a floor, then reclaims an upper level."""
     lookback = int(spec.params.get("lookback", 14))
     hold_floor = float(spec.params.get("hold_floor", 50))
     pullback_ceiling = float(spec.params.get("pullback_ceiling", 58))
@@ -633,31 +628,63 @@ def rsi_pullback_reclaim(*, panel, spec: ComponentSpec, cache, context) -> pd.Se
         name="rsi", params={"lookback": lookback},
         compute=lambda: _rsi_value(panel=panel, lookback=lookback),
     )
-    prior_rsi = rsi.groupby(panel["stock_id"], sort=False).shift(1)
-    prior_min = prior_rsi.groupby(panel["stock_id"], sort=False).transform(
-        lambda s: s.rolling(pullback_window, min_periods=pullback_window).min()
+    prior_rsi = _cached(
+        panel=panel, cache=cache, context=context,
+        name="rsi_prior",
+        params={"lookback": lookback},
+        compute=lambda: rsi.groupby(panel["stock_id"], sort=False).shift(1),
     )
-    prior_had_pullback = prior_rsi.groupby(panel["stock_id"], sort=False).transform(
-        lambda s: s.le(pullback_ceiling)
-        .rolling(pullback_window, min_periods=pullback_window)
-        .max()
-        .astype(bool)
+    prior_min = _cached(
+        panel=panel, cache=cache, context=context,
+        name="rsi_prior_window_min",
+        params={"lookback": lookback, "window": pullback_window},
+        compute=lambda: prior_rsi.groupby(
+            panel["stock_id"], sort=False
+        ).transform(
+            lambda s: s.rolling(
+                pullback_window, min_periods=pullback_window
+            ).min()
+        ),
     )
+    prior_had_pullback = _cached(
+        panel=panel, cache=cache, context=context,
+        name="rsi_prior_had_pullback",
+        params={
+            "lookback": lookback,
+            "window": pullback_window,
+            "ceiling": pullback_ceiling,
+        },
+        compute=lambda: prior_rsi.le(pullback_ceiling)
+        .astype(int)
+        .groupby(panel["stock_id"], sort=False)
+        .transform(
+            lambda s: s.rolling(
+                pullback_window, min_periods=pullback_window
+            ).max()
+        )
+        .eq(1),
+    ).astype(bool)
+
     crossed = rsi.gt(reclaim_level) & prior_rsi.le(reclaim_level)
-    held_floor = prior_min.ge(hold_floor)
-    result = crossed & held_floor & prior_had_pullback
+    result = crossed & prior_min.ge(hold_floor) & prior_had_pullback
 
     if volume_multiplier is not None:
         volume = _numeric(panel, "Trading_Volume")
-        prior_avg = volume.groupby(panel["stock_id"], sort=False).transform(
-            lambda s: s.shift(1).rolling(
-                volume_lookback, min_periods=volume_lookback
-            ).mean()
+        prior_avg = _cached(
+            panel=panel, cache=cache, context=context,
+            name="prior_avg_volume",
+            params={"lookback": volume_lookback},
+            compute=lambda: volume.groupby(
+                panel["stock_id"], sort=False
+            ).transform(
+                lambda s: s.shift(1).rolling(
+                    volume_lookback, min_periods=volume_lookback
+                ).mean()
+            ),
         )
         result &= (volume / prior_avg).ge(volume_multiplier)
 
     return result.fillna(False)
-
 
 def kd_saturation_state(*, panel, spec: ComponentSpec, cache, context) -> pd.Series:
     """Return sustained KD high/low saturation state, not a reversal signal."""

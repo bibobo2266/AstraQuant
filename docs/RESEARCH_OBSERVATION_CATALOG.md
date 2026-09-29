@@ -539,3 +539,38 @@ The primary question is whether duration of saturation contains information beyo
 - saturation-release trigger implemented.
 - Unit tests treat high saturation as a persistent state, not an automatic sell.
 - Source-backed daily sweep has not yet been frozen; it must remain separate from the already-running Bollinger/VCP/Anchor protocol.
+
+
+## Source-backed daily RSI screening protocol v1
+
+This is an exploratory daily proxy for OBS-005. It does **not** claim to reproduce the full daily → 60-minute → 15-minute SOP.
+
+Frozen before observing results:
+
+- universe: ALL top-25%-turnover on frozen P2-060 common support;
+- signal window: 2016-01-04 through 2026-06-30;
+- outcome horizon: 60 source sessions;
+- direction: long;
+- evidence level: candidate-level adjusted research only;
+- no RAW fills, stop execution, capacity, CA path, FIFO, or portfolio sequencing;
+- no automatic winner selection or OOS promotion.
+
+Declared parameter ranges:
+
+```text
+RSI hold floor: 45 / 50 / 55
+pullback ceiling: 55 / 58 / 60
+reclaim level: 58 / 60 / 62 / 65
+pullback window: 3 / 6 / 9 sessions
+volume multiplier: 1.0 / 1.2 / 1.5 / 2.0
+```
+
+Structural constraint declared before the run:
+
+```text
+hold_floor < pullback_ceiling < reclaim_level
+```
+
+The raw Cartesian surface contains 432 cells. The constraint removes structurally nonsensical RSI states, leaving 276 legal combinations. Those removals are not result-driven tuning.
+
+The goal is to inspect the entire legal surface for broad plateaus, signal-count tradeoffs, and marginal stability. The maximum cell is not a promotion rule.

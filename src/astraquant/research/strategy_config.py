@@ -308,6 +308,14 @@ class ParameterSweepConfig(FrozenModel):
                 f"parameter sweep has {combinations} combinations, "
                 f"exceeds max_combinations={self.max_combinations}"
             )
+        axis_targets = {axis.target for axis in self.axes}
+        for constraint in self.constraints:
+            missing = set(constraint.targets) - axis_targets
+            if missing:
+                raise ValueError(
+                    "sweep constraint targets must also be declared axes: "
+                    f"{sorted(missing)}"
+                )
         return self
 
     @property

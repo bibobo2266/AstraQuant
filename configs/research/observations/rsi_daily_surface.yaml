@@ -1,0 +1,31 @@
+schema_version: "1"
+name: rsi_daily_pullback_reclaim_surface_v1
+
+universes:
+  - configs/examples/universes/all_liquid.yaml
+
+signal: configs/examples/signals/rsi_pullback_reclaim.yaml
+exit: configs/examples/exits/stop12_time250_executable.yaml
+
+axes:
+  - target: trigger.hold_floor
+    values: [45, 50, 55]
+  - target: trigger.pullback_ceiling
+    values: [55, 58, 60]
+  - target: trigger.reclaim_level
+    values: [58, 60, 62, 65]
+  - target: trigger.pullback_window
+    values: [3, 6, 9]
+  - target: trigger.volume_multiplier
+    values: [1.0, 1.2, 1.5, 2.0]
+
+constraints:
+  - type: STRICTLY_INCREASING
+    targets:
+      - trigger.hold_floor
+      - trigger.pullback_ceiling
+      - trigger.reclaim_level
+
+execution_assumptions_id: candidate-level-adjusted-research-only
+max_combinations: 500
+report_trade_stats_first: true

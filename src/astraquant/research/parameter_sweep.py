@@ -34,6 +34,8 @@ class SweepPreparationResult:
     summary: pd.DataFrame
     feature_cache_hits: int
     feature_cache_misses: int
+    declared_combinations: int
+    skipped_by_constraints: int
 
 
 def _find_unique(items: list[dict[str, Any]], key: str, value: str, label: str) -> dict[str, Any]:
@@ -94,6 +96,23 @@ def _apply_axis(
     )
 
 
+def _constraints_pass(sweep: ParameterSweepConfig, params: dict[str, object]) -> bool:
+    for constraint in sweep.constraints:
+        if constraint.type == "STRICTLY_INCREASING":
+            values = []
+            for target in constraint.targets:
+                if target not in params:
+                    raise ValueError(
+                        f"sweep constraint target is not an axis: {target}"
+                    )
+                values.append(float(params[target]))
+            if any(a >= b for a, b in zip(values, values[1:])):
+                return False
+        else:
+            raise ValueError(f"unsupported sweep constraint: {constraint.type}")
+    return True
+
+
 class ResearchParameterSweepRunner:
     def __init__(self, engine: ResearchConfigEngine | None = None) -> None:
         self.engine = engine or ResearchConfigEngine()
@@ -124,6 +143,7 @@ class ResearchParameterSweepRunner:
         value_products = list(product(*(axis.values for axis in sweep.axes)))
         prepared: list[PreparedResearchRun] = []
         rows: list[dict[str, object]] = []
+        skipped_by_constraints = 0
 
         mask_cache: dict[str, object] = {}
         signal_panel_cache: dict[str, pd.DataFrame] = {}
@@ -142,6 +162,10 @@ class ResearchParameterSweepRunner:
                         value=value,
                     )
                     params[axis.target] = value
+
+                if not _constraints_pass(sweep, params):
+                    skipped_by_constraints += 1
+                    continue
 
                 universe_key = ucfg.model_dump_json(
                     by_alias=True,
@@ -223,4 +247,6 @@ class ResearchParameterSweepRunner:
             summary=pd.DataFrame(rows),
             feature_cache_hits=self.engine.feature_cache.hits,
             feature_cache_misses=self.engine.feature_cache.misses,
+            declared_combinations=sweep.combination_count,
+            skipped_by_constraints=skipped_by_constraints,
         )
