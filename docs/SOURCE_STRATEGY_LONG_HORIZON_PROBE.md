@@ -23,8 +23,8 @@ Purpose: connect real canonical breakout candidates to the causal RAW portfolio 
 - RAW stop exits: 140
 - RAW max-hold exits: 65
 - blocked exit attempts: 19
-- supported corporate actions applied: 14,260
-- corporate-action cash payments settled: 12,037
+- supported corporate actions applied: 14,283
+- corporate-action cash payments settled: 12,060
 
 ## Final accounting state
 
