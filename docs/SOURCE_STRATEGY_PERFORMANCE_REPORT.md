@@ -1,6 +1,8 @@
 # Canonical Config Strategy Performance + Total-Return Benchmark Report
 
-Status: **PASS**
+Status: **PENDING_EPOCH_GATE**
+
+> 於治理層上線前生成，含 E3 區間。治理層完成後以 E1 預設重跑取代；在此之前不得據此判讀。
 
 This is descriptive in-sample evidence. It is not OOS validation, parameter promotion, or an investment recommendation.
 
