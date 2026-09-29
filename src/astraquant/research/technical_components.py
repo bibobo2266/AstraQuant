@@ -144,13 +144,9 @@ def macd_cross_above_zero(*, panel, spec: ComponentSpec, cache, context) -> pd.S
         name="ema", params={"span": slow},
         compute=lambda: _ema_by_ticker(close, panel["stock_id"], slow),
     )
-    dif = ema_fast - ema_slow
-    dea = dif.groupby(panel["stock_id"], sort=False).transform(
-        lambda s: s.ewm(span=signal, adjust=False, min_periods=signal).mean()
-    )
-    histogram = dif - dea
-    prev = histogram.groupby(panel["stock_id"], sort=False).shift(1)
-    return (histogram.gt(0) & prev.le(0)).fillna(False)
+    macd = ema_fast - ema_slow
+    prev = macd.groupby(panel["stock_id"], sort=False).shift(1)
+    return (macd.gt(0) & prev.le(0)).fillna(False)
 
 
 def _stochastic_kd(*, panel, lookback: int, k_smooth: int, d_smooth: int):
@@ -294,3 +290,60 @@ def column_threshold(*, panel, spec: ComponentSpec, cache, context) -> pd.Series
 
 def column_value(*, panel, spec: ComponentSpec, cache, context) -> pd.Series:
     return _numeric(panel, str(spec.params["column"]))
+
+
+def long_term_trend_structure(*, panel, spec: ComponentSpec, cache, context) -> pd.Series:
+    """O'Neil-style long-term trend structure using daily equivalents.
+
+    Defaults use 50 sessions (~W10) and 200 sessions (=W40), with both moving
+    averages required to slope upward. The fast/slow spread band is configurable
+    and is evaluated as fast_ma / slow_ma - 1.
+    """
+
+    fast = int(spec.params.get("fast_sessions", 50))
+    slow = int(spec.params.get("slow_sessions", 200))
+    slope_lookback = int(spec.params.get("slope_lookback_sessions", 10))
+    min_spread = float(spec.params.get("min_fast_slow_spread", 0.0))
+    max_spread_raw = spec.params.get("max_fast_slow_spread")
+    max_spread = None if max_spread_raw is None else float(max_spread_raw)
+
+    if not 1 <= fast < slow:
+        raise ValueError("LONG_TERM_TREND_STRUCTURE requires 1 <= fast < slow")
+    if slope_lookback <= 0:
+        raise ValueError("slope_lookback_sessions must be positive")
+    if min_spread < 0:
+        raise ValueError("min_fast_slow_spread must be non-negative")
+    if max_spread is not None and max_spread < min_spread:
+        raise ValueError("max_fast_slow_spread must be >= min_fast_slow_spread")
+
+    close = _numeric(panel, "close")
+    fast_ma = _cached(
+        panel=panel,
+        cache=cache,
+        context=context,
+        name="sma",
+        params={"window": fast},
+        compute=lambda: _sma_by_ticker(close, panel["stock_id"], fast),
+    )
+    slow_ma = _cached(
+        panel=panel,
+        cache=cache,
+        context=context,
+        name="sma",
+        params={"window": slow},
+        compute=lambda: _sma_by_ticker(close, panel["stock_id"], slow),
+    )
+    fast_prev = fast_ma.groupby(panel["stock_id"], sort=False).shift(slope_lookback)
+    slow_prev = slow_ma.groupby(panel["stock_id"], sort=False).shift(slope_lookback)
+    spread = fast_ma / slow_ma - 1.0
+
+    result = (
+        close.gt(fast_ma)
+        & fast_ma.gt(slow_ma)
+        & fast_ma.gt(fast_prev)
+        & slow_ma.gt(slow_prev)
+        & spread.ge(min_spread)
+    )
+    if max_spread is not None:
+        result &= spread.le(max_spread)
+    return result.fillna(False)

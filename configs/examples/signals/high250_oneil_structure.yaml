@@ -1,0 +1,16 @@
+schema_version: "1"
+name: high250_oneil_structure
+trigger:
+  type: N_SESSION_HIGH
+  params:
+    lookback: 250
+filter_combine: AND
+filters:
+  - type: LONG_TERM_TREND_STRUCTURE
+    params:
+      fast_sessions: 50       # approx W10
+      slow_sessions: 200      # W40 / D200
+      slope_lookback_sessions: 10
+      min_fast_slow_spread: 0.0
+      max_fast_slow_spread: null
+ranking: []

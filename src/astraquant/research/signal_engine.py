@@ -15,6 +15,7 @@ from astraquant.research.technical_components import (
     consecutive_up_days,
     gap_up,
     kd_low_zone_golden_cross,
+    long_term_trend_structure,
     ma_golden_cross,
     macd_cross_above_zero,
     n_session_high,
@@ -119,6 +120,7 @@ def default_trigger_registry() -> ComponentRegistry[SignalComponentEvaluator]:
 def default_filter_registry() -> ComponentRegistry[SignalComponentEvaluator]:
     registry: ComponentRegistry[SignalComponentEvaluator] = ComponentRegistry("signal filter")
     registry.register("RSI", rsi_filter)
+    registry.register("LONG_TERM_TREND_STRUCTURE", long_term_trend_structure)
     registry.register("COLUMN_THRESHOLD", column_threshold)
     return registry
 

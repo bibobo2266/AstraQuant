@@ -10,11 +10,8 @@ from astraquant.research.component_registry import ComponentRegistry, Unsupporte
 from astraquant.research.config_io import load_theme_file
 from astraquant.research.strategy_config import (
     AllPoolConfig,
-    EarningsStreakConfig,
-    FundamentalFloorConfig,
     IndustryThemePoolConfig,
     LogicalOp,
-    StablePoolConfig,
     ThemeGroupingConfig,
     UniverseConfig,
 )
@@ -117,92 +114,6 @@ def _all_pool(
 
 
 
-
-def _require_feature_columns(panel: pd.DataFrame, *columns: str) -> None:
-    missing = set(columns) - set(panel.columns)
-    if missing:
-        raise ValueError(
-            "universe feature panel missing standardized columns: "
-            f"{sorted(missing)}"
-        )
-
-
-def _stable_pool(
-    *,
-    panel: pd.DataFrame,
-    base_pass: pd.Series,
-    config: StablePoolConfig,
-    context: UniverseContext,
-) -> PoolEvaluation:
-    required = (
-        "downside_rs_ratio",
-        "rv60_percentile",
-        "max_drawdown_ratio_to_index",
-        "large_holder_fraction",
-        "large_holder_change_pp_250",
-        "consecutive_dividend_years",
-        "turnover_ratio_percentile",
-    )
-    _require_feature_columns(panel, *required)
-    x = panel[list(required)].apply(pd.to_numeric, errors="coerce")
-    mask = (
-        x["downside_rs_ratio"].lt(float(config.downside_rs_multiplier))
-        & x["rv60_percentile"].le(float(config.rv60_bottom_fraction))
-        & x["max_drawdown_ratio_to_index"].lt(float(config.max_drawdown_multiplier))
-        & x["large_holder_fraction"].ge(float(config.large_holder_min_fraction))
-        & x["large_holder_change_pp_250"].abs().lt(float(config.large_holder_max_change_pp))
-        & x["consecutive_dividend_years"].ge(int(config.consecutive_dividend_years))
-        & x["turnover_ratio_percentile"].le(float(config.turnover_ratio_bottom_fraction))
-    ).fillna(False)
-    return PoolEvaluation(mask=base_pass & mask, details={})
-
-
-def _fundamental_floor_pool(
-    *,
-    panel: pd.DataFrame,
-    base_pass: pd.Series,
-    config: FundamentalFloorConfig,
-    context: UniverseContext,
-) -> PoolEvaluation:
-    required = (
-        "max_consecutive_loss_quarters_last4",
-        "debt_ratio",
-        "is_financial",
-        "revenue_decline_streak_months",
-        "roe_4q_avg",
-    )
-    _require_feature_columns(panel, *required)
-    losses = pd.to_numeric(panel["max_consecutive_loss_quarters_last4"], errors="coerce")
-    debt = pd.to_numeric(panel["debt_ratio"], errors="coerce")
-    financial = panel["is_financial"].fillna(False).astype(bool)
-    revenue_streak = pd.to_numeric(panel["revenue_decline_streak_months"], errors="coerce")
-    roe = pd.to_numeric(panel["roe_4q_avg"], errors="coerce")
-
-    debt_ok = debt.le(float(config.max_debt_ratio))
-    if config.exempt_financials:
-        debt_ok |= financial
-    mask = (
-        losses.le(int(config.max_consecutive_loss_quarters))
-        & debt_ok
-        & revenue_streak.le(int(config.max_consecutive_revenue_decline_months))
-        & roe.gt(float(config.roe_quarter_average_min))
-    ).fillna(False)
-    return PoolEvaluation(mask=base_pass & mask, details={})
-
-
-def _earnings_streak_pool(
-    *,
-    panel: pd.DataFrame,
-    base_pass: pd.Series,
-    config: EarningsStreakConfig,
-    context: UniverseContext,
-) -> PoolEvaluation:
-    _require_feature_columns(panel, "eps_yoy_positive_streak")
-    streak = pd.to_numeric(panel["eps_yoy_positive_streak"], errors="coerce")
-    mask = streak.ge(int(config.consecutive_positive_eps_yoy_quarters)).fillna(False)
-    return PoolEvaluation(mask=base_pass & mask, details={})
-
-
 def _theme_group_mask(
     *,
     panel: pd.DataFrame,
@@ -284,10 +195,7 @@ def _industry_theme_pool(
 def default_universe_registry() -> ComponentRegistry[UniversePoolEvaluator]:
     registry: ComponentRegistry[UniversePoolEvaluator] = ComponentRegistry("universe")
     registry.register("ALL", _all_pool)
-    registry.register("STABLE", _stable_pool)
     registry.register("INDUSTRY_THEME", _industry_theme_pool)
-    registry.register("FUNDAMENTAL_FLOOR", _fundamental_floor_pool)
-    registry.register("EARNINGS_STREAK", _earnings_streak_pool)
     return registry
 
 
