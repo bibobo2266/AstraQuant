@@ -15,7 +15,9 @@ Status: **PASS**
 - P2-060 exclusion SHA: 379d58f6a8aa06b1e020d56911930f4bc01861d3eeca109613d9e5b1e490d134
 - eligible-universe distinct tickers: 1,986 (expected 1,986)
 - signal window: 2016-01-04 through 2026-06-30
-- parameter combinations: 81
+- declared Cartesian combinations: 81
+- structurally invalid combinations skipped by preregistered constraints: 0
+- evaluated parameter combinations: 81
 - feature-cache hits / misses: 236 / 7
 
 ## Parameter-surface summary
