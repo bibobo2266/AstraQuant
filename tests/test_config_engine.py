@@ -55,7 +55,7 @@ base:
 combine: AND
 pools:
   - type: ALL
-    turnover_top_fraction: 0.25
+    turnover_top_fraction: 1.0
 """,
     )
     _write(
