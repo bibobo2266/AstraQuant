@@ -45,6 +45,16 @@ REPORT_TITLE = os.environ.get(
 
 CURATED_TERMINAL_EVENTS = [
     {
+        "ticker": "6286",
+        "known_at": datetime(2016, 4, 6, 14, 40),
+        "terminal_stale_from": pd.Timestamp("2016-04-21").date(),
+        "effective_at": datetime(2016, 4, 29),
+        "payment_at": datetime(2016, 5, 5),
+        "cash_per_share": 195.0,
+        "source": "MOPS/TWSE cash share-conversion disclosure",
+        "source_url": "https://news.cnyes.com/news/id/748023",
+    },
+    {
         "ticker": "4141",
         "known_at": datetime(2022, 3, 30, 18, 31, 29),
         "terminal_stale_from": pd.Timestamp("2022-04-27").date(),
