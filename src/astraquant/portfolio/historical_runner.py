@@ -43,6 +43,7 @@ class HistoricalCorporateActionInstruction:
     successor_multiplier: float | None = None
     successor_legs: tuple[SecurityConversionLeg, ...] = ()
     cash_value_weight: float = 0.0
+    apply_at_close: bool = False
 
 
 @dataclass(frozen=True)

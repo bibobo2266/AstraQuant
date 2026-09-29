@@ -24,8 +24,7 @@ def _load_strategy_smoke_module():
 
 _STRATEGY_SMOKE = _load_strategy_smoke_module()
 CURATED_COMPOSITE_CONVERSIONS = _STRATEGY_SMOKE.CURATED_COMPOSITE_CONVERSIONS
-CURATED_SUCCESSOR_CONVERSIONS = _STRATEGY_SMOKE.CURATED_SUCCESSOR_CONVERSIONS
-CURATED_TERMINAL_EVENTS = _STRATEGY_SMOKE.CURATED_TERMINAL_EVENTS
+load_confirmed_terminal_overrides = _STRATEGY_SMOKE.load_confirmed_terminal_overrides
 
 SOURCE_ROOT = Path(
     os.environ.get("SOURCE_ROOT", "source_runtime/minervini_picks/data")
@@ -145,21 +144,17 @@ def load_raw_last_dates() -> pd.DataFrame:
 
 def modeled_terminal_map() -> dict[str, dict[str, object]]:
     out: dict[str, dict[str, object]] = {}
-    for item in CURATED_TERMINAL_EVENTS:
-        out[str(item["ticker"])] = {
-            "event_type": "CASH_MERGER_EXTINGUISHMENT",
-            "terminal_stale_from": pd.Timestamp(item["terminal_stale_from"]),
-            "effective_at": pd.Timestamp(item["effective_at"]).normalize(),
-            "source": str(item["source"]),
-            "source_url": str(item["source_url"]),
-        }
-    for item in CURATED_SUCCESSOR_CONVERSIONS:
-        out[str(item["ticker"])] = {
-            "event_type": "SUCCESSOR_SHARE_CONVERSION",
-            "terminal_stale_from": pd.Timestamp(item["terminal_stale_from"]),
-            "effective_at": pd.Timestamp(item["effective_at"]).normalize(),
-            "source": str(item["source"]),
-            "source_url": str(item["source_url"]),
+    for ticker, item in load_confirmed_terminal_overrides().items():
+        out[str(ticker)] = {
+            "event_type": str(item.event_type),
+            "terminal_stale_from": (
+                None
+                if item.suspension_from is None
+                else pd.Timestamp(item.suspension_from)
+            ),
+            "effective_at": pd.Timestamp(item.effective_date).normalize(),
+            "source": "terminal_events.csv",
+            "source_url": str(item.source_url),
         }
     for item in CURATED_COMPOSITE_CONVERSIONS:
         out[str(item["ticker"])] = {
