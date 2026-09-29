@@ -177,7 +177,7 @@ def main() -> None:
     source_revision = os.environ.get("SOURCE_REVISION", "source-checkout")
     theme_root = Path(os.environ.get("THEME_ROOT", "themes")).resolve()
     runner = ResearchParameterSweepRunner()
-    prepared = runner.prepare_sweep(
+    stream = runner.stream_sweep(
         sweep_config_path=SWEEP_PATH,
         root=Path("."),
         panel=panel,
@@ -197,10 +197,9 @@ def main() -> None:
 
     outcomes = _forward_outcomes(panel)
     rows: list[dict[str, object]] = []
-    by_name = {row.run_name: row for row in prepared.summary.itertuples(index=False)}
 
-    for run in prepared.runs:
-        meta = by_name[run.run_config.run_name]
+    for item in stream.runs:
+        run = item.prepared
         signals = run.signal_frame[
             run.signal_frame["counts_as_candidate"]
             & run.signal_frame["signal_date"].between(
@@ -223,8 +222,10 @@ def main() -> None:
         rows.append(
             {
                 "run_name": run.run_config.run_name,
-                "universe": meta.universe,
-                "parameters": meta.parameters,
+                "universe": item.universe,
+                "parameters": json.dumps(
+                    item.parameters, ensure_ascii=False, sort_keys=True
+                ),
                 "signals": int(len(signals)),
                 "valid_outcomes": metric["valid_outcomes"],
                 "outcome_coverage": (
@@ -272,10 +273,10 @@ def main() -> None:
         f"- P2-060 exclusion SHA: {EXPECTED_EXCLUSIONS_SHA256}",
         f"- eligible-universe distinct tickers: {eligible_count:,} (expected {EXPECTED_ELIGIBLE_TICKERS:,})",
         f"- signal window: {SIGNAL_START.date()} through {SIGNAL_END.date()}",
-        f"- declared Cartesian combinations: {prepared.declared_combinations:,}",
-        f"- structurally invalid combinations skipped by preregistered constraints: {prepared.skipped_by_constraints:,}",
+        f"- declared Cartesian combinations: {stream.declared_combinations:,}",
+        f"- structurally invalid combinations skipped by preregistered constraints: {stream.skipped_by_constraints:,}",
         f"- evaluated parameter combinations: {len(results):,}",
-        f"- feature-cache hits / misses: {prepared.feature_cache_hits:,} / {prepared.feature_cache_misses:,}",
+        f"- feature-cache hits / misses: {runner.engine.feature_cache.hits:,} / {runner.engine.feature_cache.misses:,}",
         "",
         "## Parameter-surface summary",
         "",

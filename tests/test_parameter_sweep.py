@@ -221,3 +221,29 @@ def test_sweep_reuses_universe_compile_per_unique_scope(tmp_path):
 
     assert len(result.runs) == 16
     assert compiler.calls == 2
+
+
+def test_stream_sweep_preserves_declared_and_constraint_counts(tmp_path):
+    sweep = _configs(tmp_path)
+    runner = ResearchParameterSweepRunner()
+    stream = runner.stream_sweep(
+        sweep_config_path=sweep,
+        root=tmp_path,
+        panel=_panel(),
+        universe_context=UniverseContext(
+            p2_060_excluded_tickers=frozenset(),
+            p2_060_exclusion_sha256=P2_SHA,
+            theme_root=tmp_path / "themes",
+        ),
+        signal_context=SignalContext(source_revision="fixture-v1"),
+        base_policy=PortfolioPolicyConfig(
+            position_fraction=0.10,
+            max_positions=10,
+        ),
+    )
+
+    items = list(stream.runs)
+    assert stream.declared_combinations == 16
+    assert stream.skipped_by_constraints == 0
+    assert len(items) == 16
+    assert all(item.parameters for item in items)

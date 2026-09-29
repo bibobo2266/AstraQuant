@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from itertools import product
 import json
 from pathlib import Path
-from typing import Any
+from typing import Any, Iterable
 
 import pandas as pd
 
@@ -34,6 +34,21 @@ class SweepPreparationResult:
     summary: pd.DataFrame
     feature_cache_hits: int
     feature_cache_misses: int
+    declared_combinations: int
+    skipped_by_constraints: int
+
+
+@dataclass(frozen=True)
+class StreamedSweepRun:
+    prepared: PreparedResearchRun
+    universe: str
+    parameters: dict[str, object]
+
+
+@dataclass(frozen=True)
+class SweepRunStream:
+    sweep_name: str
+    runs: Iterable[StreamedSweepRun]
     declared_combinations: int
     skipped_by_constraints: int
 
@@ -117,7 +132,7 @@ class ResearchParameterSweepRunner:
     def __init__(self, engine: ResearchConfigEngine | None = None) -> None:
         self.engine = engine or ResearchConfigEngine()
 
-    def prepare_sweep(
+    def stream_sweep(
         self,
         *,
         sweep_config_path: str | Path,
@@ -126,7 +141,7 @@ class ResearchParameterSweepRunner:
         universe_context: UniverseContext,
         signal_context: SignalContext,
         base_policy: PortfolioPolicyConfig,
-    ) -> SweepPreparationResult:
+    ) -> SweepRunStream:
         root_path = Path(root).resolve()
         sweep: ParameterSweepConfig = load_parameter_sweep_config(sweep_config_path)
         base_signal = load_signal_config(
@@ -140,113 +155,155 @@ class ResearchParameterSweepRunner:
             for path in sweep.universes
         }
 
-        value_products = list(product(*(axis.values for axis in sweep.axes)))
+        raw_products = list(product(*(axis.values for axis in sweep.axes)))
+        legal_products: list[tuple[tuple[object, ...], dict[str, object]]] = []
+        invalid_products = 0
+        for values in raw_products:
+            params = {
+                axis.target: value
+                for axis, value in zip(sweep.axes, values)
+            }
+            if _constraints_pass(sweep, params):
+                legal_products.append((values, params))
+            else:
+                invalid_products += 1
+
+        skipped_by_constraints = invalid_products * len(sweep.universes)
+
+        def generate() -> Iterable[StreamedSweepRun]:
+            mask_cache: dict[str, object] = {}
+            signal_panel_cache: dict[str, pd.DataFrame] = {}
+
+            for universe_path in sweep.universes:
+                base_universe = universes[universe_path]
+                for values, raw_params in legal_products:
+                    ucfg, scfg, ecfg = base_universe, base_signal, base_exit
+                    params = dict(raw_params)
+                    for axis, value in zip(sweep.axes, values):
+                        ucfg, scfg, ecfg = _apply_axis(
+                            universe=ucfg,
+                            signal=scfg,
+                            exit_config=ecfg,
+                            target=axis.target,
+                            value=value,
+                        )
+
+                    universe_key = ucfg.model_dump_json(
+                        by_alias=True,
+                        exclude_none=False,
+                    )
+                    if universe_key not in mask_cache:
+                        mask_cache[universe_key] = self.engine.universe_compiler.compile(
+                            ucfg,
+                            panel,
+                            universe_context,
+                        )
+                        signal_panel_cache[universe_key] = (
+                            self.engine.signal_evaluator.prepare_panel(
+                                panel,
+                                mask_cache[universe_key],
+                            )
+                        )
+                    mask = mask_cache[universe_key]
+                    prepared_panel = signal_panel_cache[universe_key]
+
+                    signal_plan = self.engine.signal_compiler.compile(scfg)
+                    signal_frame = self.engine.signal_evaluator.evaluate_prepared(
+                        signal_plan,
+                        prepared_panel,
+                        signal_context,
+                    )
+                    exit_plan = self.engine.exit_compiler.compile(ecfg)
+                    policy = exit_plan.apply_to_policy(base_policy)
+
+                    param_key = ",".join(
+                        f"{key}={params[key]}" for key in sorted(params)
+                    )
+                    run_name = (
+                        f"{sweep.name}__{ucfg.name}__"
+                        + param_key.replace("/", "_").replace(" ", "")
+                    )
+                    run_cfg = StrategyRunConfig(
+                        run_name=run_name,
+                        universe=universe_path,
+                        signal=sweep.signal,
+                        exit=sweep.exit,
+                        execution_assumptions_id=sweep.execution_assumptions_id,
+                    )
+                    prepared = PreparedResearchRun(
+                        run_config=run_cfg,
+                        universe_config=ucfg,
+                        signal_config=scfg,
+                        exit_config=ecfg,
+                        universe_mask=mask,
+                        signal_frame=signal_frame,
+                        signal_plan=signal_plan,
+                        exit_plan=exit_plan,
+                        portfolio_policy=policy,
+                        feature_cache_hits=self.engine.feature_cache.hits,
+                        feature_cache_misses=self.engine.feature_cache.misses,
+                    )
+                    yield StreamedSweepRun(
+                        prepared=prepared,
+                        universe=ucfg.name,
+                        parameters=params,
+                    )
+
+        return SweepRunStream(
+            sweep_name=sweep.name,
+            runs=generate(),
+            declared_combinations=sweep.combination_count,
+            skipped_by_constraints=skipped_by_constraints,
+        )
+
+    def prepare_sweep(
+        self,
+        *,
+        sweep_config_path: str | Path,
+        root: str | Path,
+        panel: pd.DataFrame,
+        universe_context: UniverseContext,
+        signal_context: SignalContext,
+        base_policy: PortfolioPolicyConfig,
+    ) -> SweepPreparationResult:
+        stream = self.stream_sweep(
+            sweep_config_path=sweep_config_path,
+            root=root,
+            panel=panel,
+            universe_context=universe_context,
+            signal_context=signal_context,
+            base_policy=base_policy,
+        )
         prepared: list[PreparedResearchRun] = []
         rows: list[dict[str, object]] = []
-        skipped_by_constraints = 0
 
-        mask_cache: dict[str, object] = {}
-        signal_panel_cache: dict[str, pd.DataFrame] = {}
-
-        for universe_path in sweep.universes:
-            base_universe = universes[universe_path]
-            for values in value_products:
-                ucfg, scfg, ecfg = base_universe, base_signal, base_exit
-                params: dict[str, object] = {}
-                for axis, value in zip(sweep.axes, values):
-                    ucfg, scfg, ecfg = _apply_axis(
-                        universe=ucfg,
-                        signal=scfg,
-                        exit_config=ecfg,
-                        target=axis.target,
-                        value=value,
-                    )
-                    params[axis.target] = value
-
-                if not _constraints_pass(sweep, params):
-                    skipped_by_constraints += 1
-                    continue
-
-                universe_key = ucfg.model_dump_json(
-                    by_alias=True,
-                    exclude_none=False,
-                )
-                if universe_key not in mask_cache:
-                    mask_cache[universe_key] = self.engine.universe_compiler.compile(
-                        ucfg,
-                        panel,
-                        universe_context,
-                    )
-                    signal_panel_cache[universe_key] = (
-                        self.engine.signal_evaluator.prepare_panel(
-                            panel,
-                            mask_cache[universe_key],
-                        )
-                    )
-                mask = mask_cache[universe_key]
-                prepared_panel = signal_panel_cache[universe_key]
-
-                signal_plan = self.engine.signal_compiler.compile(scfg)
-                signal_frame = self.engine.signal_evaluator.evaluate_prepared(
-                    signal_plan,
-                    prepared_panel,
-                    signal_context,
-                )
-                exit_plan = self.engine.exit_compiler.compile(ecfg)
-                policy = exit_plan.apply_to_policy(base_policy)
-
-                param_key = ",".join(
-                    f"{key}={params[key]}" for key in sorted(params)
-                )
-                run_name = (
-                    f"{sweep.name}__{ucfg.name}__"
-                    + param_key.replace("/", "_").replace(" ", "")
-                )
-                run_cfg = StrategyRunConfig(
-                    run_name=run_name,
-                    universe=universe_path,
-                    signal=sweep.signal,
-                    exit=sweep.exit,
-                    execution_assumptions_id=sweep.execution_assumptions_id,
-                )
-                result = PreparedResearchRun(
-                    run_config=run_cfg,
-                    universe_config=ucfg,
-                    signal_config=scfg,
-                    exit_config=ecfg,
-                    universe_mask=mask,
-                    signal_frame=signal_frame,
-                    signal_plan=signal_plan,
-                    exit_plan=exit_plan,
-                    portfolio_policy=policy,
-                    feature_cache_hits=self.engine.feature_cache.hits,
-                    feature_cache_misses=self.engine.feature_cache.misses,
-                )
-                prepared.append(result)
-                rows.append(
-                    {
-                        "run_name": run_name,
-                        "universe": ucfg.name,
-                        "parameters": json.dumps(
-                            params, ensure_ascii=False, sort_keys=True
-                        ),
-                        "universe_rows_counting": int(
-                            result.universe_mask.frame["counts"].sum()
-                        ),
-                        "signal_candidates": int(
-                            result.signal_frame["counts_as_candidate"].sum()
-                        ),
-                        "feature_cache_hits": result.feature_cache_hits,
-                        "feature_cache_misses": result.feature_cache_misses,
-                    }
-                )
+        for item in stream.runs:
+            result = item.prepared
+            prepared.append(result)
+            rows.append(
+                {
+                    "run_name": result.run_config.run_name,
+                    "universe": item.universe,
+                    "parameters": json.dumps(
+                        item.parameters, ensure_ascii=False, sort_keys=True
+                    ),
+                    "universe_rows_counting": int(
+                        result.universe_mask.frame["counts"].sum()
+                    ),
+                    "signal_candidates": int(
+                        result.signal_frame["counts_as_candidate"].sum()
+                    ),
+                    "feature_cache_hits": result.feature_cache_hits,
+                    "feature_cache_misses": result.feature_cache_misses,
+                }
+            )
 
         return SweepPreparationResult(
-            sweep_name=sweep.name,
+            sweep_name=stream.sweep_name,
             runs=tuple(prepared),
             summary=pd.DataFrame(rows),
             feature_cache_hits=self.engine.feature_cache.hits,
             feature_cache_misses=self.engine.feature_cache.misses,
-            declared_combinations=sweep.combination_count,
-            skipped_by_constraints=skipped_by_constraints,
+            declared_combinations=stream.declared_combinations,
+            skipped_by_constraints=stream.skipped_by_constraints,
         )
