@@ -2,11 +2,11 @@
 
 ## 目前狀態
 
-更新時間：2026-09-29T13:39:00Z
-做完：第 1 項尾件已落盤，等待驗證
-結果：tests 36576604297；regression 36576604271
+更新時間：2026-09-29T13:42:00Z
+做完：第 1 項完成
+結果：tests 36576604297 success；regression 36576604271 success
 卡住：無
-下一項：1
+下一項：2
 
 狀態：ACTIVE
 
@@ -69,9 +69,9 @@ E3 豁免：EX-001 已由 owner 裁定；僅允許 breakout 長窗 final NAV 51,
 
 ---
 
-### 1. [NOW] 路徑診斷層 + 重算五份 sweep
+### 1. 路徑診斷層 + 重算五份 sweep
 
-狀態：NOW
+狀態：DONE
 
 建立候選級 5 / 10 / 20 交易日路徑診斷。entry_ref 為訊號日次一共同交易日 RAW 開盤價（CA 一致口徑）；次日無有效開盤價標 NO_VALID_ENTRY_REF，不延後、不略過。路徑值以一單位初始部位的 CA-aware 部位價值 V_t 計算，沿用既有 CA／終止生命週期語意。
 
@@ -100,7 +100,22 @@ E3 豁免：EX-001 已由 owner 裁定；僅允許 breakout 長窗 final NAV 51,
 
 ---
 
-### 2. 2883B 來源端最小開口修復（P2-063 選項 A），解鎖 P2-062
+### 2. [NOW] 建立待測總表
+
+狀態：NOW
+
+建立 `docs/TEST_INVENTORY.md` 作為後續掃描、特徵建置與出場開發的唯一待測來源，並在 `docs/INDEX.md` 加連結。本項只盤點與對帳，不執行 sweep、不新增策略、不改既有報告。
+
+要求：
+- 每列九欄：id / origin / definition / purpose / code / tests / reports / gap / depends_on。
+- 每列另記六階段：來源資料 / PIT / 元件 / 模擬器串接 / 正式掃描 / 報告，各自只能是有／無／不適用。
+- 每列另記掃描層級 CANDIDATE / FULL_TRADE / NONE，以及原始方法涵蓋度 FULL / SIMPLIFIED / NA。
+- L1 17 列與表外項目、L2、L3、出場表依 owner 規格完整列入；repo 清單外既有元件補列並明示。
+- L2、L3 的概念數／元件數／參數版本數分開統計，不得混用。
+
+---
+
+### 已完成前置：2883B 來源端最小開口修復（P2-063 選項 A），解鎖 P2-062
 
 狀態：DONE
 
