@@ -197,7 +197,10 @@ def _apply_open_event(
     if quantity <= 0:
         return cash, False, None
 
-    if item.cash_share_basis_mode is CashEntitlementBasis.EXPLICIT:
+    if (
+        event.cash_per_share is not None
+        and item.cash_share_basis_mode is CashEntitlementBasis.EXPLICIT
+    ):
         return cash, _event_is_terminal(item), "UNSUPPORTED_EXPLICIT_CASH_BASIS"
 
     if event.cash_per_share is not None:
