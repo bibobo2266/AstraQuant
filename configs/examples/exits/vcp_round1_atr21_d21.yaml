@@ -1,0 +1,17 @@
+schema_version: "1"
+name: vcp_round1_atr21_d21
+rules:
+  - type: ATR_TRAILING
+    params:
+      period: 21
+      multiplier: 2.5
+      smoothing: WILDER
+      trigger_field: CLOSE
+      execution: NEXT_OPEN
+  - type: MA_BREAK
+    params:
+      window: 21
+      average: SMA
+      require_cross: false
+      trigger_field: CLOSE
+      execution: NEXT_OPEN
