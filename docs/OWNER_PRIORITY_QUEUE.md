@@ -25,6 +25,14 @@
 
 ## 執行佇列
 
+## 進入第 0 項前置處理
+
+- 1.5：DONE
+- legacy 重複報告清理：DONE；保留目前腳本命名規則的 `SOURCE_STRATEGY_PERFORMANCE_REPORT_{TRADES,OPEN_LOTS}.csv`
+- E3 breakout regression-only 豁免：PENDING
+- #44 三份全期報告標記與接觸補登：PENDING
+
+
 ### 0. [BLOCKED] 時期治理與接觸清冊
 
 狀態：BLOCKED
