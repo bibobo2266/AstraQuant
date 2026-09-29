@@ -2,16 +2,30 @@
 from __future__ import annotations
 
 import hashlib
+import importlib.util
 import os
 from pathlib import Path
 
 import pandas as pd
 
-from source_strategy_integration_smoke import (
-    CURATED_COMPOSITE_CONVERSIONS,
-    CURATED_SUCCESSOR_CONVERSIONS,
-    CURATED_TERMINAL_EVENTS,
-)
+
+def _load_strategy_smoke_module():
+    path = Path(__file__).resolve().with_name("source_strategy_integration_smoke.py")
+    spec = importlib.util.spec_from_file_location(
+        "source_strategy_integration_smoke_terminal_audit",
+        path,
+    )
+    module = importlib.util.module_from_spec(spec)
+    if spec.loader is None:
+        raise RuntimeError("cannot load source_strategy_integration_smoke.py")
+    spec.loader.exec_module(module)
+    return module
+
+
+_STRATEGY_SMOKE = _load_strategy_smoke_module()
+CURATED_COMPOSITE_CONVERSIONS = _STRATEGY_SMOKE.CURATED_COMPOSITE_CONVERSIONS
+CURATED_SUCCESSOR_CONVERSIONS = _STRATEGY_SMOKE.CURATED_SUCCESSOR_CONVERSIONS
+CURATED_TERMINAL_EVENTS = _STRATEGY_SMOKE.CURATED_TERMINAL_EVENTS
 
 SOURCE_ROOT = Path(
     os.environ.get("SOURCE_ROOT", "source_runtime/minervini_picks/data")
