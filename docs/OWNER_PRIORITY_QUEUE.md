@@ -29,13 +29,13 @@
 
 - 1.5：DONE
 - legacy 重複報告清理：DONE；保留目前腳本命名規則的 `SOURCE_STRATEGY_PERFORMANCE_REPORT_{TRADES,OPEN_LOTS}.csv`
-- E3 breakout regression-only 豁免：PENDING
+- E3 breakout regression-only 豁免：DONE
 - #44 三份全期報告標記與接觸補登：PENDING
 
 
-### 0. [BLOCKED] 時期治理與接觸清冊
+### 0. 時期治理與接觸清冊
 
-狀態：BLOCKED
+狀態：PENDING_PREREQ_4
 
 建立 strategy-version-specific E1/E2/E3/E4 時期治理、附加式接觸清冊與程式層效果查詢閘門。E3 效果查詢一律阻擋；E1 預設；E2 僅顯式啟用且強制標籤；路徑窗口與完整交易使用不同跨界 purge 規則。
 
@@ -44,7 +44,7 @@
 - docs/CONTACT_REGISTRY.md
 - 程式層閘門與測試
 
-卡住：硬性紀律要求任何改動後驗證 breakout final NAV 51,696,620.30；該既有回歸路徑延伸至 2026-07-07，但 E3 自 2026-07-01 起禁止任何策略效果／路徑統計。需 owner 明示固定 regression-only 斷言是否為例外，或本項是否免做該回歸驗證。
+E3 豁免：EX-001 已由 owner 裁定；僅允許 breakout 長窗 final NAV 51,696,620.30 的布林軟體回歸比對，限制詳見 docs/EPOCH_GOVERNANCE.md。
 
 ---
 
