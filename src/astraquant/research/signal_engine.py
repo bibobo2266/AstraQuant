@@ -13,6 +13,7 @@ from astraquant.research.technical_components import (
     kd_saturation_state,
     rsi_pullback_reclaim,
     vcp_breakout,
+    vcp_three_segment,
     rsi_relative,
     overnight_market_context,
     bollinger_compression_breakout,
@@ -125,6 +126,7 @@ def default_trigger_registry() -> ComponentRegistry[SignalComponentEvaluator]:
     registry.register("BOLLINGER_UPPER_BREAK", bollinger_upper_break)
     registry.register("BOLLINGER_COMPRESSION_BREAKOUT", bollinger_compression_breakout)
     registry.register("VCP_BREAKOUT", vcp_breakout)
+    registry.register("VCP_THREE_SEGMENT", vcp_three_segment)
     registry.register("ANCHOR_REVERSAL", anchor_reversal)
     registry.register("PULLBACK_RECLAIM", pullback_reclaim)
     registry.register("CONSECUTIVE_UP_DAYS", consecutive_up_days)
