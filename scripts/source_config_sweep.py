@@ -11,6 +11,7 @@ import pandas as pd
 
 from astraquant.portfolio.policy import PortfolioPolicyConfig
 from astraquant.research.parameter_sweep import ResearchParameterSweepRunner
+from astraquant.research.outcomes import build_forward_outcomes_with_cross_sectional_demean
 from astraquant.research.signal_engine import SignalContext
 from astraquant.research.universe_engine import UniverseContext
 
@@ -123,14 +124,6 @@ def _research_panel() -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
     return panel, adjusted, tradability
 
 
-def _forward_outcomes(panel: pd.DataFrame) -> pd.DataFrame:
-    x = panel[["date", "stock_id", "close"]].copy()
-    x = x.sort_values(["stock_id", "date"], kind="stable").reset_index(drop=True)
-    future = x.groupby("stock_id", sort=False)["close"].shift(-FORWARD_SESSIONS)
-    x["forward_return"] = future / x["close"] - 1.0
-    return x[["date", "stock_id", "forward_return"]]
-
-
 def _metrics(candidate_returns: pd.Series) -> dict[str, float | int]:
     r = pd.to_numeric(candidate_returns, errors="coerce").dropna()
     winners = r[r > 0]
@@ -195,7 +188,12 @@ def main() -> None:
         ),
     )
 
-    outcomes = _forward_outcomes(panel)
+    outcomes = build_forward_outcomes_with_cross_sectional_demean(
+        panel,
+        excluded_tickers=excluded,
+        forward_sessions=FORWARD_SESSIONS,
+        min_cross_section=200,
+    )
     rows: list[dict[str, object]] = []
 
     for item in stream.runs:
@@ -213,12 +211,18 @@ def main() -> None:
             how="left",
             validate="one_to_one",
         )
-        directional_return = (
+        absolute_directional_return = (
             joined["forward_return"]
             if OUTCOME_DIRECTION == "LONG"
             else -joined["forward_return"]
         )
-        metric = _metrics(directional_return)
+        demeaned_directional_return = (
+            joined["demeaned_forward_return"]
+            if OUTCOME_DIRECTION == "LONG"
+            else -joined["demeaned_forward_return"]
+        )
+        metric = _metrics(absolute_directional_return)
+        demeaned_metric = _metrics(demeaned_directional_return)
         rows.append(
             {
                 "run_name": run.run_config.run_name,
@@ -239,6 +243,18 @@ def main() -> None:
                 "payoff": metric["payoff"],
                 "expectancy": metric["expectancy"],
                 "median_return": metric["median_return"],
+                "demeaned_valid_outcomes": demeaned_metric["valid_outcomes"],
+                "demeaned_outcome_coverage": (
+                    float(demeaned_metric["valid_outcomes"]) / len(signals)
+                    if len(signals)
+                    else float("nan")
+                ),
+                "demeaned_win_rate": demeaned_metric["win_rate"],
+                "demeaned_avg_win": demeaned_metric["avg_win"],
+                "demeaned_avg_loss": demeaned_metric["avg_loss"],
+                "demeaned_payoff": demeaned_metric["payoff"],
+                "demeaned_expectancy": demeaned_metric["expectancy"],
+                "demeaned_median_return": demeaned_metric["median_return"],
             }
         )
 
@@ -253,7 +269,14 @@ def main() -> None:
 
     valid = results[results["valid_outcomes"].gt(0)].copy()
     exp = pd.to_numeric(valid["expectancy"], errors="coerce").dropna()
+    demeaned_valid = results[results["demeaned_valid_outcomes"].gt(0)].copy()
+    demeaned_exp = pd.to_numeric(
+        demeaned_valid["demeaned_expectancy"], errors="coerce"
+    ).dropna()
     coverage = pd.to_numeric(valid["outcome_coverage"], errors="coerce").dropna()
+    demeaned_coverage = pd.to_numeric(
+        demeaned_valid["demeaned_outcome_coverage"], errors="coerce"
+    ).dropna()
 
     lines = [
         "# Source-backed Config Sweep",
@@ -263,7 +286,9 @@ def main() -> None:
         "## Research boundary",
         "",
         "- This is a candidate-level research screen, not executable portfolio evidence.",
-        f"- Outcome: {OUTCOME_DIRECTION.lower()}-direction adjusted close-to-close return {FORWARD_SESSIONS} source sessions after the signal date.",
+        f"- Absolute outcome: {OUTCOME_DIRECTION.lower()}-direction adjusted close-to-close return {FORWARD_SESSIONS} source sessions after the signal date.",
+        "- Demeaned outcome: stock forward return minus the same-date P2-060 common-support cross-sectional mean, then direction-adjusted.",
+        "- Demean cross-section requires four-digit numeric IDs, frozen P2-060 exclusions removed, observed_trade AND valid_ohlc, and at least 200 valid names on that date.",
         "- No RAW fill, capacity, corporate-action path, FIFO path, stop execution, or portfolio sequencing is represented here.",
         "- The sweep does not select or promote a winning parameter combination.",
         "- Locked OOS remains locked.",
@@ -282,10 +307,14 @@ def main() -> None:
         "",
         f"- combinations with at least one valid forward outcome: {len(valid):,}/{len(results):,}",
         f"- total signal candidates across combinations: {int(results['signals'].sum()):,}",
-        f"- median outcome coverage: {coverage.median()*100:.2f}%" if len(coverage) else "- median outcome coverage: n/a",
-        f"- expectancy q10 / median / q90 across combinations: "
-        f"{exp.quantile(0.10)*100:.2f}% / {exp.median()*100:.2f}% / {exp.quantile(0.90)*100:.2f}%" if len(exp) else "- expectancy distribution: n/a",
-        f"- fraction of combinations with positive expectancy: {(exp > 0).mean()*100:.2f}%" if len(exp) else "- positive-expectancy fraction: n/a",
+        f"- median absolute-outcome coverage: {coverage.median()*100:.2f}%" if len(coverage) else "- median absolute-outcome coverage: n/a",
+        f"- median demeaned-outcome coverage: {demeaned_coverage.median()*100:.2f}%" if len(demeaned_coverage) else "- median demeaned-outcome coverage: n/a",
+        f"- absolute expectancy q10 / median / q90 across combinations: "
+        f"{exp.quantile(0.10)*100:.2f}% / {exp.median()*100:.2f}% / {exp.quantile(0.90)*100:.2f}%" if len(exp) else "- absolute expectancy distribution: n/a",
+        f"- demeaned expectancy q10 / median / q90 across combinations: "
+        f"{demeaned_exp.quantile(0.10)*100:.2f}% / {demeaned_exp.median()*100:.2f}% / {demeaned_exp.quantile(0.90)*100:.2f}%" if len(demeaned_exp) else "- demeaned expectancy distribution: n/a",
+        f"- fraction of combinations with positive absolute expectancy: {(exp > 0).mean()*100:.2f}%" if len(exp) else "- positive absolute-expectancy fraction: n/a",
+        f"- fraction of combinations with positive demeaned expectancy: {(demeaned_exp > 0).mean()*100:.2f}%" if len(demeaned_exp) else "- positive demeaned-expectancy fraction: n/a",
         "",
         "## Marginal parameter summaries",
         "",
@@ -298,13 +327,23 @@ def main() -> None:
         if c.startswith("filter:") or c.startswith("trigger.") or c.startswith("exit:") or c.startswith("universe:")
     ]
     for col in param_cols:
-        lines += [f"### {col}", "", "| Value | Configs | Median signals | Median expectancy | Positive expectancy configs |", "|---|---:|---:|---:|---:|"]
+        lines += [
+            f"### {col}",
+            "",
+            "| Value | Configs | Median signals | Median absolute expectancy | Median demeaned expectancy | Positive absolute configs | Positive demeaned configs |",
+            "|---|---:|---:|---:|---:|---:|---:|",
+        ]
         for value, group in valid.groupby(col, dropna=False, sort=True):
             gx = pd.to_numeric(group["expectancy"], errors="coerce").dropna()
+            gd = pd.to_numeric(
+                group["demeaned_expectancy"], errors="coerce"
+            ).dropna()
             lines.append(
                 f"| {value} | {len(group):,} | {group['signals'].median():.0f} "
                 f"| {gx.median()*100:.2f}% "
-                f"| {(gx > 0).mean()*100:.1f}% |"
+                f"| {gd.median()*100:.2f}% "
+                f"| {(gx > 0).mean()*100:.1f}% "
+                f"| {(gd > 0).mean()*100:.1f}% |"
             )
         lines.append("")
 
@@ -313,7 +352,7 @@ def main() -> None:
         "",
         f"Machine-readable table: `{CSV_PATH.as_posix()}`.",
         "",
-        "The next valid step is robustness analysis over neighboring cells / calendar regimes. Do not infer a Taiwan-optimal parameter from the maximum cell.",
+        "Absolute and demeaned outcomes are reported side by side. The next valid step is robustness analysis over neighboring cells / calendar regimes. Do not infer a Taiwan-optimal parameter from the maximum cell.",
     ]
 
     REPORT_PATH.parent.mkdir(parents=True, exist_ok=True)
