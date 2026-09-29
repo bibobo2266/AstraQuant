@@ -79,6 +79,47 @@ class ResearchConfigEngine:
             raise ValueError(f"config path escapes research root: {configured}") from exc
         return candidate
 
+    def prepare_from_configs(
+        self,
+        *,
+        run_config: StrategyRunConfig,
+        universe_config: UniverseConfig,
+        signal_config: SignalConfig,
+        exit_config: ExitConfig,
+        panel: pd.DataFrame,
+        universe_context: UniverseContext,
+        signal_context: SignalContext,
+        base_policy: PortfolioPolicyConfig,
+    ) -> PreparedResearchRun:
+        mask = self.universe_compiler.compile(
+            universe_config,
+            panel,
+            universe_context,
+        )
+        signal_plan = self.signal_compiler.compile(signal_config)
+        signal_frame = self.signal_evaluator.evaluate(
+            signal_plan,
+            panel,
+            mask,
+            signal_context,
+        )
+        exit_plan = self.exit_compiler.compile(exit_config)
+        policy = exit_plan.apply_to_policy(base_policy)
+
+        return PreparedResearchRun(
+            run_config=run_config,
+            universe_config=universe_config,
+            signal_config=signal_config,
+            exit_config=exit_config,
+            universe_mask=mask,
+            signal_frame=signal_frame,
+            signal_plan=signal_plan,
+            exit_plan=exit_plan,
+            portfolio_policy=policy,
+            feature_cache_hits=self.feature_cache.hits,
+            feature_cache_misses=self.feature_cache.misses,
+        )
+
     def prepare(
         self,
         *,
@@ -94,32 +135,13 @@ class ResearchConfigEngine:
         universe_cfg = load_universe_config(self._resolve(root_path, run_cfg.universe))
         signal_cfg = load_signal_config(self._resolve(root_path, run_cfg.signal))
         exit_cfg = load_exit_config(self._resolve(root_path, run_cfg.exit))
-
-        mask = self.universe_compiler.compile(
-            universe_cfg,
-            panel,
-            universe_context,
-        )
-        signal_plan = self.signal_compiler.compile(signal_cfg)
-        signal_frame = self.signal_evaluator.evaluate(
-            signal_plan,
-            panel,
-            mask,
-            signal_context,
-        )
-        exit_plan = self.exit_compiler.compile(exit_cfg)
-        policy = exit_plan.apply_to_policy(base_policy)
-
-        return PreparedResearchRun(
+        return self.prepare_from_configs(
             run_config=run_cfg,
             universe_config=universe_cfg,
             signal_config=signal_cfg,
             exit_config=exit_cfg,
-            universe_mask=mask,
-            signal_frame=signal_frame,
-            signal_plan=signal_plan,
-            exit_plan=exit_plan,
-            portfolio_policy=policy,
-            feature_cache_hits=self.feature_cache.hits,
-            feature_cache_misses=self.feature_cache.misses,
+            panel=panel,
+            universe_context=universe_context,
+            signal_context=signal_context,
+            base_policy=base_policy,
         )

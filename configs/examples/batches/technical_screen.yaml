@@ -1,0 +1,11 @@
+schema_version: "1"
+name: technical_screen
+universes:
+  - configs/examples/universes/stable_defense_aero.yaml
+signals:
+  - configs/examples/signals/high250_executable.yaml
+exits:
+  - configs/examples/exits/stop12_time250_executable.yaml
+execution_assumptions_id: taiwan-zero-cost-signal-isolation-v1
+max_combinations: 1000
+report_trade_stats_first: true

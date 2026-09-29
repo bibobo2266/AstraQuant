@@ -603,3 +603,27 @@ The contract is now partially executable through `ResearchConfigEngine.prepare()
 - exits: fixed stop with no profit target plus time/max-hold adapter to the existing canonical policy.
 
 Not yet implemented: official eight-group provider, rolling correlation grouping, delayed three-session gap-unfilled confirmation, Ichimoku triggers/exits, fixed profit target, MA/EMA/Bollinger/ATR/trailing/Donchian exit evaluators, and the standardized PIT feature builders feeding STABLE/fundamental columns. Missing evaluators fail at compile time rather than falling back.
+
+## 12. Batch matrix execution
+
+A batch matrix is a config file, not a script. `ResearchBatchRunner.prepare_matrix()` expands the Cartesian product of configured universe, signal, and exit files. Every expanded combination reuses the same `FeatureCache` instance, so identical feature requests are computed once per source revision/parameter/availability key.
+
+Example:
+
+```yaml
+schema_version: "1"
+name: technical_screen
+universes: [configs/universes/all.yaml]
+signals:
+  - configs/signals/high20.yaml
+  - configs/signals/high60.yaml
+  - configs/signals/rsi50.yaml
+exits:
+  - configs/exits/stop12_time250.yaml
+  - configs/exits/stop10_time120.yaml
+execution_assumptions_id: taiwan-zero-cost-signal-isolation-v1
+max_combinations: 1000
+report_trade_stats_first: true
+```
+
+This example expands to six prepared combinations. `max_combinations` is a hard guard against accidental Cartesian explosions. Preparation does not itself run RAW execution/accounting; full canonical simulation remains a separate expensive stage for selected combinations.

@@ -7,6 +7,7 @@ import yaml
 from pydantic import BaseModel
 
 from astraquant.research.strategy_config import (
+    BatchMatrixConfig,
     ExitConfig,
     SignalConfig,
     StrategyRunConfig,
@@ -50,3 +51,7 @@ def load_run_config(path: str | Path) -> StrategyRunConfig:
 
 def load_theme_file(path: str | Path) -> ThemeFile:
     return load_model(path, ThemeFile)
+
+
+def load_batch_matrix_config(path: str | Path) -> BatchMatrixConfig:
+    return load_model(path, BatchMatrixConfig)

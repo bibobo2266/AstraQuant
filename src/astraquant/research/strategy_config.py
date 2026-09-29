@@ -242,3 +242,29 @@ class AvailabilityContract(FrozenModel):
     monthly_revenue_available_day_next_month: Literal[10] = 10
     institutional_and_margin_usable: Literal["T+1"] = "T+1"
     universe_mask_must_preserve_rows: Literal[True] = True
+
+
+class BatchMatrixConfig(FrozenModel):
+    schema_version: Literal["1"] = "1"
+    name: str
+    universes: tuple[str, ...]
+    signals: tuple[str, ...]
+    exits: tuple[str, ...]
+    execution_assumptions_id: str
+    max_combinations: int = Field(default=1000, ge=1)
+    report_trade_stats_first: Literal[True] = True
+
+    @model_validator(mode="after")
+    def validate_matrix(self):
+        if not self.universes or not self.signals or not self.exits:
+            raise ValueError("batch matrix requires non-empty universe/signal/exit lists")
+        combinations = len(self.universes) * len(self.signals) * len(self.exits)
+        if combinations > self.max_combinations:
+            raise ValueError(
+                f"batch matrix has {combinations} combinations, exceeds max_combinations={self.max_combinations}"
+            )
+        return self
+
+    @property
+    def combination_count(self) -> int:
+        return len(self.universes) * len(self.signals) * len(self.exits)
