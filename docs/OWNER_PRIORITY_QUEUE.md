@@ -2,10 +2,10 @@
 
 ## 目前狀態
 
-更新時間：2026-09-29T14:12:00Z
-做完：第 2 項完成
-結果：L1 17；表外 5；L2 55/8/10；L3 14/2/2；出場 2/9；清單外 4
-卡住：無
+更新時間：2026-09-29T23:30:00Z
+做完：VCP Round 1 unit-gate CI 缺 pytest 已修正，最新 tests 通過
+結果：VCP sweep 36593441912 failure；tests 36645388717 success；regression 36645388725 執行中
+卡住：等待 EX-001 regression 完成後重跑 VCP Round 1
 下一項：3
 
 狀態：ACTIVE
