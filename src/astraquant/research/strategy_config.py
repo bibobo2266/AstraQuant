@@ -306,6 +306,7 @@ class ParameterSweepConfig(FrozenModel):
     axes: tuple[SweepAxis, ...]
     constraints: tuple[SweepConstraint, ...] = ()
     execution_assumptions_id: str
+    fixed_settings: dict[str, Any] = Field(default_factory=dict)
     max_combinations: int = Field(default=1000, ge=1)
     report_trade_stats_first: Literal[True] = True
 
