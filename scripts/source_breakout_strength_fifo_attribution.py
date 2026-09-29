@@ -243,7 +243,7 @@ def _paired_year_block_difference(
 def _run_rule(*, name, rule, signals, sim_sessions, ca_instructions, ticker_scope):
     portfolio = PortfolioEngine(opening_cash=INITIAL_CASH)
     execution = CanonicalExecutionService(
-        market_data=ExecutionMarketData(SourceDataAdapter(SOURCE_ROOT), ticker_scope=valuation_scope),
+        market_data=ExecutionMarketData(SourceDataAdapter(SOURCE_ROOT), ticker_scope=ticker_scope),
         fill_factory=ExecutionFillFactory(
             fee_model=ZeroFeeModel(),
             slippage_model=FixedBpsSlippage(bps=0),
