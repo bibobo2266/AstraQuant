@@ -76,7 +76,7 @@ Anchor-DOWN 空方 outcome 同樣先去均值，再反號。
 
 ### 1.5 通用 config 報告指令
 
-狀態：PAUSED_BY_0
+狀態：DONE
 
 `scripts/source_strategy_performance_report.py` 目前仍自行組建舊 breakout 訊號集。改為接受任一 config，輸出同一份 FIFO 交易表 + 基準比較，不需為每條訊號寫客製腳本。
 
