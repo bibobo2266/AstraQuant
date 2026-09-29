@@ -11,7 +11,7 @@ permissions:
   contents: write
 
 concurrency:
-  group: research-effect-publication
+  group: vcp-round1-amp3-diagnostic
   cancel-in-progress: false
 
 jobs:
