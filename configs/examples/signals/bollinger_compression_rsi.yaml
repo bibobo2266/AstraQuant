@@ -1,0 +1,20 @@
+schema_version: "1"
+name: bollinger_compression_rsi
+trigger:
+  type: BOLLINGER_COMPRESSION_BREAKOUT
+  params:
+    window: 14
+    stddev: 2.0
+    percentile_lookback: 120
+    max_bandwidth_percentile: 0.20
+    recent_compression_sessions: 5
+    volume_lookback: 20
+    volume_multiplier: 1.5
+    require_mid_slope_up: true
+    mid_slope_lookback: 5
+filters:
+  - type: RSI_RELATIVE
+    params:
+      fast_lookback: 13
+      slow_lookback: 26
+ranking: []

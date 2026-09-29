@@ -1,0 +1,13 @@
+schema_version: "1"
+name: vcp_breakout
+trigger:
+  type: VCP_BREAKOUT
+  params:
+    contraction_windows: [60, 30, 15]
+    pivot_lookback: 20
+    volume_base_lookback: 60
+    volume_dryup_lookback: 10
+    max_dryup_volume_ratio: 0.70
+    max_chase_pct: 0.05
+filters: []
+ranking: []

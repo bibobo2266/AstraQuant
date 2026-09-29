@@ -1,0 +1,12 @@
+schema_version: "1"
+name: anchor_up_reversal
+trigger:
+  type: ANCHOR_REVERSAL
+  params:
+    direction: UP
+    left_confirm_sessions: 5
+    right_confirm_sessions: 2
+    required_closes: 2
+    max_wait_sessions: 20
+filters: []
+ranking: []

@@ -9,6 +9,12 @@ from astraquant.research.component_registry import ComponentRegistry
 from astraquant.research.feature_cache import FeatureCache, FeatureCacheKey
 from astraquant.research.strategy_config import ComponentSpec, LogicalOp, SignalConfig
 from astraquant.research.technical_components import (
+    vcp_breakout,
+    rsi_relative,
+    overnight_market_context,
+    bollinger_compression_breakout,
+    bollinger_compression,
+    anchor_reversal,
     bollinger_upper_break,
     column_threshold,
     column_value,
@@ -112,6 +118,9 @@ def default_trigger_registry() -> ComponentRegistry[SignalComponentEvaluator]:
     registry.register("KD_LOW_ZONE_GOLDEN_CROSS", kd_low_zone_golden_cross)
     registry.register("RSI_CROSS", rsi_cross)
     registry.register("BOLLINGER_UPPER_BREAK", bollinger_upper_break)
+    registry.register("BOLLINGER_COMPRESSION_BREAKOUT", bollinger_compression_breakout)
+    registry.register("VCP_BREAKOUT", vcp_breakout)
+    registry.register("ANCHOR_REVERSAL", anchor_reversal)
     registry.register("PULLBACK_RECLAIM", pullback_reclaim)
     registry.register("CONSECUTIVE_UP_DAYS", consecutive_up_days)
     return registry
@@ -121,6 +130,9 @@ def default_filter_registry() -> ComponentRegistry[SignalComponentEvaluator]:
     registry: ComponentRegistry[SignalComponentEvaluator] = ComponentRegistry("signal filter")
     registry.register("RSI", rsi_filter)
     registry.register("LONG_TERM_TREND_STRUCTURE", long_term_trend_structure)
+    registry.register("BOLLINGER_COMPRESSION", bollinger_compression)
+    registry.register("RSI_RELATIVE", rsi_relative)
+    registry.register("OVERNIGHT_MARKET_CONTEXT", overnight_market_context)
     registry.register("COLUMN_THRESHOLD", column_threshold)
     return registry
 

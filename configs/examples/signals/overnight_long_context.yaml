@@ -1,0 +1,13 @@
+schema_version: "1"
+name: overnight_long_context_example
+trigger:
+  type: N_SESSION_HIGH
+  params:
+    lookback: 60
+filters:
+  - type: OVERNIGHT_MARKET_CONTEXT
+    params:
+      direction: LONG
+      min_basis: 0.0
+      min_positive_sources: 2
+ranking: []

@@ -52,3 +52,5 @@ Phase-1 runtime/data audit is complete with explicit limitations. Phase-2 execut
 - [Three-layer research engine contract](THREE_LAYER_RESEARCH_ENGINE_CONTRACT.md) — config schemas and interfaces for independently swappable universe, signal, and exit layers.
 
 - [Research architecture playbook](RESEARCH_ARCHITECTURE_PLAYBOOK.md) — practical guide to the three-layer engine, reusable components, themes, parameter sweeps, robust-region research, and pool-specific calibration.
+
+- [Research observation catalog](RESEARCH_OBSERVATION_CATALOG.md) — owner-supplied market context, Bollinger/VCP, and Anchor-reversal observations translated into PIT-safe, configurable research components.
