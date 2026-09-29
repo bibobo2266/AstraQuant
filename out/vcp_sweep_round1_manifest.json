@@ -1,0 +1,99 @@
+{
+  "artifacts": [
+    "out/vcp_sweep_round1.csv",
+    "out/vcp_sweep_round1_trades.csv",
+    "out/vcp_sweep_round1_open_positions.csv",
+    "out/vcp_sweep_overlap.csv",
+    "out/vcp_sweep_round1_pilot.csv",
+    "out/vcp_sweep_round1_signal_diagnostics.csv",
+    "out/vcp_round1_axis_base_len.png",
+    "out/vcp_round1_axis_last_contraction.png",
+    "out/vcp_round1_axis_dry_up.png",
+    "out/vcp_round1_axis_breakout_vol.png",
+    "out/vcp_round1_heatmap_base_len_x_last_contraction.png",
+    "out/vcp_round1_heatmap_base_len_x_dry_up.png",
+    "out/vcp_round1_heatmap_base_len_x_breakout_vol.png",
+    "out/vcp_round1_heatmap_last_contraction_x_dry_up.png",
+    "out/vcp_round1_heatmap_last_contraction_x_breakout_vol.png",
+    "out/vcp_round1_heatmap_dry_up_x_breakout_vol.png",
+    "docs/VCP_ROUND1_THREE_SEGMENT_V1.md"
+  ],
+  "batch_consistency": [
+    {
+      "config_id": "VCP-R1-001",
+      "match": true
+    },
+    {
+      "config_id": "VCP-R1-054",
+      "match": true
+    },
+    {
+      "config_id": "VCP-R1-108",
+      "match": true
+    }
+  ],
+  "code_commit": "4b3b4c8c76f09c16f46fbe2863a3f772d3e8c3da",
+  "config_hashes": {
+    "configs/examples/exits/vcp_round1_atr21_d21.yaml": "b6e8a49fb43304045f9a975816f7202bf02b909179ddd292a9f26114d01ad679",
+    "configs/examples/signals/vcp_round1_three_segment_v1.yaml": "e52c7d7964421f4a1223f9a41c50c55c7fff98f683dc108cc8537fabfaccd0d7",
+    "configs/research/vcp_round1_three_segment_v1.yaml": "157ca2cd8447b50a69427cbc1492fc58e8b5bebd7dbb485ca605ae621f3afd16"
+  },
+  "declared_combinations": 108,
+  "eligibility_union_distinct_tickers": 1986,
+  "epoch": "E1",
+  "evaluated_combinations": 108,
+  "execution_assumptions_id": "vcp-round1-costs-v1",
+  "feature_cache": {
+    "hits": 2130,
+    "misses": 30
+  },
+  "fixed_settings": {
+    "adjustment_method": "ADJUSTED_RESEARCH_INDICATORS_RAW_EXECUTION_CA_ACCOUNTING",
+    "adverse_slippage_bps_each_side": 10.0,
+    "batch_consistency_sample_count": 3,
+    "buy_fee_bps": 14.25,
+    "cross_stock_capital_competition": false,
+    "entry_chase_multiple": 1.05,
+    "entry_timing": "NEXT_COMMON_OPEN",
+    "epoch": "E1",
+    "high_score_fraction": 0.25,
+    "low_n_closed_trades": 100,
+    "normalized_initial_notional": 1.0,
+    "one_open_trade_per_config_ticker": true,
+    "overlap_top_trades": 20,
+    "overlap_warning_threshold": 0.6,
+    "pilot_config_count": 2,
+    "reentry_cooldown_sessions": 0,
+    "remove_top_profit_counts": [
+      1,
+      3,
+      5
+    ],
+    "sell_fee_bps_including_tax": 44.25,
+    "settlement_lag_sessions": 2
+  },
+  "full_runtime_seconds": 89.11273336599993,
+  "null_calibration": {
+    "statement": "亂數對照／預期偽陽性數尚未完成，本輪無推論性存活名單",
+    "status": "NOT_REUSABLE_UNDER_EXISTING_FROZEN_CONTRACT"
+  },
+  "p2_060_exclusion_sha": "379d58f6a8aa06b1e020d56911930f4bc01861d3eeca109613d9e5b1e490d134",
+  "p2_excluded_distinct_tickers": 355,
+  "period": [
+    "2016-01-04",
+    "2021-12-31"
+  ],
+  "pilot": {
+    "artifact": "out/vcp_sweep_round1_pilot.csv",
+    "config_ids": [
+      "VCP-R1-001",
+      "VCP-R1-002"
+    ],
+    "runtime_seconds": 2.0065873570000576
+  },
+  "research_numeric_scope_after_p2": 1733,
+  "source_revision": "39eb22662f74a4591b1e57795174ffc2f7585f44",
+  "strategy_version": "vcp_round1_three_segment_v1",
+  "terminal_affected_trade_records": 27,
+  "terminal_unverified_tickers": 53
+}
