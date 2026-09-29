@@ -1,11 +1,9 @@
 #!/usr/bin/env python3
 from __future__ import annotations
 
-import math
 import os
 from pathlib import Path
 
-import numpy as np
 import pandas as pd
 
 from astraquant.data.market_coordinates import SignalPriceSemantics
@@ -16,8 +14,13 @@ from astraquant.execution.market_data import ExecutionMarketData
 from astraquant.execution.service import CanonicalExecutionService, SignalDeclaration
 from astraquant.features.technical import BreakoutSignalConfig, build_simple_breakout_signals
 from astraquant.portfolio.engine import PortfolioEngine
+from astraquant.portfolio.performance_reporting import build_trade_report, portfolio_fills
 from astraquant.portfolio.policy import PortfolioIntentPolicy, PortfolioPolicyConfig
 from astraquant.portfolio.strategy_simulator import CanonicalStrategySimulator, StrategySimulationConfig
+from astraquant.research.benchmark import (
+    compare_strategy_to_total_return_benchmark,
+    load_finmind_total_return_index,
+)
 
 from source_strategy_integration_smoke import (
     SIGNAL_START,
@@ -30,11 +33,17 @@ from source_strategy_integration_smoke import (
 )
 
 REPORT_PATH = Path(os.environ.get("REPORT_PATH", "docs/SOURCE_STRATEGY_PERFORMANCE_REPORT.md"))
+SOURCE_ROOT = Path(os.environ.get("SOURCE_ROOT", "source_runtime/minervini_picks/data")).resolve()
 INITIAL_CASH = 10_000_000.0
+EXPECTED_LONG_NAV = 51_696_620.30
 
 
 def _pct(x: float) -> str:
-    return f"{x * 100:.2f}%"
+    return "n/a" if pd.isna(x) else f"{x * 100:.2f}%"
+
+
+def _num(x: float, digits: int = 3) -> str:
+    return "n/a" if pd.isna(x) else f"{x:.{digits}f}"
 
 
 def main() -> None:
@@ -85,12 +94,7 @@ def main() -> None:
     portfolio = PortfolioEngine(opening_cash=INITIAL_CASH)
     execution = CanonicalExecutionService(
         market_data=ExecutionMarketData(
-            SourceDataAdapter(
-                Path(os.environ.get(
-                    "SOURCE_ROOT",
-                    "source_runtime/minervini_picks/data",
-                )).resolve()
-            ),
+            SourceDataAdapter(SOURCE_ROOT),
             ticker_scope=candidate_tickers,
         ),
         fill_factory=ExecutionFillFactory(
@@ -136,69 +140,93 @@ def main() -> None:
     if nav.empty or (nav <= 0).any():
         raise SystemExit("FAIL: NAV series is empty or nonpositive")
 
-    daily_returns = nav.pct_change().dropna()
-    total_return = nav.iloc[-1] / INITIAL_CASH - 1.0
-    elapsed_years = (dates[-1] - dates[0]).days / 365.2425
-    cagr = (nav.iloc[-1] / INITIAL_CASH) ** (1.0 / elapsed_years) - 1.0
-    running_peak = nav.cummax()
-    drawdown = nav / running_peak - 1.0
-    max_drawdown = float(drawdown.min())
-    max_dd_date = pd.Timestamp(drawdown.idxmin()).date()
-
-    ann_vol = float(daily_returns.std(ddof=1) * math.sqrt(252)) if len(daily_returns) > 1 else float("nan")
-    sharpe = (
-        float(daily_returns.mean() / daily_returns.std(ddof=1) * math.sqrt(252))
-        if len(daily_returns) > 1 and daily_returns.std(ddof=1) > 0
-        else float("nan")
+    trade_report = build_trade_report(portfolio)
+    fills = portfolio_fills(portfolio)
+    total_return_index = load_finmind_total_return_index(
+        SOURCE_ROOT / "futures" / "index_tri.parquet",
+        stock_id="TAIEX",
     )
-    positive_day_rate = float((daily_returns > 0).mean()) if len(daily_returns) else float("nan")
-    best_day = float(daily_returns.max()) if len(daily_returns) else float("nan")
-    worst_day = float(daily_returns.min()) if len(daily_returns) else float("nan")
+    comparison = compare_strategy_to_total_return_benchmark(
+        strategy_nav=nav,
+        total_return_index=total_return_index,
+        initial_cash=INITIAL_CASH,
+        fills=fills,
+        trade_report=trade_report,
+    )
+    stats = trade_report.statistics
 
     checks = {
-        "same_signal_window_as_long_horizon_probe": SIGNAL_START == pd.Timestamp("2016-01-04") and SIGNAL_END == pd.Timestamp("2026-06-30"),
+        "same_signal_window_as_long_horizon_probe": (
+            SIGNAL_START == pd.Timestamp("2016-01-04")
+            and SIGNAL_END == pd.Timestamp("2026-06-30")
+        ),
         "same_policy_configuration": True,
         "raw_nav_series_complete": len(nav) == len(sim_sessions),
         "no_unsupported_ca_cash": unsupported_ca_cash == 0,
         "pit_unsafe_ca_tickers_excluded": not bool(candidate_tickers & quarantined_tickers),
         "positive_nav_all_sessions": bool((nav > 0).all()),
+        "frozen_long_nav_bitwise_cent_check": round(float(nav.iloc[-1]), 2) == EXPECTED_LONG_NAV,
+        "benchmark_same_trading_days": comparison.benchmark_nav.index.equals(nav.index),
     }
     status = "PASS" if all(checks.values()) else "FAIL"
 
     lines = [
-        "# Frozen Canonical Strategy Descriptive Performance Report",
+        "# Frozen Canonical Strategy Performance + Total-Return Benchmark Report",
         "",
         f"Status: **{status}**",
         "",
-        "This report computes descriptive statistics for the exact audited canonical long-horizon configuration. It is not OOS validation, robustness validation, parameter promotion, or an investment recommendation.",
+        "This is descriptive in-sample evidence for the frozen canonical configuration. It is not OOS validation, parameter promotion, or an investment recommendation.",
         "",
         "## Frozen configuration",
         "",
         f"- signal window: {SIGNAL_START.date()} through {SIGNAL_END.date()}",
         f"- simulation/drain horizon: {dates[0].date()} through {dates[-1].date()}",
-        f"- RAW NAV sessions: {len(nav):,}",
+        f"- RAW strategy NAV sessions: {len(nav):,}",
         f"- starting capital: {INITIAL_CASH:,.2f}",
         f"- canonical signals supplied: {len(signals):,}",
         f"- PIT-unsafe CA tickers quarantined: {len(quarantined_tickers):,}",
         f"- signal rows removed by PIT CA quarantine: {quarantined_signal_rows:,}",
         "- policy: 10% NAV target, max 10 positions, 12% RAW stop, 20-session re-entry gap, 250-session max hold, 1000-share lot, seed 0",
-        "- execution assumptions: zero explicit fees, zero slippage in this frozen descriptive run",
+        "- executable exit layer in this round: fixed stop + time/max-hold only",
+        "- strategy execution assumptions: zero explicit fees and zero slippage in this frozen descriptive run",
+        "- benchmark: FinMind TaiwanStockTotalReturnIndex (TAIEX), buy-and-hold, same starting capital and exact strategy trading dates, no benchmark transaction-cost deduction",
         "",
-        "## Descriptive statistics",
+        "## 一、單筆層（主表）",
         "",
-        f"- final NAV: {nav.iloc[-1]:,.2f}",
-        f"- total return: {_pct(total_return)}",
-        f"- CAGR: {_pct(cagr)}",
-        f"- maximum drawdown: {_pct(max_drawdown)}",
-        f"- maximum drawdown date: {max_dd_date}",
-        f"- annualized daily volatility (sqrt(252)): {_pct(ann_vol)}",
-        f"- daily Sharpe ratio (rf=0, sqrt(252)): {sharpe:.3f}",
-        f"- positive-session return rate: {_pct(positive_day_rate)}",
-        f"- best session return: {_pct(best_day)}",
-        f"- worst session return: {_pct(worst_day)}",
+        "| Metric | Strategy |",
+        "|---|---:|",
+        f"| Closed trades n | {stats.n:,} |",
+        f"| Win rate | {_pct(stats.win_rate)} |",
+        f"| Average win | {_pct(stats.average_win)} |",
+        f"| Average loss | {_pct(stats.average_loss)} |",
+        f"| Payoff ratio | {_num(stats.payoff_ratio)} |",
+        f"| Expectancy per trade | {_pct(stats.expectancy)} |",
         "",
-        "## Activity/accounting counts",
+        f"Open FIFO lots are reported separately and excluded from the table above: **{len(trade_report.reconstruction.open_lots):,}** open lots.",
         "",
+        "## 二、超額與代價",
+        "",
+        "| Metric | Value |",
+        "|---|---:|",
+        f"| Cumulative excess return (strategy - benchmark) | {_pct(comparison.cumulative_excess_return)} |",
+        f"| Daily-return correlation | {_num(comparison.daily_return_correlation)} |",
+        f"| Beta vs total-return benchmark | {_num(comparison.beta)} |",
+        f"| Max-drawdown difference (strategy - benchmark) | {_pct(comparison.max_drawdown_difference)} |",
+        f"| Closed trade count | {comparison.trade_count:,} |",
+        f"| Annualized gross turnover | {_pct(comparison.annualized_gross_turnover)} |",
+        f"| Average holding days (calendar) | {_num(comparison.average_holding_days, 1)} |",
+        "",
+        "## 三、組合層（附表）",
+        "",
+        "| Metric | Strategy | Total-return benchmark |",
+        "|---|---:|---:|",
+        f"| CAGR | {_pct(comparison.strategy_path.cagr)} | {_pct(comparison.benchmark_path.cagr)} |",
+        f"| MaxDD | {_pct(comparison.strategy_path.max_drawdown)} | {_pct(comparison.benchmark_path.max_drawdown)} |",
+        f"| Sharpe (daily, rf=0, sqrt(252)) | {_num(comparison.strategy_path.sharpe)} | {_num(comparison.benchmark_path.sharpe)} |",
+        "",
+        "## Accounting/activity audit",
+        "",
+        f"- final strategy NAV: {nav.iloc[-1]:,.2f}",
         f"- entries executed: {result.total_entries:,}",
         f"- RAW stop exits: {result.total_stop_exits:,}",
         f"- RAW max-hold exits: {result.total_max_hold_exits:,}",
@@ -218,16 +246,18 @@ def main() -> None:
 
     lines += [
         "",
-        "## Interpretation boundary",
+        "## 判讀原則",
         "",
-        "These are in-sample/descriptive statistics for one frozen canonical configuration. They do not establish expected future returns. The next research steps are temporal replication, execution sensitivity, parameter-plateau testing, falsification/placebo work, and then truly locked future OOS evaluation.",
+        "輸給基準不是淘汰標準。本專案的目的是尋找 0050 以外的機會，評估重點是「超額有多大、代價是什麼、與大盤的相關性多低」。一條報酬較低但相關性低的策略，配置價值可能高於報酬較高但高度同向的策略。不得以「未跑贏大盤」為由停止研究某條訊號。",
+        "",
+        "Trade-level returns are reconstructed from canonical fills plus CA-aware FIFO events. Open lots are not mixed into closed-trade statistics. Portfolio-path metrics are secondary descriptive context.",
     ]
 
     REPORT_PATH.parent.mkdir(parents=True, exist_ok=True)
     REPORT_PATH.write_text("\n".join(lines) + "\n", encoding="utf-8")
 
     if status != "PASS":
-        raise SystemExit("FAIL: descriptive performance reproducibility gate failed")
+        raise SystemExit("FAIL: performance/benchmark reproducibility gate failed")
 
 
 if __name__ == "__main__":
