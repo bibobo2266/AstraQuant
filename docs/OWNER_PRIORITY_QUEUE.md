@@ -25,6 +25,19 @@
 
 ## 執行佇列
 
+### 0. [NOW] 時期治理與接觸清冊
+
+狀態：NOW
+
+建立 strategy-version-specific E1/E2/E3/E4 時期治理、附加式接觸清冊與程式層效果查詢閘門。E3 效果查詢一律阻擋；E1 預設；E2 僅顯式啟用且強制標籤；路徑窗口與完整交易使用不同跨界 purge 規則。
+
+產出：
+- docs/EPOCH_GOVERNANCE.md
+- docs/CONTACT_REGISTRY.md
+- 程式層閘門與測試
+
+---
+
 ### 1. 候選級 outcome 去均值修正 + 重算五份 sweep
 
 狀態：DONE
@@ -59,9 +72,9 @@ Anchor-DOWN 空方 outcome 同樣先去均值，再反號。
 
 ---
 
-### 1.5 [NOW] 通用 config 報告指令
+### 1.5 通用 config 報告指令
 
-狀態：NOW
+狀態：PAUSED_BY_0
 
 `scripts/source_strategy_performance_report.py` 目前仍自行組建舊 breakout 訊號集。改為接受任一 config，輸出同一份 FIFO 交易表 + 基準比較，不需為每條訊號寫客製腳本。
 
