@@ -41,3 +41,4 @@
 | 個股 2823 / 2883 / 2883B | 多腿接續證券轉換個案 | 2026-09-29 | 個別生命週期／估值路徑檢視 |
 | 個股 6286 | 終止證券生命週期個案 | 2026-09-29 | 個別生命週期／策略整合檢視 |
 
+| SOURCE_ONEIL_TAIWAN_SWEEP | 2016-01-04 ~ 2021-12-31 | 2026-09-29 | candidate-level effect report; epoch=E1; source_revision=39eb22662f74a4591b1e57795174ffc2f7585f44; forward_sessions=250 |
