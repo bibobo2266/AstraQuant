@@ -51,7 +51,7 @@ jobs:
 
       - name: Install AstraQuant
         working-directory: AstraQuant
-        run: python -m pip install --quiet -e .
+        run: python -m pip install --quiet -e ".[dev]"
 
       - name: Run VCP round1 unit gate
         working-directory: AstraQuant
