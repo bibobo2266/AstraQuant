@@ -1,6 +1,6 @@
 # Source Terminal Coverage Audit
 
-Status: **PASS_AUDIT_WITH_BLOCKERS**
+Status: **PASS_AUDIT_WITH_UNVERIFIED_FALLBACK**
 
 Purpose: one-time terminal-security lifecycle coverage inventory for the frozen P2-060 common-support universe. This audit does not change candidates, exclusions, execution, accounting, valuation, or OOS governance.
 
@@ -22,15 +22,17 @@ Hard rules: no adjusted-price fallback, no stale RAW mark outside an explicit mo
 - RAW-terminal tickers in common support: 78
 - modeled: 4
 - unmodeled: 74
+- conservative fallback coverage: 74
+- row-count reconciliation: summary and rendered table are generated from the same dataframe; current unmodeled count = 74. The earlier 72-row presentation discrepancy is corrected.
 
 ## Modeled terminal securities
 
 | Ticker | Last RAW | Modeled event | Date alignment | Tradability coverage end | Source availability |
 |---|---|---|---|---|---|
-| 6286 | 2016-04-20 | CASH_MERGER_EXTINGUISHMENT | PASS | — | MOPS/TWSE cash share-conversion disclosure |
-| 5305 | 2020-11-23 | CASH_MERGER_EXTINGUISHMENT | PASS | — | MOPS/TWSE cash share-conversion disclosure |
+| 6286 | 2016-04-20 | CASH_MERGER_EXTINGUISHMENT | PASS | — | terminal_events.csv |
+| 5305 | 2020-11-23 | CASH_MERGER_EXTINGUISHMENT | PASS | — | terminal_events.csv |
 | 2823 | 2021-12-17 | MULTI_LEG_SHARE_CONVERSION_PLUS_CASH | PASS | — | MOPS share-conversion disclosure; value weights use disclosed 20-day common reference price 13.69, preferred issue price 10.0, and cash 11.5 |
-| 4141 | 2022-04-26 | CASH_MERGER_EXTINGUISHMENT | PASS | — | MOPS/TWSE public merger-delisting disclosure |
+| 4141 | 2022-04-26 | CASH_MERGER_EXTINGUISHMENT | PASS | — | terminal_events.csv |
 
 ## Unmodeled terminal securities
 
@@ -119,6 +121,8 @@ These are already curated in the engine but are not counted in the common-suppor
 
 ## Interpretation and next gate
 
-Any unmodeled row is a hard terminal-lifecycle blocker for a strategy that can hold that security across the RAW termination date. It is not permission to carry a stale mark indefinitely, switch to adjusted prices, or silently remove the ticker.
+Two-track policy is active. A CONFIRMED row in data/research/terminal_events.csv overrides the conservative fallback. PARTIAL and NOT_FOUND rows do not override it.
 
-The next step is to source-audit and model the entire unmodeled set once, then rerun this same inventory until unmodeled = 0 before resuming the paused VCP / RSI report loop.
+For every still-unmodeled terminal security, AstraQuant applies UNVERIFIED_TERMINAL_CASHOUT at the final observed RAW trading-session close using that RAW close as cash consideration. Cash mergers often include a premium, so this fallback is conservative and tends to understate rather than overstate strategy return.
+
+No adjusted-price fallback, post-terminal stale RAW mark, synthetic trade, or silent ticker exclusion is permitted. External verification can replace fallback economics by updating the CSV without code changes.
