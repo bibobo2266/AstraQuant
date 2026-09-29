@@ -42,3 +42,8 @@
 | 個股 6286 | 終止證券生命週期個案 | 2026-09-29 | 個別生命週期／策略整合檢視 |
 
 | SOURCE_ONEIL_TAIWAN_SWEEP | 2016-01-04 ~ 2021-12-31 | 2026-09-29 | candidate-level effect report; epoch=E1; source_revision=39eb22662f74a4591b1e57795174ffc2f7585f44; forward_sessions=250 |
+| SOURCE_BOLLINGER_DAILY_SWEEP | 2016-01-04 ~ 2021-12-31 | 2026-09-29 | candidate path diagnostics; epoch=E1; direction=LONG; windows=5/10/20; source_revision=39eb22662f74a4591b1e57795174ffc2f7585f44 |
+| SOURCE_VCP_DAILY_SWEEP | 2016-01-04 ~ 2021-12-31 | 2026-09-29 | candidate path diagnostics; epoch=E1; direction=LONG; windows=5/10/20; source_revision=39eb22662f74a4591b1e57795174ffc2f7585f44 |
+| SOURCE_ANCHOR_UP_DAILY_SWEEP | 2016-01-04 ~ 2021-12-31 | 2026-09-29 | candidate path diagnostics; epoch=E1; direction=LONG; windows=5/10/20; source_revision=39eb22662f74a4591b1e57795174ffc2f7585f44 |
+| SOURCE_ANCHOR_DOWN_DAILY_SWEEP | 2016-01-04 ~ 2021-12-31 | 2026-09-29 | candidate path diagnostics; epoch=E1; direction=SHORT; windows=5/10/20; source_revision=39eb22662f74a4591b1e57795174ffc2f7585f44 |
+| SOURCE_RSI_DAILY_SWEEP | 2016-01-04 ~ 2021-12-31 | 2026-09-29 | candidate path diagnostics; epoch=E1; direction=LONG; windows=5/10/20; source_revision=39eb22662f74a4591b1e57795174ffc2f7585f44 |

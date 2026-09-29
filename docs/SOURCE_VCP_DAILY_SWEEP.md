@@ -1,67 +1,59 @@
-# Source-backed Config Sweep
+# Candidate Path Diagnostics
 
 Status: **PASS**
 
-## Research boundary
+## 定位與時期
 
-- This is a candidate-level research screen, not executable portfolio evidence.
-- Absolute outcome: long-direction adjusted close-to-close return 60 source sessions after the signal date.
-- Demeaned outcome: stock forward return minus the same-date P2-060 common-support cross-sectional mean, then direction-adjusted.
-- Demean cross-section requires four-digit numeric IDs, frozen P2-060 exclusions removed, observed_trade AND valid_ohlc, and at least 200 valid names on that date.
-- No RAW fill, capacity, corporate-action path, FIFO path, stop execution, or portfolio sequencing is represented here.
-- The sweep does not select or promote a winning parameter combination.
-- Locked OOS remains locked.
+- epoch: E1：歷史開發期
+- 本報告只做路徑診斷；MFE / MAE / order_state / days_to_MFE / days_to_MAE 不取代完整交易績效，也不得單獨判定訊號有效或無效。
+- E1 為預設；E2 僅能以 RESEARCH_EPOCH=E2 顯式啟用；E3 由治理層阻擋。
+- 本報告是候選層，不套用部位上限與資金限制；候選數不等於可執行交易數，資金受限結果另行報告。
+- direction: LONG
+- windows: 5 / 10 / 20 common trading sessions; entry day is day 1.
+- entry_ref: signal date next common trading session RAW open; no valid open => NO_VALID_ENTRY_REF; no delay and no skip-forward.
+- path value V_t uses one initial unit with canonical cash/share/successor/terminal corporate-action semantics.
+- multi-successor intraday extrema are not summed; they are MULTI_LEG_INTRADAY_UNRESOLVED.
 
-## Frozen gates
+## 方向定義
 
-- P2-060 exclusion SHA: 379d58f6a8aa06b1e020d56911930f4bc01861d3eeca109613d9e5b1e490d134
-- eligible-universe distinct tickers: 1,986 (expected 1,986)
-- signal window: 2016-01-04 through 2026-06-30
-- declared Cartesian combinations: 18
-- structurally invalid combinations skipped by preregistered constraints: 0
-- evaluated parameter combinations: 18
-- feature-cache hits / misses: 0 / 0
+- LONG: favorable = V_t^high - 1; adverse = V_t^low - 1.
+- SHORT (Anchor-DOWN): favorable = 1 - V_t^low; adverse = 1 - V_t^high.
+- MFE is maximum favorable deviation; MAE is minimum adverse deviation.
+- repeated cross-day extrema use the first day; same-day MFE/MAE is SAME_DAY_UNKNOWN because daily OHLC cannot establish intraday order.
 
-## Parameter-surface summary
+## 去均值
 
-- combinations with at least one valid forward outcome: 18/18
-- total signal candidates across combinations: 186,219
-- median absolute-outcome coverage: 99.73%
-- median demeaned-outcome coverage: 99.73%
-- absolute expectancy q10 / median / q90 across combinations: 4.16% / 4.38% / 5.53%
-- demeaned expectancy q10 / median / q90 across combinations: 0.57% / 0.79% / 2.05%
-- fraction of combinations with positive absolute expectancy: 100.00%
-- fraction of combinations with positive demeaned expectancy: 100.00%
+- Demean mother is all same-day four-digit P2-060 common-support names with observed_trade and valid_ohlc, not the triggered signal set.
+- MFE and MAE are demeaned separately; a date requires at least 200 calculable mother names for that window.
+- SHORT uses the same short-direction transformation for the mother before demeaning.
 
-## Marginal parameter summaries
+## 漲跌停口徑
 
-These are medians across the other declared axes; they are descriptive and are not winner selection.
+- Uses source price-limit records when an explicit daily upper/lower limit or explicit no-limit state is available.
+- No previous-close fixed-multiplier fallback is used. Missing source limit information is counted as limit-price-unknown.
+- source price-limit file years present: 2015,2016,2017,2018
+- Touch flags are market-constraint diagnostics only; touch does not mean locked and daily OHLC cannot establish fillability at the extreme.
 
-### trigger.max_chase_pct
+## 不可計算與跨界
 
-| Value | Configs | Median signals | Median absolute expectancy | Median demeaned expectancy | Positive absolute configs | Positive demeaned configs |
-|---|---:|---:|---:|---:|---:|---:|
-| 0.03 | 9 | 7494 | 4.43% | 0.83% | 100.0% | 100.0% |
-| 0.05 | 9 | 9163 | 4.32% | 0.74% | 100.0% | 100.0% |
+- Each 5/10/20 window is purged independently. A window crossing the epoch boundary is counted and excluded; it is never shortened.
+- Suspended/no-price sessions remain calendar days. Existing terminal stale-mark semantics are used only inside an explicitly modeled terminal stale window; otherwise missing RAW path value is reported, not filled.
+- build_supported_ca unsupported source rows observed: 0; event summary: {}
 
-### trigger.max_dryup_volume_ratio
+## 參數組合 × 窗口輸出
 
-| Value | Configs | Median signals | Median absolute expectancy | Median demeaned expectancy | Positive absolute configs | Positive demeaned configs |
-|---|---:|---:|---:|---:|---:|---:|
-| 0.5 | 6 | 2934 | 4.63% | 1.04% | 100.0% | 100.0% |
-| 0.7 | 6 | 8800 | 4.22% | 0.67% | 100.0% | 100.0% |
-| 0.9 | 6 | 17027 | 4.29% | 0.65% | 100.0% | 100.0% |
+- machine-readable table: docs/SOURCE_VCP_DAILY_SWEEP.csv
+- rows: 54
+- columns include candidate/calculable/unique counts, truncation/missing/terminal/NO_VALID_ENTRY_REF/multi-leg/cross-boundary counts, multi-leg share, all requested price-limit strata, demeaned MFE/MAE medians, days-to-extrema medians, three order_state shares, raw MFE threshold candidate shares, and the auxiliary raw MFE / |raw MAE| median plus undefined share.
+- raw MFE > 5% / 10% / 20% shares use all signal candidates as the denominator; non-calculable candidates remain in that denominator and are separately disclosed by status counts.
 
-### trigger.pivot_lookback
+## 比值限制
 
-| Value | Configs | Median signals | Median absolute expectancy | Median demeaned expectancy | Positive absolute configs | Positive demeaned configs |
-|---|---:|---:|---:|---:|---:|---:|
-| 10 | 6 | 16640 | 4.20% | 0.58% | 100.0% | 100.0% |
-| 20 | 6 | 8800 | 4.30% | 0.73% | 100.0% | 100.0% |
-| 40 | 6 | 3408 | 5.43% | 2.02% | 100.0% | 100.0% |
+每筆原始 MFE / |原始 MAE| 僅為輔助描述；原始 MAE = 0 時保持未定義，不代入任意小數。此比值不是交易賠率，也不能推出每筆期望值，因為最大有利與最大不利偏離不是可同時實現的一筆交易結果。
 
-## Full results
+## 待驗證解釋清單
 
-Machine-readable table: `docs/SOURCE_VCP_DAILY_SWEEP.csv`.
-
-Absolute and demeaned outcomes are reported side by side. The next valid step is robustness analysis over neighboring cells / calendar regimes. Do not infer a Taiwan-optimal parameter from the maximum cell.
+- 若後續對齊完整交易後觀察到 MFE 明顯高於實際獲利，待驗證：出場過早、出場過晚後回吐、執行價與極值價差異、極值當下不可成交（鎖停或無量）。
+- 若後續對齊完整交易後觀察到 MAE 淺但遭停損掃出，待驗證：停損過緊、停損採用的價格基準與診斷不同、盤中觸價與收盤價差異。
+- 若極值集中於窗口末端，只標示邊界效應提示；不自動主張延長窗口，也不據此選擇最佳窗口。
+- 上述均為待驗證解釋，不是成因判定。
