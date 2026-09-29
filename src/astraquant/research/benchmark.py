@@ -289,4 +289,3 @@ def render_benchmark_report_sections(
         "",
         BENCHMARK_INTERPRETATION_TW,
     ]
-}
