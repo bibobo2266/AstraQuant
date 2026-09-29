@@ -1,0 +1,18 @@
+schema_version: "1"
+name: rsi_pullback_reclaim
+trigger:
+  type: RSI_PULLBACK_RECLAIM
+  params:
+    lookback: 14
+    hold_floor: 50
+    pullback_ceiling: 58
+    reclaim_level: 60
+    pullback_window: 6
+    volume_lookback: 20
+    volume_multiplier: 1.5
+filters:
+  - type: RSI
+    params:
+      lookback: 14
+      min: 50
+ranking: []

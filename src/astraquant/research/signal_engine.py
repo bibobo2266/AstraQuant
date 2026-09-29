@@ -9,6 +9,9 @@ from astraquant.research.component_registry import ComponentRegistry
 from astraquant.research.feature_cache import FeatureCache, FeatureCacheKey
 from astraquant.research.strategy_config import ComponentSpec, LogicalOp, SignalConfig
 from astraquant.research.technical_components import (
+    kd_saturation_release,
+    kd_saturation_state,
+    rsi_pullback_reclaim,
     vcp_breakout,
     rsi_relative,
     overnight_market_context,
@@ -117,6 +120,8 @@ def default_trigger_registry() -> ComponentRegistry[SignalComponentEvaluator]:
     registry.register("MACD_CROSS_ABOVE_ZERO", macd_cross_above_zero)
     registry.register("KD_LOW_ZONE_GOLDEN_CROSS", kd_low_zone_golden_cross)
     registry.register("RSI_CROSS", rsi_cross)
+    registry.register("RSI_PULLBACK_RECLAIM", rsi_pullback_reclaim)
+    registry.register("KD_SATURATION_RELEASE", kd_saturation_release)
     registry.register("BOLLINGER_UPPER_BREAK", bollinger_upper_break)
     registry.register("BOLLINGER_COMPRESSION_BREAKOUT", bollinger_compression_breakout)
     registry.register("VCP_BREAKOUT", vcp_breakout)
@@ -132,6 +137,7 @@ def default_filter_registry() -> ComponentRegistry[SignalComponentEvaluator]:
     registry.register("LONG_TERM_TREND_STRUCTURE", long_term_trend_structure)
     registry.register("BOLLINGER_COMPRESSION", bollinger_compression)
     registry.register("RSI_RELATIVE", rsi_relative)
+    registry.register("KD_SATURATION_STATE", kd_saturation_state)
     registry.register("OVERNIGHT_MARKET_CONTEXT", overnight_market_context)
     registry.register("COLUMN_THRESHOLD", column_threshold)
     return registry

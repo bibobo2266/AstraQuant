@@ -367,3 +367,175 @@ max wait: 20 sessions fixed
 Same 18-combination surface, evaluated separately with short-direction 60-session return. Long and short outcomes are never pooled.
 
 These first source-backed surfaces are exploratory falsification/screening evidence only. Parameter neighborhoods may be analyzed after the run, but the maximum cell is not a promotion rule.
+
+
+---
+
+## OBS-005 — Multi-timeframe RSI filtering and pullback reclaim
+
+### Original observation
+
+The supplied chart notes describe a sequential intraday SOP rather than a single RSI threshold:
+
+1. Before the open, reduce a broad watchlist by removing daily-chart names with RSI below 50.
+2. Use the 60-minute chart to reject names whose short/medium-term direction is already weakening.
+3. During the first 15 minutes, classify strength with 15-minute RSI plus volume:
+   - RSI rapidly above 60 with clear volume expansion = stronger candidate;
+   - RSI around 50-60 without notable volume = weaker candidate;
+   - RSI unable to hold 50 = reject.
+4. Do not chase the first opening impulse.
+5. After the first push, judge the pullback:
+   - RSI holding around 55-58 indicates strength;
+   - a pullback toward 50 that quickly recovers may remain valid;
+   - a break materially below 50 invalidates the setup.
+6. A later reclaim of RSI 60, preferably with confirming volume, is a cleaner second signal.
+7. After entry, RSI below 50 is an exit condition; a later recovery does not automatically justify re-entry.
+
+The core idea is hierarchical filtering:
+
+```text
+daily direction
+→ 60-minute rhythm
+→ 15-minute strength/pullback
+→ volume confirmation
+→ enter only if all required gates pass
+```
+
+### Reusable mechanical component
+
+Component:
+
+`RSI_PULLBACK_RECLAIM`
+
+The evaluator is timeframe-agnostic. It encodes the pullback/reclaim portion:
+
+- RSI remains above a configurable floor;
+- RSI visits a configurable pullback zone;
+- RSI then crosses above a configurable reclaim level;
+- optional current-bar volume expansion confirms the reclaim.
+
+Example:
+
+```yaml
+trigger:
+  type: RSI_PULLBACK_RECLAIM
+  params:
+    lookback: 14
+    hold_floor: 50
+    pullback_ceiling: 58
+    reclaim_level: 60
+    pullback_window: 6
+    volume_lookback: 20
+    volume_multiplier: 1.5
+```
+
+The daily pre-filter can already be represented using the existing RSI filter:
+
+```yaml
+filters:
+  - type: RSI
+    params:
+      lookback: 14
+      min: 50
+```
+
+### Multi-timeframe orchestration contract
+
+The full SOP requires separate PIT-safe panels:
+
+- daily panel;
+- completed 60-minute bars;
+- completed 15-minute bars.
+
+A higher-timeframe observation may be consumed only after its bar has completed. A 15-minute decision at 09:15 may use the completed 09:00-09:15 bar, but may not use any later information from that session.
+
+The engine must join timeframe states by an explicit `available_at` timestamp, never by calendar date alone.
+
+### Research ranges
+
+Potential first sweep ranges, to be frozen before a source-backed intraday run:
+
+- daily RSI floor: 45 / 50 / 55;
+- pullback floor: 45 / 50 / 52;
+- pullback ceiling: 55 / 58 / 60;
+- reclaim level: 58 / 60 / 62 / 65;
+- pullback window: 3 / 6 / 9 completed bars;
+- volume multiplier: 1.0 / 1.2 / 1.5 / 2.0.
+
+These are research ranges, not claimed optimal Taiwan parameters.
+
+### Current status
+
+- `RSI_PULLBACK_RECLAIM` implemented as a reusable component.
+- Daily RSI gating is already available.
+- Full daily → 60m → 15m source-backed test: **BLOCKED** pending a canonical intraday source and explicit completed-bar timestamps.
+- No daily-data approximation will be substituted for the missing intraday layers.
+
+---
+
+## OBS-006 — KD saturation as trend state
+
+### Original observation
+
+The supplied note argues against the common rule "KD above 80 means sell / below 20 means buy."
+
+The behavioral hypothesis is:
+
+- sustained KD above 80 can represent strong bullish momentum;
+- sustained KD below 20 can represent persistent bearish momentum;
+- the important event is not entering an extreme zone, but whether the saturation persists and when it actually releases;
+- price structure and volume should be used with the KD state rather than treating KD as a standalone reversal instruction.
+
+### Machine-testable representation
+
+Components:
+
+- `KD_SATURATION_STATE` — filter/state.
+- `KD_SATURATION_RELEASE` — trigger when a sustained state actually exits and, optionally, K/D cross confirms the change.
+
+Example high-saturation state:
+
+```yaml
+- type: KD_SATURATION_STATE
+  params:
+    lookback: 9
+    k_smooth: 3
+    d_smooth: 3
+    zone: HIGH
+    high_level: 80
+    min_sessions: 3
+```
+
+Example release:
+
+```yaml
+trigger:
+  type: KD_SATURATION_RELEASE
+  params:
+    lookback: 9
+    k_smooth: 3
+    d_smooth: 3
+    zone: HIGH
+    high_level: 80
+    min_sessions: 3
+    require_kd_cross: true
+```
+
+LOW is symmetric around a configurable low threshold.
+
+### Research ranges
+
+- high threshold: 75 / 80 / 85;
+- low threshold: 15 / 20 / 25;
+- minimum saturation duration: 2 / 3 / 5 / 8 bars;
+- KD parameters: (9,3,3) and (14,3,3);
+- release confirmation: leave zone only vs leave zone + K/D cross.
+
+The primary question is whether duration of saturation contains information beyond a one-bar KD threshold.
+
+### Current status
+
+- high/low saturation state implemented.
+- saturation-release trigger implemented.
+- Unit tests treat high saturation as a persistent state, not an automatic sell.
+- Source-backed daily sweep has not yet been frozen; it must remain separate from the already-running Bollinger/VCP/Anchor protocol.

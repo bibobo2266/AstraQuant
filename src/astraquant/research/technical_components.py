@@ -601,3 +601,144 @@ def overnight_market_context(*, panel, spec: ComponentSpec, cache, context) -> p
         votes = adr.lt(0).astype(int) + sox.lt(0).astype(int) + nasdaq.lt(0).astype(int)
         return (basis.le(-min_basis) & votes.ge(min_positive_sources)).fillna(False)
     raise ValueError("OVERNIGHT_MARKET_CONTEXT direction must be LONG or SHORT")
+
+
+def rsi_pullback_reclaim(*, panel, spec: ComponentSpec, cache, context) -> pd.Series:
+    """RSI pullback holds a floor, then reclaims an upper level.
+
+    Intended to encode the observed workflow: strength first, controlled
+    pullback around 50-58, then a fresh reclaim above 60. The evaluator is
+    timeframe-agnostic; PIT legality depends on the input panel timestamps.
+    """
+    lookback = int(spec.params.get("lookback", 14))
+    hold_floor = float(spec.params.get("hold_floor", 50))
+    pullback_ceiling = float(spec.params.get("pullback_ceiling", 58))
+    reclaim_level = float(spec.params.get("reclaim_level", 60))
+    pullback_window = int(spec.params.get("pullback_window", 6))
+    volume_lookback = int(spec.params.get("volume_lookback", 20))
+    volume_multiplier_raw = spec.params.get("volume_multiplier")
+    volume_multiplier = (
+        None if volume_multiplier_raw is None else float(volume_multiplier_raw)
+    )
+    if not 0 <= hold_floor < pullback_ceiling < reclaim_level <= 100:
+        raise ValueError(
+            "RSI_PULLBACK_RECLAIM requires hold_floor < pullback_ceiling "
+            "< reclaim_level within [0, 100]"
+        )
+    if pullback_window <= 0:
+        raise ValueError("pullback_window must be positive")
+
+    rsi = _cached(
+        panel=panel, cache=cache, context=context,
+        name="rsi", params={"lookback": lookback},
+        compute=lambda: _rsi_value(panel=panel, lookback=lookback),
+    )
+    prior_rsi = rsi.groupby(panel["stock_id"], sort=False).shift(1)
+    prior_min = prior_rsi.groupby(panel["stock_id"], sort=False).transform(
+        lambda s: s.rolling(pullback_window, min_periods=pullback_window).min()
+    )
+    prior_had_pullback = prior_rsi.groupby(panel["stock_id"], sort=False).transform(
+        lambda s: s.le(pullback_ceiling)
+        .rolling(pullback_window, min_periods=pullback_window)
+        .max()
+        .astype(bool)
+    )
+    crossed = rsi.gt(reclaim_level) & prior_rsi.le(reclaim_level)
+    held_floor = prior_min.ge(hold_floor)
+    result = crossed & held_floor & prior_had_pullback
+
+    if volume_multiplier is not None:
+        volume = _numeric(panel, "Trading_Volume")
+        prior_avg = volume.groupby(panel["stock_id"], sort=False).transform(
+            lambda s: s.shift(1).rolling(
+                volume_lookback, min_periods=volume_lookback
+            ).mean()
+        )
+        result &= (volume / prior_avg).ge(volume_multiplier)
+
+    return result.fillna(False)
+
+
+def kd_saturation_state(*, panel, spec: ComponentSpec, cache, context) -> pd.Series:
+    """Return sustained KD high/low saturation state, not a reversal signal."""
+    lookback = int(spec.params.get("lookback", 9))
+    k_smooth = int(spec.params.get("k_smooth", 3))
+    d_smooth = int(spec.params.get("d_smooth", 3))
+    zone = str(spec.params.get("zone", "HIGH")).upper()
+    high_level = float(spec.params.get("high_level", 80))
+    low_level = float(spec.params.get("low_level", 20))
+    min_sessions = int(spec.params.get("min_sessions", 3))
+    if zone not in {"HIGH", "LOW"}:
+        raise ValueError("KD_SATURATION_STATE zone must be HIGH or LOW")
+    if not 0 <= low_level < high_level <= 100:
+        raise ValueError("invalid KD saturation levels")
+    if min_sessions <= 0:
+        raise ValueError("min_sessions must be positive")
+
+    k, d = _stochastic_kd(
+        panel=panel,
+        lookback=lookback,
+        k_smooth=k_smooth,
+        d_smooth=d_smooth,
+    )
+    if zone == "HIGH":
+        inside = k.ge(high_level) & d.ge(high_level)
+    else:
+        inside = k.le(low_level) & d.le(low_level)
+    count = inside.astype(int).groupby(panel["stock_id"], sort=False).transform(
+        lambda s: s.rolling(min_sessions, min_periods=min_sessions).sum()
+    )
+    return count.eq(min_sessions).fillna(False)
+
+
+def kd_saturation_release(*, panel, spec: ComponentSpec, cache, context) -> pd.Series:
+    """Trigger when a sustained KD saturation state actually releases."""
+    lookback = int(spec.params.get("lookback", 9))
+    k_smooth = int(spec.params.get("k_smooth", 3))
+    d_smooth = int(spec.params.get("d_smooth", 3))
+    zone = str(spec.params.get("zone", "HIGH")).upper()
+    high_level = float(spec.params.get("high_level", 80))
+    low_level = float(spec.params.get("low_level", 20))
+    min_sessions = int(spec.params.get("min_sessions", 3))
+    require_cross = bool(spec.params.get("require_kd_cross", True))
+
+    k, d = _stochastic_kd(
+        panel=panel,
+        lookback=lookback,
+        k_smooth=k_smooth,
+        d_smooth=d_smooth,
+    )
+    state = kd_saturation_state(
+        panel=panel,
+        spec=ComponentSpec(
+            type="KD_SATURATION_STATE",
+            params={
+                "lookback": lookback,
+                "k_smooth": k_smooth,
+                "d_smooth": d_smooth,
+                "zone": zone,
+                "high_level": high_level,
+                "low_level": low_level,
+                "min_sessions": min_sessions,
+            },
+        ),
+        cache=cache,
+        context=context,
+    )
+    previous_state = state.groupby(panel["stock_id"], sort=False).shift(1).fillna(False)
+    previous_k = k.groupby(panel["stock_id"], sort=False).shift(1)
+    previous_d = d.groupby(panel["stock_id"], sort=False).shift(1)
+
+    if zone == "HIGH":
+        left_zone = k.lt(high_level) | d.lt(high_level)
+        direction_turn = k.lt(d) & previous_k.ge(previous_d)
+    elif zone == "LOW":
+        left_zone = k.gt(low_level) | d.gt(low_level)
+        direction_turn = k.gt(d) & previous_k.le(previous_d)
+    else:
+        raise ValueError("KD_SATURATION_RELEASE zone must be HIGH or LOW")
+
+    result = previous_state & left_zone
+    if require_cross:
+        result &= direction_turn
+    return result.fillna(False)

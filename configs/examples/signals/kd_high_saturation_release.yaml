@@ -1,0 +1,14 @@
+schema_version: "1"
+name: kd_high_saturation_release
+trigger:
+  type: KD_SATURATION_RELEASE
+  params:
+    lookback: 9
+    k_smooth: 3
+    d_smooth: 3
+    zone: HIGH
+    high_level: 80
+    min_sessions: 3
+    require_kd_cross: true
+filters: []
+ranking: []
