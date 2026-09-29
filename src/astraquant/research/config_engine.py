@@ -7,6 +7,7 @@ import pandas as pd
 
 from astraquant.data.market_coordinates import SignalPriceSemantics
 from astraquant.execution.service import SignalDeclaration
+from astraquant.portfolio.performance_reporting import TradeReport, build_trade_report
 from astraquant.portfolio.policy import PortfolioPolicyConfig
 from astraquant.portfolio.strategy_simulator import CanonicalStrategySimulator, StrategySimulationResult
 from astraquant.research.candidates import candidates_from_signal_frame
@@ -53,12 +54,19 @@ class PreparedResearchRun:
     feature_cache_misses: int
 
 
-class ResearchConfigEngine:
-    """Compile config files into research-layer artifacts.
+@dataclass(frozen=True)
+class ExecutedResearchRun:
+    prepared: PreparedResearchRun
+    simulation: StrategySimulationResult
+    trade_report: TradeReport
 
-    This engine stops at candidate/exit-policy preparation. It deliberately
-    delegates fills, RAW execution, settlement, corporate actions, valuation,
-    and FIFO accounting to the existing canonical stack.
+
+class ResearchConfigEngine:
+    """Compile config research, then optionally execute it on the canonical stack.
+
+    Preparation owns only universe/signal/exit-policy research artifacts.
+    Execution remains delegated to CanonicalStrategySimulator and the existing
+    RAW execution, settlement, corporate-action, valuation, and FIFO layers.
     """
 
     def __init__(
@@ -174,4 +182,26 @@ class ResearchConfigEngine:
             sessions=list(sessions),
             candidates=prepared.candidates,
             corporate_actions=corporate_actions,
+        )
+
+
+    def execute_prepared(
+        self,
+        *,
+        prepared: PreparedResearchRun,
+        simulator: CanonicalStrategySimulator,
+        sessions,
+        corporate_actions=None,
+    ) -> ExecutedResearchRun:
+        """Execute config candidates and attach CA-aware FIFO trade statistics."""
+        simulation = self.simulate_prepared(
+            prepared=prepared,
+            simulator=simulator,
+            sessions=sessions,
+            corporate_actions=corporate_actions,
+        )
+        return ExecutedResearchRun(
+            prepared=prepared,
+            simulation=simulation,
+            trade_report=build_trade_report(simulator.portfolio),
         )

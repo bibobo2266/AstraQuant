@@ -213,3 +213,42 @@ def test_config_engine_simulate_prepared_passes_canonical_candidates(tmp_path):
     assert out == "ok"
     assert simulator.received["signals"] is None if "signals" in simulator.received else True
     assert list(simulator.received["candidates"]["stock_id"]) == ["2330"]
+
+
+def test_execute_prepared_attaches_trade_report(tmp_path, monkeypatch):
+    run = _configs(tmp_path)
+    engine = ResearchConfigEngine()
+    prepared = engine.prepare(
+        run_config_path=run,
+        root=tmp_path,
+        panel=_panel(),
+        universe_context=UniverseContext(
+            p2_060_excluded_tickers=frozenset(),
+            p2_060_exclusion_sha256=P2_SHA,
+        ),
+        signal_context=SignalContext(source_revision="fixture-v1"),
+        base_policy=PortfolioPolicyConfig(position_fraction=0.10, max_positions=10),
+    )
+
+    class StubSimulator:
+        portfolio = object()
+
+        def run(self, **kwargs):
+            return "simulation-result"
+
+    sentinel = object()
+    monkeypatch.setattr(
+        "astraquant.research.config_engine.build_trade_report",
+        lambda portfolio: sentinel,
+    )
+    executed = engine.execute_prepared(
+        prepared=prepared,
+        simulator=StubSimulator(),
+        sessions=[
+            pd.Timestamp("2026-01-06").date(),
+            pd.Timestamp("2026-01-07").date(),
+        ],
+    )
+    assert executed.prepared is prepared
+    assert executed.simulation == "simulation-result"
+    assert executed.trade_report is sentinel
