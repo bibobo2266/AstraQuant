@@ -34,6 +34,9 @@ jobs:
           token: ${{ secrets.MINERVINI_READ_TOKEN }}
           path: source_runtime/minervini_picks
           persist-credentials: false
+          sparse-checkout: |
+            data/adj
+            data/reference
 
       - name: Make source checkout filesystem read-only
         run: chmod -R a-w source_runtime/minervini_picks
