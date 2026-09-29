@@ -29,6 +29,7 @@ from astraquant.portfolio.policy import PortfolioPolicyConfig
 from astraquant.research.config_io import (
     load_exit_config,
     load_parameter_sweep_config,
+    load_signal_config,
 )
 from astraquant.research.contact_registry import ContactRecord, append_contact_record
 from astraquant.research.epoch_governance import resolve_historical_effect_period
@@ -326,6 +327,22 @@ def main() -> None:
 
     signal_path = Path(sweep.signal)
     exit_path = Path(sweep.exit)
+    signal_config = load_signal_config(signal_path)
+    signal_params = dict(signal_config.trigger.params)
+    expected_signal_fixed = {
+        "contraction_ratio": 0.75,
+        "dry_up_window": 5,
+        "breakout_volume_lookback": 50,
+        "liquidity_lookback": 20,
+        "min_prior_avg_amount_twd": 20_000_000,
+        "entry_chase_multiple": 1.05,
+    }
+    for key, value in expected_signal_fixed.items():
+        if signal_params.get(key) != value:
+            raise SystemExit(
+                f"BLOCKED: signal fixed setting changed: {key} "
+                f"expected={value!r} got={signal_params.get(key)!r}"
+            )
     config_hashes = {
         SWEEP_PATH.as_posix(): _sha256(SWEEP_PATH),
         signal_path.as_posix(): _sha256(signal_path),
@@ -418,6 +435,12 @@ def main() -> None:
     exit_settings = compile_round1_exit_settings(
         exit_plan
     )
+    if (
+        exit_settings.atr_period != 21
+        or not math.isclose(exit_settings.atr_multiplier, 2.5)
+        or exit_settings.ma_window != 21
+    ):
+        raise SystemExit("BLOCKED: fixed VCP round1 exit settings changed")
     adjusted_exit_features = (
         build_adjusted_exit_features(
             common_panel,
@@ -858,10 +881,7 @@ def main() -> None:
     )
 
     liquidity_threshold = float(
-        load_parameter_sweep_config(
-            SWEEP_PATH
-        )
-        and 20_000_000
+        signal_params["min_prior_avg_amount_twd"]
     )
     write_report(
         report_path=REPORT_PATH,
