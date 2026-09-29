@@ -205,3 +205,16 @@ def test_multi_leg_successor_intraday_path_is_unresolved():
     )
     assert result.status is PathStatus.MULTI_LEG_INTRADAY_UNRESOLVED
     assert result.terminal_event is True
+
+
+def test_anchor_down_short_direction_manual_check():
+    mfe, mae, d_mfe, d_mae, state = directional_extrema(
+        [1.10, 1.05, 0.95],
+        [0.98, 0.90, 0.80],
+        direction=PathDirection.SHORT,
+    )
+    assert mfe == pytest.approx(0.20)
+    assert mae == pytest.approx(-0.10)
+    assert d_mfe == 3
+    assert d_mae == 1
+    assert state is OrderState.MAE_FIRST
