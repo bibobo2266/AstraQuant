@@ -179,11 +179,10 @@ def _write_trade_tables(trade_report) -> None:
         [
             {
                 "source_fill_id": x.source_fill_id,
-                "entry_ticker": x.entry_ticker,
-                "current_ticker": x.current_ticker,
+                "current_ticker": x.ticker,
                 "quantity": x.quantity,
                 "opened_at": x.opened_at,
-                "entry_price_with_fees": x.entry_price_with_fees,
+                "unit_cost": x.unit_cost,
             }
             for x in trade_report.reconstruction.open_lots
         ]
