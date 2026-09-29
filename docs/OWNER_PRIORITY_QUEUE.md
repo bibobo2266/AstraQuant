@@ -25,9 +25,9 @@
 
 ## 執行佇列
 
-### 1. [NOW] 候選級 outcome 去均值修正 + 重算五份 sweep
+### 1. 候選級 outcome 去均值修正 + 重算五份 sweep
 
-狀態：NOW
+狀態：DONE
 
 現行 outcome 為 N 日絕對報酬，Bollinger / VCP / Anchor-UP / Anchor-DOWN / RSI 五份報告皆為 100% 組合正期望值，量到的主要是市場漂移而非選股資訊。
 
@@ -59,9 +59,9 @@ Anchor-DOWN 空方 outcome 同樣先去均值，再反號。
 
 ---
 
-### 1.5 通用 config 報告指令
+### 1.5 [NOW] 通用 config 報告指令
 
-狀態：PENDING_AFTER_1
+狀態：NOW
 
 `scripts/source_strategy_performance_report.py` 目前仍自行組建舊 breakout 訊號集。改為接受任一 config，輸出同一份 FIFO 交易表 + 基準比較，不需為每條訊號寫客製腳本。
 
@@ -74,7 +74,7 @@ Anchor-DOWN 空方 outcome 同樣先去均值，再反號。
 
 ### 2. 2883B 來源端最小開口修復（P2-063 選項 A），解鎖 P2-062
 
-狀態：PENDING_AFTER_1_5
+狀態：DONE
 
 只放寬估值 / 執行來源路徑，使帶字母後綴的上市證券可進 RAW 與 tradability；研究候選母體保持四位純數字普通股。
 
@@ -84,7 +84,7 @@ Anchor-DOWN 空方 outcome 同樣先去均值，再反號。
 
 ### 3. PIT 安全特徵矩陣第一層
 
-狀態：PENDING_AFTER_2
+狀態：PENDING_AFTER_1_5
 
 範圍：
 
