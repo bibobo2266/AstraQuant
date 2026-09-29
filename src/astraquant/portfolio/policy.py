@@ -30,9 +30,9 @@ class CapacitySelectionRule(str, Enum):
 class PortfolioPolicyConfig:
     position_fraction: float
     max_positions: int
-    stop_fraction: float = 0.12
+    stop_fraction: float | None = 0.12
     reentry_gap_sessions: int = 20
-    max_hold_sessions: int = 250
+    max_hold_sessions: int | None = 250
     lot_size: int = 1000
     random_seed: int = 0
     capacity_selection_rule: CapacitySelectionRule = CapacitySelectionRule.RANDOM
@@ -42,12 +42,12 @@ class PortfolioPolicyConfig:
             raise ValueError("position_fraction must be in (0, 1]")
         if self.max_positions <= 0:
             raise ValueError("max_positions must be positive")
-        if not 0 < self.stop_fraction < 1:
-            raise ValueError("stop_fraction must be in (0, 1)")
+        if self.stop_fraction is not None and not 0 < self.stop_fraction < 1:
+            raise ValueError("stop_fraction must be in (0, 1) when enabled")
         if self.reentry_gap_sessions < 0:
             raise ValueError("reentry_gap_sessions must be non-negative")
-        if self.max_hold_sessions <= 0:
-            raise ValueError("max_hold_sessions must be positive")
+        if self.max_hold_sessions is not None and self.max_hold_sessions <= 0:
+            raise ValueError("max_hold_sessions must be positive when enabled")
         if self.lot_size <= 0:
             raise ValueError("lot_size must be positive")
 
@@ -75,7 +75,7 @@ class ManagedPosition:
     quantity: float
     entry_session_index: int
     entry_price: float
-    stop_price: float
+    stop_price: float | None
 
 
 @dataclass
@@ -227,7 +227,11 @@ class PortfolioIntentPolicy:
             quantity=quantity,
             entry_session_index=session_index,
             entry_price=fill_price,
-            stop_price=fill_price * (1 - self.config.stop_fraction),
+            stop_price=(
+                None
+                if self.config.stop_fraction is None
+                else fill_price * (1 - self.config.stop_fraction)
+            ),
         )
         self.managed_positions[ticker] = state
         self.last_entry_index[ticker] = session_index
@@ -238,6 +242,8 @@ class PortfolioIntentPolicy:
         return self.managed_positions.pop(ticker)
 
     def max_hold_due(self, ticker: str, session_index: int) -> bool:
+        if self.config.max_hold_sessions is None:
+            return False
         state = self.managed_positions[str(ticker)]
         return session_index - state.entry_session_index >= self.config.max_hold_sessions
 
@@ -272,10 +278,11 @@ class PortfolioIntentPolicy:
             state.quantity *= multiplier
             state.entry_price /= multiplier
 
-        state.stop_price = max(
-            1e-12,
-            (state.stop_price - cash_component) / multiplier,
-        )
+        if state.stop_price is not None:
+            state.stop_price = max(
+                1e-12,
+                (state.stop_price - cash_component) / multiplier,
+            )
         return state
 
 
@@ -304,7 +311,8 @@ class PortfolioIntentPolicy:
         state.ticker = to_ticker
         state.quantity *= quantity_multiplier
         state.entry_price /= quantity_multiplier
-        state.stop_price /= quantity_multiplier
+        if state.stop_price is not None:
+            state.stop_price /= quantity_multiplier
         self.managed_positions[to_ticker] = state
 
         last = self.last_entry_index.get(from_ticker)
@@ -352,10 +360,14 @@ class PortfolioIntentPolicy:
         old = self.managed_positions.pop(from_ticker)
         original_quantity = float(old.quantity)
         original_entry_total = float(old.entry_price) * original_quantity
-        residual_stop_total = max(
-            1e-12,
-            (float(old.stop_price) - float(cash_per_source_share))
-            * original_quantity,
+        residual_stop_total = (
+            None
+            if old.stop_price is None
+            else max(
+                1e-12,
+                (float(old.stop_price) - float(cash_per_source_share))
+                * original_quantity,
+            )
         )
 
         created: list[ManagedPosition] = []
@@ -370,7 +382,9 @@ class PortfolioIntentPolicy:
                     original_entry_total * float(leg.value_weight) / quantity
                 ),
                 stop_price=(
-                    residual_stop_total * relative_successor_weight / quantity
+                    None
+                    if residual_stop_total is None
+                    else residual_stop_total * relative_successor_weight / quantity
                 ),
             )
             self.managed_positions[created_state.ticker] = created_state
