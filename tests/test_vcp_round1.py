@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import date, datetime
+from pathlib import Path
 
 import numpy as np
 import pandas as pd
@@ -25,6 +26,7 @@ from astraquant.portfolio.corporate_actions import (
 )
 from astraquant.portfolio.historical_runner import HistoricalCorporateActionInstruction
 from astraquant.portfolio.policy import PortfolioPolicyConfig
+from astraquant.research.config_io import load_parameter_sweep_config, load_signal_config
 from astraquant.research.exit_engine import ExitCompiler
 from astraquant.research.feature_cache import FeatureCache
 from astraquant.research.signal_engine import SignalContext
@@ -574,3 +576,26 @@ def test_cash_dividend_does_not_create_adjusted_close_exit():
     assert out.trades.empty
     assert len(out.open_positions) == 1
     assert float(out.open_positions.iloc[0]["ca_entitlement"]) > 0
+
+
+def test_round1_config_retains_exact_108_cells_and_liquidity_threshold():
+    sweep = load_parameter_sweep_config(
+        Path("configs/research/vcp_round1_three_segment_v1.yaml")
+    )
+    assert sweep.combination_count == 108
+    assert sweep.max_combinations == 108
+    assert not sweep.constraints
+    assert [list(axis.values) for axis in sweep.axes] == [
+        [25, 35, 50, 65],
+        [0.08, 0.12, 0.15],
+        [0.50, 0.65, 0.80],
+        [1.5, 2.0, 2.5],
+    ]
+    signal = load_signal_config(Path(sweep.signal))
+    assert signal.trigger.params["min_prior_avg_amount_twd"] == 20_000_000
+    assert signal.trigger.params["contraction_ratio"] == pytest.approx(0.75)
+
+
+def test_source_vcp_round1_script_is_syntax_valid():
+    path = Path("scripts/source_vcp_round1.py")
+    compile(path.read_text(encoding="utf-8"), str(path), "exec")
