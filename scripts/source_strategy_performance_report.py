@@ -20,6 +20,7 @@ from astraquant.portfolio.strategy_simulator import CanonicalStrategySimulator, 
 from astraquant.research.benchmark import (
     compare_strategy_to_total_return_benchmark,
     load_finmind_total_return_index,
+    render_benchmark_report_sections,
 )
 
 from source_strategy_integration_smoke import (
@@ -36,14 +37,6 @@ REPORT_PATH = Path(os.environ.get("REPORT_PATH", "docs/SOURCE_STRATEGY_PERFORMAN
 SOURCE_ROOT = Path(os.environ.get("SOURCE_ROOT", "source_runtime/minervini_picks/data")).resolve()
 INITIAL_CASH = 10_000_000.0
 EXPECTED_LONG_NAV = 51_696_620.29773994
-
-
-def _pct(x: float) -> str:
-    return "n/a" if pd.isna(x) else f"{x * 100:.2f}%"
-
-
-def _num(x: float, digits: int = 3) -> str:
-    return "n/a" if pd.isna(x) else f"{x:.{digits}f}"
 
 
 def main() -> None:
@@ -153,8 +146,6 @@ def main() -> None:
         fills=fills,
         trade_report=trade_report,
     )
-    stats = trade_report.statistics
-
     checks = {
         "same_signal_window_as_long_horizon_probe": (
             SIGNAL_START == pd.Timestamp("2016-01-04")
@@ -191,38 +182,12 @@ def main() -> None:
         "- strategy execution assumptions: zero explicit fees and zero slippage in this frozen descriptive run",
         "- benchmark: FinMind TaiwanStockTotalReturnIndex (TAIEX), buy-and-hold, same starting capital and exact strategy trading dates, no benchmark transaction-cost deduction",
         "",
-        "## 一、單筆層（主表）",
-        "",
-        "| Metric | Strategy |",
-        "|---|---:|",
-        f"| Closed trades n | {stats.n:,} |",
-        f"| Win rate | {_pct(stats.win_rate)} |",
-        f"| Average win | {_pct(stats.average_win)} |",
-        f"| Average loss | {_pct(stats.average_loss)} |",
-        f"| Payoff ratio | {_num(stats.payoff_ratio)} |",
-        f"| Expectancy per trade | {_pct(stats.expectancy)} |",
-        "",
-        f"Open FIFO lots are reported separately and excluded from the table above: **{len(trade_report.reconstruction.open_lots):,}** open lots.",
-        "",
-        "## 二、超額與代價",
-        "",
-        "| Metric | Value |",
-        "|---|---:|",
-        f"| Cumulative excess return (strategy - benchmark) | {_pct(comparison.cumulative_excess_return)} |",
-        f"| Daily-return correlation | {_num(comparison.daily_return_correlation)} |",
-        f"| Beta vs total-return benchmark | {_num(comparison.beta)} |",
-        f"| Max-drawdown difference (strategy - benchmark) | {_pct(comparison.max_drawdown_difference)} |",
-        f"| Closed trade count | {comparison.trade_count:,} |",
-        f"| Annualized gross turnover | {_pct(comparison.annualized_gross_turnover)} |",
-        f"| Average holding days (calendar) | {_num(comparison.average_holding_days, 1)} |",
-        "",
-        "## 三、組合層（附表）",
-        "",
-        "| Metric | Strategy | Total-return benchmark |",
-        "|---|---:|---:|",
-        f"| CAGR | {_pct(comparison.strategy_path.cagr)} | {_pct(comparison.benchmark_path.cagr)} |",
-        f"| MaxDD | {_pct(comparison.strategy_path.max_drawdown)} | {_pct(comparison.benchmark_path.max_drawdown)} |",
-        f"| Sharpe (daily, rf=0, sqrt(252)) | {_num(comparison.strategy_path.sharpe)} | {_num(comparison.benchmark_path.sharpe)} |",
+    ]
+    lines += render_benchmark_report_sections(
+        trade_report=trade_report,
+        comparison=comparison,
+    )
+    lines += [
         "",
         "## Accounting/activity audit",
         "",
@@ -245,10 +210,6 @@ def main() -> None:
         lines.append(f"| {name} | {'PASS' if ok else 'FAIL'} |")
 
     lines += [
-        "",
-        "## 判讀原則",
-        "",
-        "輸給基準不是淘汰標準。本專案的目的是尋找 0050 以外的機會，評估重點是「超額有多大、代價是什麼、與大盤的相關性多低」。一條報酬較低但相關性低的策略，配置價值可能高於報酬較高但高度同向的策略。不得以「未跑贏大盤」為由停止研究某條訊號。",
         "",
         "Trade-level returns are reconstructed from canonical fills plus CA-aware FIFO events. Open lots are not mixed into closed-trade statistics. Portfolio-path metrics are secondary descriptive context.",
     ]

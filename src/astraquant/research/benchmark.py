@@ -201,3 +201,92 @@ def compare_strategy_to_total_return_benchmark(
         strategy_path=strategy_path,
         benchmark_path=benchmark_path,
     )
+
+
+BENCHMARK_INTERPRETATION_TW = (
+    "輸給基準不是淘汰標準。本專案的目的是尋找 0050 以外的機會，"
+    "評估重點是「超額有多大、代價是什麼、與大盤的相關性多低」。"
+    "一條報酬較低但相關性低的策略，配置價值可能高於報酬較高"
+    "但高度同向的策略。不得以「未跑贏大盤」為由停止研究某條訊號。"
+)
+
+
+def _pct_text(value: float) -> str:
+    return "n/a" if pd.isna(value) else f"{value * 100:.2f}%"
+
+
+def _num_text(value: float, digits: int = 3) -> str:
+    return "n/a" if pd.isna(value) else f"{value:.{digits}f}"
+
+
+def render_benchmark_report_sections(
+    *,
+    trade_report: TradeReport,
+    comparison: BenchmarkComparison,
+) -> list[str]:
+    """Render the canonical benchmark-aware report blocks.
+
+    The order is governance-significant: trade-level evidence first, excess/cost
+    second, and portfolio path statistics only as an appendix. Benchmark rows
+    never appear in the trade-level table because buy-and-hold has no comparable
+    closed-trade concept.
+    """
+    stats = trade_report.statistics
+    return [
+        "## 一、單筆層（主表）",
+        "",
+        "| Metric | Strategy |",
+        "|---|---:|",
+        f"| Closed trades n | {stats.n:,} |",
+        f"| Win rate | {_pct_text(stats.win_rate)} |",
+        f"| Average win | {_pct_text(stats.average_win)} |",
+        f"| Average loss | {_pct_text(stats.average_loss)} |",
+        f"| Payoff ratio | {_num_text(stats.payoff_ratio)} |",
+        f"| Expectancy per trade | {_pct_text(stats.expectancy)} |",
+        "",
+        (
+            "Open FIFO lots are reported separately and excluded from the table "
+            f"above: **{len(trade_report.reconstruction.open_lots):,}** open lots."
+        ),
+        "",
+        "## 二、超額與代價",
+        "",
+        "| Metric | Value |",
+        "|---|---:|",
+        (
+            "| Cumulative excess return (strategy - benchmark) | "
+            f"{_pct_text(comparison.cumulative_excess_return)} |"
+        ),
+        f"| Daily-return correlation | {_num_text(comparison.daily_return_correlation)} |",
+        f"| Beta vs total-return benchmark | {_num_text(comparison.beta)} |",
+        (
+            "| Max-drawdown difference (strategy - benchmark) | "
+            f"{_pct_text(comparison.max_drawdown_difference)} |"
+        ),
+        f"| Closed trade count | {comparison.trade_count:,} |",
+        f"| Annualized gross turnover | {_pct_text(comparison.annualized_gross_turnover)} |",
+        f"| Average holding days (calendar) | {_num_text(comparison.average_holding_days, 1)} |",
+        "",
+        "## 三、組合層（附表）",
+        "",
+        "| Metric | Strategy | Total-return benchmark |",
+        "|---|---:|---:|",
+        (
+            f"| CAGR | {_pct_text(comparison.strategy_path.cagr)} | "
+            f"{_pct_text(comparison.benchmark_path.cagr)} |"
+        ),
+        (
+            f"| MaxDD | {_pct_text(comparison.strategy_path.max_drawdown)} | "
+            f"{_pct_text(comparison.benchmark_path.max_drawdown)} |"
+        ),
+        (
+            "| Sharpe (daily, rf=0, sqrt(252)) | "
+            f"{_num_text(comparison.strategy_path.sharpe)} | "
+            f"{_num_text(comparison.benchmark_path.sharpe)} |"
+        ),
+        "",
+        "## 判讀原則",
+        "",
+        BENCHMARK_INTERPRETATION_TW,
+    ]
+}

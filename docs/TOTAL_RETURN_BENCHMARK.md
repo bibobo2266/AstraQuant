@@ -6,6 +6,12 @@ AstraQuant benchmark comparisons use the canonical FinMind `TaiwanStockTotalRetu
 
 The price-only TAIEX series is not permitted for strategy-excess reporting because it omits dividends and would systematically overstate excess performance relative to an investable equity benchmark.
 
+## Source provenance
+
+The canonical source file is `data/futures/index_tri.parquet`, produced in the read-only source repository by `scripts/build_futures.py` from FinMind dataset `TaiwanStockTotalReturnIndex` with `data_id=TAIEX`. The source builder separately stores `TaiwanStockPrice` as `index_taiex.parquet`; that price-only series is not accepted for excess-return reporting.
+
+The frozen long-window strategy currently uses a signal window ending 2026-06-30 plus drain sessions, producing a RAW NAV/benchmark comparison window of **2016-01-04 through 2026-07-07**. Benchmark alignment is always driven by the actual strategy NAV index rather than by independently chosen benchmark dates.
+
 ## Alignment contract
 
 - strategy and benchmark use exactly the same trading dates;
@@ -27,4 +33,4 @@ Every benchmark-aware strategy report presents:
 
 輸給基準不是淘汰標準。本專案的目的是尋找 0050 以外的機會，評估重點是「超額有多大、代價是什麼、與大盤的相關性多低」。一條報酬較低但相關性低的策略，配置價值可能高於報酬較高但高度同向的策略。不得以「未跑贏大盤」為由停止研究某條訊號。
 
-The comparison module is reusable and is not tied to the breakout report.
+The comparison module is reusable and is not tied to the breakout report. `render_benchmark_report_sections()` owns the governed three-block report ordering so future signal reports do not reimplement benchmark presentation logic.
