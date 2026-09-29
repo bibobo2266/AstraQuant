@@ -283,6 +283,19 @@ class SweepAxis(FrozenModel):
         return self
 
 
+class SweepConstraint(FrozenModel):
+    type: Literal["STRICTLY_INCREASING"]
+    targets: tuple[str, ...]
+
+    @model_validator(mode="after")
+    def validate_constraint(self):
+        if len(self.targets) < 2:
+            raise ValueError("sweep constraint requires at least two targets")
+        if len(set(self.targets)) != len(self.targets):
+            raise ValueError("sweep constraint targets must be unique")
+        return self
+
+
 class ParameterSweepConfig(FrozenModel):
     schema_version: Literal["1"] = "1"
     name: str
@@ -290,6 +303,7 @@ class ParameterSweepConfig(FrozenModel):
     signal: str
     exit: str
     axes: tuple[SweepAxis, ...]
+    constraints: tuple[SweepConstraint, ...] = ()
     execution_assumptions_id: str
     max_combinations: int = Field(default=1000, ge=1)
     report_trade_stats_first: Literal[True] = True
