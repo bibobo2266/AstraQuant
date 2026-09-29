@@ -31,7 +31,7 @@ on:
 
 concurrency:
   group: source-five-candidate-path-diagnostics
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 permissions:
   contents: write
