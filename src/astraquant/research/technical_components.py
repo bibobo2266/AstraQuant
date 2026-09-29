@@ -505,6 +505,237 @@ def vcp_breakout(*, panel, spec: ComponentSpec, cache, context) -> pd.Series:
     return (contracting & dryup & crossed & chase_ok).fillna(False)
 
 
+
+def vcp_three_segment_details(
+    *,
+    panel: pd.DataFrame,
+    spec: ComponentSpec,
+    cache: FeatureCache,
+    context,
+) -> pd.DataFrame:
+    """TRANSLATED VCP round-1 three-segment approximation.
+
+    The panel is expected to contain one row per common market session/ticker.
+    Missing stock observations must remain NA rows; rolling windows therefore
+    fail closed instead of silently compressing time across suspensions.
+    """
+    base_len = int(spec.params["base_len"])
+    contraction_ratio = float(spec.params.get("contraction_ratio", 0.75))
+    last_contraction = float(spec.params["last_contraction"])
+    dry_up = float(spec.params["dry_up"])
+    dry_up_window = int(spec.params.get("dry_up_window", 5))
+    breakout_volume_lookback = int(
+        spec.params.get("breakout_volume_lookback", 50)
+    )
+    breakout_vol = float(spec.params["breakout_vol"])
+    liquidity_lookback = int(spec.params.get("liquidity_lookback", 20))
+    min_prior_avg_amount_twd = float(spec.params["min_prior_avg_amount_twd"])
+
+    if base_len < 3:
+        raise ValueError("VCP_THREE_SEGMENT base_len must be >= 3")
+    if not 0 < contraction_ratio < 1:
+        raise ValueError("contraction_ratio must be in (0, 1)")
+    if not 0 < last_contraction < 1:
+        raise ValueError("last_contraction must be in (0, 1)")
+    if not 0 < dry_up <= 1:
+        raise ValueError("dry_up must be in (0, 1]")
+    if dry_up_window <= 0 or breakout_volume_lookback <= 0:
+        raise ValueError("volume lookbacks must be positive")
+    if breakout_vol <= 0:
+        raise ValueError("breakout_vol must be positive")
+    if liquidity_lookback <= 0 or min_prior_avg_amount_twd <= 0:
+        raise ValueError("liquidity settings must be positive")
+
+    q = base_len // 3
+    third_len = base_len - 2 * q
+    if q <= 0 or third_len <= 0:
+        raise ValueError("invalid three-segment split")
+
+    high = _numeric(panel, "max")
+    low = _numeric(panel, "min")
+    close = _numeric(panel, "close")
+    volume = _numeric(panel, "Trading_Volume")
+    amount = _numeric(panel, "Trading_money")
+    tickers = panel["stock_id"]
+
+    def shifted_roll(
+        values: pd.Series,
+        *,
+        shift: int,
+        window: int,
+        op: str,
+        cache_name: str,
+    ) -> pd.Series:
+        def compute() -> pd.Series:
+            shifted = values.groupby(tickers, sort=False).shift(shift)
+            rolled = shifted.groupby(tickers, sort=False).transform(
+                lambda s: (
+                    s.rolling(window, min_periods=window).max()
+                    if op == "max"
+                    else s.rolling(window, min_periods=window).min()
+                )
+            )
+            return rolled
+
+        return _cached(
+            panel=panel,
+            cache=cache,
+            context=context,
+            name=cache_name,
+            params={"base_len": base_len, "shift": shift, "window": window},
+            compute=compute,
+        )
+
+    shift3 = 1
+    shift2 = 1 + third_len
+    shift1 = 1 + third_len + q
+
+    h1 = shifted_roll(high, shift=shift1, window=q, op="max", cache_name="vcp3_h1")
+    l1 = shifted_roll(low, shift=shift1, window=q, op="min", cache_name="vcp3_l1")
+    h2 = shifted_roll(high, shift=shift2, window=q, op="max", cache_name="vcp3_h2")
+    l2 = shifted_roll(low, shift=shift2, window=q, op="min", cache_name="vcp3_l2")
+    h3 = shifted_roll(
+        high, shift=shift3, window=third_len, op="max", cache_name="vcp3_h3"
+    )
+    l3 = shifted_roll(
+        low, shift=shift3, window=third_len, op="min", cache_name="vcp3_l3"
+    )
+
+    amplitude1 = (h1 - l1) / h1.replace(0, np.nan)
+    amplitude2 = (h2 - l2) / h2.replace(0, np.nan)
+    amplitude3 = (h3 - l3) / h3.replace(0, np.nan)
+    pivot = h3
+
+    prior5_volume = _cached(
+        panel=panel,
+        cache=cache,
+        context=context,
+        name="vcp3_prior_volume_mean",
+        params={"window": dry_up_window},
+        compute=lambda: volume.groupby(tickers, sort=False).transform(
+            lambda s: s.shift(1).rolling(
+                dry_up_window, min_periods=dry_up_window
+            ).mean()
+        ),
+    )
+    prior_base_volume = _cached(
+        panel=panel,
+        cache=cache,
+        context=context,
+        name="vcp3_prior_volume_mean",
+        params={"window": base_len},
+        compute=lambda: volume.groupby(tickers, sort=False).transform(
+            lambda s: s.shift(1).rolling(base_len, min_periods=base_len).mean()
+        ),
+    )
+    prior_breakout_volume = _cached(
+        panel=panel,
+        cache=cache,
+        context=context,
+        name="vcp3_prior_volume_mean",
+        params={"window": breakout_volume_lookback},
+        compute=lambda: volume.groupby(tickers, sort=False).transform(
+            lambda s: s.shift(1).rolling(
+                breakout_volume_lookback,
+                min_periods=breakout_volume_lookback,
+            ).mean()
+        ),
+    )
+    prior_avg_amount = _cached(
+        panel=panel,
+        cache=cache,
+        context=context,
+        name="vcp3_prior_amount_mean",
+        params={"window": liquidity_lookback},
+        compute=lambda: amount.groupby(tickers, sort=False).transform(
+            lambda s: s.shift(1).rolling(
+                liquidity_lookback, min_periods=liquidity_lookback
+            ).mean()
+        ),
+    )
+
+    dry_ratio = prior5_volume / prior_base_volume.replace(0, np.nan)
+    breakout_ratio = volume / prior_breakout_volume.replace(0, np.nan)
+    previous_close = close.groupby(tickers, sort=False).shift(1)
+
+    price_ready = (
+        h1.notna()
+        & l1.notna()
+        & h2.notna()
+        & l2.notna()
+        & h3.notna()
+        & l3.notna()
+        & close.notna()
+        & previous_close.notna()
+    )
+    amp_positive = amplitude1.gt(0) & amplitude2.gt(0)
+    contraction12 = amplitude2.le(amplitude1 * contraction_ratio)
+    contraction23 = amplitude3.le(amplitude2 * contraction_ratio)
+    last_ok = amplitude3.le(last_contraction)
+    volume_ready = (
+        prior5_volume.gt(0)
+        & prior_base_volume.gt(0)
+        & prior_breakout_volume.gt(0)
+        & volume.gt(0)
+    )
+    dry_ok = dry_ratio.le(dry_up)
+    breakout_volume_ok = breakout_ratio.ge(breakout_vol)
+    amount_ready = prior_avg_amount.notna()
+    liquidity_ok = prior_avg_amount.ge(min_prior_avg_amount_twd)
+    pivot_cross = close.gt(pivot) & previous_close.le(pivot)
+
+    signal = (
+        price_ready
+        & amp_positive
+        & contraction12
+        & contraction23
+        & last_ok
+        & volume_ready
+        & dry_ok
+        & breakout_volume_ok
+        & amount_ready
+        & liquidity_ok
+        & pivot_cross
+    ).fillna(False)
+
+    reason = pd.Series("OK", index=panel.index, dtype=object)
+    reason = reason.mask(~pivot_cross.fillna(False), "NO_PIVOT_BREAKOUT")
+    reason = reason.mask(~liquidity_ok.fillna(False), "LIQUIDITY_FAIL")
+    reason = reason.mask(~amount_ready, "INSUFFICIENT_AMOUNT")
+    reason = reason.mask(~breakout_volume_ok.fillna(False), "BREAKOUT_VOLUME_FAIL")
+    reason = reason.mask(~dry_ok.fillna(False), "DRY_UP_FAIL")
+    reason = reason.mask(~volume_ready, "INSUFFICIENT_VOLUME")
+    reason = reason.mask(~last_ok.fillna(False), "LAST_CONTRACTION_FAIL")
+    reason = reason.mask(~contraction23.fillna(False), "CONTRACTION_2_TO_3_FAIL")
+    reason = reason.mask(~contraction12.fillna(False), "CONTRACTION_1_TO_2_FAIL")
+    reason = reason.mask(~amp_positive.fillna(False), "NONPOSITIVE_AMPLITUDE")
+    reason = reason.mask(~price_ready, "INSUFFICIENT_PRICE_BASE")
+    reason = reason.where(~signal, "OK")
+
+    return pd.DataFrame(
+        {
+            "signal": signal.astype(bool),
+            "pivot_adjusted": pivot,
+            "amplitude_1": amplitude1,
+            "amplitude_2": amplitude2,
+            "amplitude_3": amplitude3,
+            "dry_up_ratio": dry_ratio,
+            "breakout_volume_ratio": breakout_ratio,
+            "prior_avg_amount_twd": prior_avg_amount,
+            "diagnostic_reason": reason,
+        },
+        index=panel.index,
+    )
+
+
+def vcp_three_segment(*, panel, spec: ComponentSpec, cache, context) -> pd.Series:
+    return vcp_three_segment_details(
+        panel=panel,
+        spec=spec,
+        cache=cache,
+        context=context,
+    )["signal"]
+
 def _anchor_reversal_group(
     frame: pd.DataFrame,
     *,
