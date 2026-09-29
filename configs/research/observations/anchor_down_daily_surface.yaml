@@ -1,0 +1,16 @@
+schema_version: "1"
+name: anchor_down_daily_surface_v1
+universes:
+  - configs/examples/universes/all_liquid.yaml
+signal: configs/examples/signals/anchor_down_reversal.yaml
+exit: configs/examples/exits/stop12_time250_executable.yaml
+axes:
+  - target: trigger.left_confirm_sessions
+    values: [3, 5, 10]
+  - target: trigger.right_confirm_sessions
+    values: [1, 2, 3]
+  - target: trigger.required_closes
+    values: [1, 2]
+execution_assumptions_id: candidate-level-adjusted-research-only
+max_combinations: 100
+report_trade_stats_first: true

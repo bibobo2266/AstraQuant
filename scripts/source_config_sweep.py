@@ -48,6 +48,9 @@ EXPECTED_ELIGIBLE_TICKERS = 1986
 SIGNAL_START = pd.Timestamp(os.environ.get("SIGNAL_START", "2016-01-04"))
 SIGNAL_END = pd.Timestamp(os.environ.get("SIGNAL_END", "2026-06-30"))
 FORWARD_SESSIONS = int(os.environ.get("FORWARD_SESSIONS", "250"))
+OUTCOME_DIRECTION = os.environ.get("OUTCOME_DIRECTION", "LONG").upper()
+if OUTCOME_DIRECTION not in {"LONG", "SHORT"}:
+    raise SystemExit("OUTCOME_DIRECTION must be LONG or SHORT")
 
 
 def _load_exclusions() -> set[str]:
@@ -174,7 +177,12 @@ def main() -> None:
             how="left",
             validate="one_to_one",
         )
-        metric = _metrics(joined["forward_return"])
+        directional_return = (
+            joined["forward_return"]
+            if OUTCOME_DIRECTION == "LONG"
+            else -joined["forward_return"]
+        )
+        metric = _metrics(directional_return)
         rows.append(
             {
                 "run_name": run.run_config.run_name,
@@ -217,7 +225,7 @@ def main() -> None:
         "## Research boundary",
         "",
         "- This is a candidate-level research screen, not executable portfolio evidence.",
-        f"- Outcome: adjusted close-to-close return {FORWARD_SESSIONS} source sessions after the signal date.",
+        f"- Outcome: {OUTCOME_DIRECTION.lower()}-direction adjusted close-to-close return {FORWARD_SESSIONS} source sessions after the signal date.",
         "- No RAW fill, capacity, corporate-action path, FIFO path, stop execution, or portfolio sequencing is represented here.",
         "- The sweep does not select or promote a winning parameter combination.",
         "- Locked OOS remains locked.",

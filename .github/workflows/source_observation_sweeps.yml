@@ -1,0 +1,142 @@
+name: Source observation sweeps
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/source_observation_sweeps.yml"
+      - "scripts/source_config_sweep.py"
+      - "src/astraquant/research/technical_components.py"
+      - "src/astraquant/research/signal_engine.py"
+      - "configs/research/observations/**"
+      - "configs/examples/signals/bollinger_compression_rsi.yaml"
+      - "configs/examples/signals/vcp_breakout.yaml"
+      - "configs/examples/signals/anchor_up_reversal.yaml"
+      - "configs/examples/signals/anchor_down_reversal.yaml"
+      - "configs/examples/universes/all_liquid.yaml"
+      - "configs/examples/exits/stop12_time250_executable.yaml"
+      - "docs/SOURCE_CA_PIT_EXCLUSIONS.csv"
+
+permissions:
+  contents: write
+
+jobs:
+  report:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - name: Checkout AstraQuant
+        uses: actions/checkout@v4
+        with:
+          path: AstraQuant
+
+      - name: Checkout immutable source
+        uses: actions/checkout@v4
+        with:
+          repository: bibobo2266/minervini_picks
+          token: ${{ secrets.MINERVINI_READ_TOKEN }}
+          path: source_runtime/minervini_picks
+          persist-credentials: false
+          sparse-checkout: |
+            data/adj
+            data/reference
+
+      - name: Make source checkout filesystem read-only
+        run: chmod -R a-w source_runtime/minervini_picks
+
+      - name: Record source revision
+        id: source
+        working-directory: source_runtime/minervini_picks
+        run: echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install AstraQuant
+        working-directory: AstraQuant
+        run: python -m pip install --quiet -e .
+
+      - name: Run Bollinger daily sweep
+        working-directory: AstraQuant
+        env:
+          SOURCE_ROOT: ../source_runtime/minervini_picks/data
+          SOURCE_REVISION: ${{ steps.source.outputs.sha }}
+          SWEEP_PATH: configs/research/observations/bollinger_daily_surface.yaml
+          REPORT_PATH: docs/SOURCE_BOLLINGER_DAILY_SWEEP.md
+          CSV_PATH: docs/SOURCE_BOLLINGER_DAILY_SWEEP.csv
+          EXCLUSIONS_PATH: docs/SOURCE_CA_PIT_EXCLUSIONS.csv
+          SIGNAL_START: "2016-01-04"
+          SIGNAL_END: "2026-06-30"
+          FORWARD_SESSIONS: "60"
+          OUTCOME_DIRECTION: "LONG"
+        run: python scripts/source_config_sweep.py
+
+      - name: Run VCP daily sweep
+        working-directory: AstraQuant
+        env:
+          SOURCE_ROOT: ../source_runtime/minervini_picks/data
+          SOURCE_REVISION: ${{ steps.source.outputs.sha }}
+          SWEEP_PATH: configs/research/observations/vcp_daily_surface.yaml
+          REPORT_PATH: docs/SOURCE_VCP_DAILY_SWEEP.md
+          CSV_PATH: docs/SOURCE_VCP_DAILY_SWEEP.csv
+          EXCLUSIONS_PATH: docs/SOURCE_CA_PIT_EXCLUSIONS.csv
+          SIGNAL_START: "2016-01-04"
+          SIGNAL_END: "2026-06-30"
+          FORWARD_SESSIONS: "60"
+          OUTCOME_DIRECTION: "LONG"
+        run: python scripts/source_config_sweep.py
+
+      - name: Run Anchor-up daily sweep
+        working-directory: AstraQuant
+        env:
+          SOURCE_ROOT: ../source_runtime/minervini_picks/data
+          SOURCE_REVISION: ${{ steps.source.outputs.sha }}
+          SWEEP_PATH: configs/research/observations/anchor_up_daily_surface.yaml
+          REPORT_PATH: docs/SOURCE_ANCHOR_UP_DAILY_SWEEP.md
+          CSV_PATH: docs/SOURCE_ANCHOR_UP_DAILY_SWEEP.csv
+          EXCLUSIONS_PATH: docs/SOURCE_CA_PIT_EXCLUSIONS.csv
+          SIGNAL_START: "2016-01-04"
+          SIGNAL_END: "2026-06-30"
+          FORWARD_SESSIONS: "60"
+          OUTCOME_DIRECTION: "LONG"
+        run: python scripts/source_config_sweep.py
+
+      - name: Run Anchor-down daily sweep
+        working-directory: AstraQuant
+        env:
+          SOURCE_ROOT: ../source_runtime/minervini_picks/data
+          SOURCE_REVISION: ${{ steps.source.outputs.sha }}
+          SWEEP_PATH: configs/research/observations/anchor_down_daily_surface.yaml
+          REPORT_PATH: docs/SOURCE_ANCHOR_DOWN_DAILY_SWEEP.md
+          CSV_PATH: docs/SOURCE_ANCHOR_DOWN_DAILY_SWEEP.csv
+          EXCLUSIONS_PATH: docs/SOURCE_CA_PIT_EXCLUSIONS.csv
+          SIGNAL_START: "2016-01-04"
+          SIGNAL_END: "2026-06-30"
+          FORWARD_SESSIONS: "60"
+          OUTCOME_DIRECTION: "SHORT"
+        run: python scripts/source_config_sweep.py
+
+      - name: Publish summaries
+        working-directory: AstraQuant
+        shell: bash
+        run: |
+          cat docs/SOURCE_BOLLINGER_DAILY_SWEEP.md >> "$GITHUB_STEP_SUMMARY"
+          cat docs/SOURCE_VCP_DAILY_SWEEP.md >> "$GITHUB_STEP_SUMMARY"
+          cat docs/SOURCE_ANCHOR_UP_DAILY_SWEEP.md >> "$GITHUB_STEP_SUMMARY"
+          cat docs/SOURCE_ANCHOR_DOWN_DAILY_SWEEP.md >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Commit reports to AstraQuant only
+        working-directory: AstraQuant
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add             docs/SOURCE_BOLLINGER_DAILY_SWEEP.md docs/SOURCE_BOLLINGER_DAILY_SWEEP.csv             docs/SOURCE_VCP_DAILY_SWEEP.md docs/SOURCE_VCP_DAILY_SWEEP.csv             docs/SOURCE_ANCHOR_UP_DAILY_SWEEP.md docs/SOURCE_ANCHOR_UP_DAILY_SWEEP.csv             docs/SOURCE_ANCHOR_DOWN_DAILY_SWEEP.md docs/SOURCE_ANCHOR_DOWN_DAILY_SWEEP.csv
+          if git diff --cached --quiet; then exit 0; fi
+          git commit -m "report: record source observation sweeps"
+          git pull --rebase origin main
+          git push origin HEAD:main

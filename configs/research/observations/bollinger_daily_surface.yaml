@@ -1,0 +1,18 @@
+schema_version: "1"
+name: bollinger_daily_surface_v1
+universes:
+  - configs/examples/universes/all_liquid.yaml
+signal: configs/examples/signals/bollinger_compression_rsi.yaml
+exit: configs/examples/exits/stop12_time250_executable.yaml
+axes:
+  - target: trigger.window
+    values: [10, 14, 20]
+  - target: trigger.stddev
+    values: [1.5, 2.0, 2.5]
+  - target: trigger.max_bandwidth_percentile
+    values: [0.10, 0.20, 0.30]
+  - target: trigger.volume_multiplier
+    values: [1.2, 1.5, 2.0]
+execution_assumptions_id: candidate-level-adjusted-research-only
+max_combinations: 100
+report_trade_stats_first: true

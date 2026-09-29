@@ -1,0 +1,16 @@
+schema_version: "1"
+name: vcp_daily_surface_v1
+universes:
+  - configs/examples/universes/all_liquid.yaml
+signal: configs/examples/signals/vcp_breakout.yaml
+exit: configs/examples/exits/stop12_time250_executable.yaml
+axes:
+  - target: trigger.pivot_lookback
+    values: [10, 20, 40]
+  - target: trigger.max_dryup_volume_ratio
+    values: [0.50, 0.70, 0.90]
+  - target: trigger.max_chase_pct
+    values: [0.03, 0.05]
+execution_assumptions_id: candidate-level-adjusted-research-only
+max_combinations: 100
+report_trade_stats_first: true

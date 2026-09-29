@@ -313,3 +313,57 @@ For every observation:
 6. record adverse and null results;
 7. search for robust regions, not a single best cell;
 8. do not promote or unlock locked OOS from an exploratory sweep.
+
+
+## Source-backed daily screening protocol v1
+
+Before observing results, the first real-source daily screen is frozen as follows:
+
+- universe: ALL top-25%-turnover pool on the frozen P2-060 common-support exclusions;
+- signal window: 2016-01-04 through 2026-06-30;
+- outcome horizon: 60 source sessions;
+- evidence level: candidate-level adjusted research outcome only;
+- no RAW execution, stop fill, capacity, CA path, FIFO, or portfolio sequencing;
+- no automatic winner selection or OOS promotion.
+
+Declared parameter surfaces:
+
+### Bollinger
+
+```text
+window: 10 / 14 / 20
+stddev: 1.5 / 2.0 / 2.5
+compression bandwidth percentile: 10% / 20% / 30%
+volume multiplier: 1.2 / 1.5 / 2.0
+RSI-relative filter: RSI13 > RSI26 fixed for this first screen
+```
+
+81 combinations.
+
+### VCP
+
+```text
+contraction windows: [60, 30, 15] fixed for v1
+pivot lookback: 10 / 20 / 40
+max dry-up volume ratio: 0.50 / 0.70 / 0.90
+max chase: 3% / 5%
+```
+
+18 combinations.
+
+### Anchor UP
+
+```text
+left confirmation: 3 / 5 / 10
+right confirmation: 1 / 2 / 3
+required closes above anchor: 1 / 2
+max wait: 20 sessions fixed
+```
+
+18 combinations, evaluated with long-direction 60-session return.
+
+### Anchor DOWN
+
+Same 18-combination surface, evaluated separately with short-direction 60-session return. Long and short outcomes are never pooled.
+
+These first source-backed surfaces are exploratory falsification/screening evidence only. Parameter neighborhoods may be analyzed after the run, but the maximum cell is not a promotion rule.
