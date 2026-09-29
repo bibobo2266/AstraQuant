@@ -6,55 +6,55 @@ This is descriptive in-sample evidence. It is not OOS validation, parameter prom
 
 ## Run identity
 
-- mode: legacy-breakout-regression
-- signal source: CANONICAL_SIMPLE_BREAKOUT_V1
+- mode: config:configs/research/runs/rsi_pullback_reclaim_all_liquid_stop12_time250.yaml
+- signal source: CONFIG:rsi_pullback_reclaim
 - signal window: 2016-01-04 through 2026-06-30
 - simulation/drain horizon: 2016-01-04 through 2026-07-07
 - RAW strategy NAV sessions: 2,559
 - starting capital: 10,000,000.00
-- canonical candidates supplied: 35,592
+- canonical candidates supplied: 12,125
 - PIT-unsafe CA tickers quarantined: 4
-- legacy signal rows removed by PIT CA quarantine: 76
+- legacy signal rows removed by PIT CA quarantine: 0
 - executable exit layer in this round remains limited to fixed stop + time/max-hold only
 - execution/accounting and verified CA semantics remain unchanged; this round adds the documented conservative unverified-terminal cashout overlay
 - strategy execution assumptions: zero explicit fees and zero slippage in this descriptive run
 - benchmark: FinMind TaiwanStockTotalReturnIndex (TAIEX), buy-and-hold, same starting capital and exact strategy trading dates, no benchmark transaction-cost deduction
-- closed FIFO trade table: `docs/SOURCE_STRATEGY_PERFORMANCE_REPORT_TRADES.csv`
-- open FIFO lots table: `docs/SOURCE_STRATEGY_PERFORMANCE_REPORT_OPEN_LOTS.csv`
+- closed FIFO trade table: `docs/SOURCE_RSI_PULLBACK_RECLAIM_ALL_LIQUID_STOP12_TIME250_STRATEGY_PERFORMANCE_TRADES.csv`
+- open FIFO lots table: `docs/SOURCE_RSI_PULLBACK_RECLAIM_ALL_LIQUID_STOP12_TIME250_STRATEGY_PERFORMANCE_OPEN_LOTS.csv`
 
 ## 一、單筆層（主表）
 
 | Metric | Strategy |
 |---|---:|
-| Closed trades n | 206 |
-| Win rate | 25.73% |
-| Average win | 80.32% |
-| Average loss | -12.83% |
-| Payoff ratio | 6.262 |
-| Expectancy per trade | 11.14% |
+| Closed trades n | 214 |
+| Win rate | 26.17% |
+| Average win | 59.21% |
+| Average loss | -13.12% |
+| Payoff ratio | 4.515 |
+| Expectancy per trade | 5.81% |
 | Closed trades involving UNVERIFIED_TERMINAL_CASHOUT | 0 (0.00%) |
 
-Open FIFO lots are reported separately and excluded from the table above: **9** open lots.
+Open FIFO lots are reported separately and excluded from the table above: **10** open lots.
 
 ## 二、超額與代價
 
 | Metric | Value |
 |---|---:|
-| Cumulative excess return (strategy - benchmark) | -295.91% |
-| Daily-return correlation | 0.502 |
-| Beta vs total-return benchmark | 0.676 |
-| Max-drawdown difference (strategy - benchmark) | -7.87% |
-| Closed trade count | 206 |
-| Annualized gross turnover | 325.67% |
-| Average holding days (calendar) | 170.0 |
+| Cumulative excess return (strategy - benchmark) | -541.25% |
+| Daily-return correlation | 0.597 |
+| Beta vs total-return benchmark | 0.727 |
+| Max-drawdown difference (strategy - benchmark) | -13.24% |
+| Closed trade count | 214 |
+| Annualized gross turnover | 346.88% |
+| Average holding days (calendar) | 168.5 |
 
 ## 三、組合層（附表）
 
 | Metric | Strategy | Total-return benchmark |
 |---|---:|---:|
-| CAGR | 16.93% | 22.07% |
-| MaxDD | -36.42% | -28.55% |
-| Sharpe (daily, rf=0, sqrt(252)) | 0.794 | 1.245 |
+| CAGR | 9.98% | 22.07% |
+| MaxDD | -41.79% | -28.55% |
+| Sharpe (daily, rf=0, sqrt(252)) | 0.562 | 1.245 |
 
 ## 判讀原則
 
@@ -62,14 +62,14 @@ Open FIFO lots are reported separately and excluded from the table above: **9** 
 
 ## Accounting/activity audit
 
-- final strategy NAV: 51,696,620.30
-- entries executed: 215
-- RAW stop exits: 140
-- RAW max-hold exits: 65
-- blocked exit attempts: 19
-- corporate actions applied: 14,283
-- corporate-action cash payments settled: 12,060
-- ending pending receivables: 328,865.268830
+- final strategy NAV: 27,162,736.19
+- entries executed: 224
+- RAW stop exits: 145
+- RAW max-hold exits: 69
+- blocked exit attempts: 16
+- corporate actions applied: 11,303
+- corporate-action cash payments settled: 9,736
+- ending pending receivables: 203,063.097270
 - ending pending payables: 0.000000
 
 ## Reproducibility gates
@@ -86,7 +86,6 @@ Open FIFO lots are reported separately and excluded from the table above: **9** 
 | benchmark_same_trading_days | PASS |
 | fifo_trade_table_written | PASS |
 | open_lots_table_written | PASS |
-| frozen_long_nav_exact_float_check | PASS |
 
 Closed-trade statistics come from CA-aware FIFO reconstruction. Any entry with a remaining open FIFO lot is excluded from closed-trade statistics and reported separately.
 CAGR / MaxDD / Sharpe are secondary portfolio-path context; the trade-level table is primary.
