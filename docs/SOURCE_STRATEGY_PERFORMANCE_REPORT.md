@@ -73,7 +73,7 @@ Open FIFO lots are reported separately and excluded from the table above: **9** 
 | no_unsupported_ca_cash | PASS |
 | pit_unsafe_ca_tickers_excluded | PASS |
 | positive_nav_all_sessions | PASS |
-| frozen_long_nav_bitwise_cent_check | PASS |
+| frozen_long_nav_exact_float_check | PASS |
 | benchmark_same_trading_days | PASS |
 
 ## 判讀原則
