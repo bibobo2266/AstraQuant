@@ -1,4 +1,4 @@
-name: Source RSI candidate path diagnostic
+name: Source RSI candidate path diagnostic manual
 
 on:
   workflow_dispatch:
@@ -7,26 +7,8 @@ on:
         description: "Effect epoch: E1 (default) or E2. E3 is blocked by governance."
         required: false
         default: "E1"
-  push:
-    branches: [main]
-    paths:
-      - ".github/workflows/source_rsi_daily_sweep.yml"
-      - "scripts/source_path_diagnostics.py"
-      - "src/astraquant/research/path_diagnostics.py"
-      - "src/astraquant/research/epoch_governance.py"
-      - "scripts/source_strategy_integration_smoke.py"
-      - "data/research/terminal_events.csv"
-      - "src/astraquant/research/parameter_sweep.py"
-      - "src/astraquant/research/strategy_config.py"
-      - "src/astraquant/research/technical_components.py"
-      - "configs/research/observations/rsi_daily_surface.yaml"
-      - "configs/examples/signals/rsi_pullback_reclaim.yaml"
-      - "configs/examples/universes/all_liquid.yaml"
-      - "configs/examples/exits/stop12_time250_executable.yaml"
-      - "docs/SOURCE_CA_PIT_EXCLUSIONS.csv"
-
 concurrency:
-  group: research-effect-publication
+  group: source-rsi-candidate-path-diagnostic-manual
   cancel-in-progress: false
 
 permissions:
