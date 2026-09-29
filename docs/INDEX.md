@@ -7,6 +7,8 @@
 - `MASTER_PROGRESS.md` — append-only project tracker
 - `NEXT_ACTIONS.md` — current build plan
 - `OWNER_PRIORITY_QUEUE.md` — owner-defined mandatory execution order; read before accepting or starting new work
+- `EPOCH_GOVERNANCE.md` — strategy-version-specific E1/E2/E3/E4 governance and effect-query gates
+- `CONTACT_REGISTRY.md` — append-only registry of previously viewed research effects
 - `DATA_SOURCE_POLICY.md` — immutable external-source boundary
 
 ## Research and validation

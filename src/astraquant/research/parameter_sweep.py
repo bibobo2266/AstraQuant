@@ -228,6 +228,7 @@ class ResearchParameterSweepRunner:
                     )
                     run_cfg = StrategyRunConfig(
                         run_name=run_name,
+                        strategy_version=run_name,
                         universe=universe_path,
                         signal=sweep.signal,
                         exit=sweep.exit,

@@ -224,6 +224,7 @@ class ExitConfig(FrozenModel):
 class StrategyRunConfig(FrozenModel):
     schema_version: Literal["1"] = "1"
     run_name: str
+    strategy_version: str
     universe: str
     signal: str
     exit: str

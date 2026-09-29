@@ -73,11 +73,13 @@ def test_signal_and_exit_are_independent_contracts():
 def test_run_config_references_three_files_without_strategy_logic():
     cfg = StrategyRunConfig(
         run_name="example",
+        strategy_version="example-v1",
         universe="configs/universes/all_liquid.yaml",
         signal="configs/signals/high_250.yaml",
         exit="configs/exits/stop12_time250.yaml",
         execution_assumptions_id="taiwan-zero-cost-signal-isolation-v1",
     )
+    assert cfg.strategy_version == "example-v1"
     assert cfg.report_trade_stats_first is True
 
 

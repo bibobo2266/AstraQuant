@@ -88,6 +88,7 @@ rules:
         """
 schema_version: "1"
 run_name: executable_slice
+strategy_version: executable_slice_v1
 universe: configs/universes/u.yaml
 signal: configs/signals/s.yaml
 exit: configs/exits/e.yaml

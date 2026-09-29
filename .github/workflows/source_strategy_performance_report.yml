@@ -1,4 +1,4 @@
-name: Frozen canonical strategy performance report
+name: Governed canonical strategy performance report
 
 on:
   workflow_dispatch:
@@ -7,6 +7,10 @@ on:
         description: "Optional single run config (e.g. configs/research/runs/vcp_all_liquid_stop12_time250.yaml). Empty = legacy breakout + every run config."
         required: false
         default: ""
+      research_epoch:
+        description: "Effect epoch: E1 (default) or E2. E3 is blocked by governance."
+        required: false
+        default: "E1"
   push:
     branches: [main]
     paths:
@@ -19,6 +23,10 @@ on:
       - "configs/examples/signals/**"
       - "configs/examples/exits/**"
       - "src/astraquant/**"
+
+concurrency:
+  group: research-effect-publication
+  cancel-in-progress: false
 
 permissions:
   contents: write
@@ -73,6 +81,7 @@ jobs:
           SIGNAL_START: "2016-01-04"
           SIGNAL_END: "2026-06-30"
           DRAIN_SESSIONS: "5"
+          RESEARCH_EPOCH: ${{ github.event.inputs.research_epoch || 'E1' }}
           ONLY_CONFIG: ${{ github.event.inputs.run_config }}
         run: |
           set -euo pipefail
@@ -89,7 +98,7 @@ jobs:
             exit 0
           fi
 
-          echo "::group::legacy breakout regression"
+          echo "::group::legacy breakout governed report"
           python scripts/source_strategy_performance_report.py
           echo "::endgroup::"
 

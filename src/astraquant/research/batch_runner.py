@@ -77,6 +77,7 @@ class ResearchBatchRunner:
 
             run_cfg = StrategyRunConfig(
                 run_name=run_name,
+                strategy_version=run_name,
                 universe=universe_path,
                 signal=signal_path,
                 exit=exit_path,

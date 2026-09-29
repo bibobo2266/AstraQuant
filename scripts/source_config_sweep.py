@@ -4,12 +4,16 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+from datetime import datetime
 from pathlib import Path
+from zoneinfo import ZoneInfo
 
 import numpy as np
 import pandas as pd
 
 from astraquant.portfolio.policy import PortfolioPolicyConfig
+from astraquant.research.contact_registry import ContactRecord, append_contact_record
+from astraquant.research.epoch_governance import EpochGovernanceError, resolve_historical_effect_period
 from astraquant.research.parameter_sweep import ResearchParameterSweepRunner
 from astraquant.research.outcomes import build_forward_outcomes_with_cross_sectional_demean
 from astraquant.research.signal_engine import SignalContext
@@ -46,9 +50,16 @@ EXPECTED_EXCLUSIONS_SHA256 = (
     "379d58f6a8aa06b1e020d56911930f4bc01861d3eeca109613d9e5b1e490d134"
 )
 EXPECTED_ELIGIBLE_TICKERS = 1986
-SIGNAL_START = pd.Timestamp(os.environ.get("SIGNAL_START", "2016-01-04"))
-SIGNAL_END = pd.Timestamp(os.environ.get("SIGNAL_END", "2026-06-30"))
+RESEARCH_EPOCH = os.environ.get("RESEARCH_EPOCH", "E1").strip().upper()
+try:
+    EFFECT_PERIOD = resolve_historical_effect_period(RESEARCH_EPOCH)
+except EpochGovernanceError as exc:
+    raise SystemExit(f"BLOCKED: {exc}") from exc
+assert EFFECT_PERIOD.end is not None
+SIGNAL_START = pd.Timestamp(EFFECT_PERIOD.start)
+SIGNAL_END = pd.Timestamp(EFFECT_PERIOD.end)
 FORWARD_SESSIONS = int(os.environ.get("FORWARD_SESSIONS", "250"))
+CONTACT_REGISTRY_PATH = Path(os.environ.get("CONTACT_REGISTRY_PATH", "docs/CONTACT_REGISTRY.md"))
 OUTCOME_DIRECTION = os.environ.get("OUTCOME_DIRECTION", "LONG").upper()
 if OUTCOME_DIRECTION not in {"LONG", "SHORT"}:
     raise SystemExit("OUTCOME_DIRECTION must be LONG or SHORT")
@@ -211,6 +222,8 @@ def main() -> None:
             how="left",
             validate="one_to_one",
         )
+        cross_boundary = joined["forward_date"].notna() & joined["forward_date"].gt(SIGNAL_END)
+        joined.loc[cross_boundary, ["forward_return", "demeaned_forward_return"]] = np.nan
         absolute_directional_return = (
             joined["forward_return"]
             if OUTCOME_DIRECTION == "LONG"
@@ -231,6 +244,7 @@ def main() -> None:
                     item.parameters, ensure_ascii=False, sort_keys=True
                 ),
                 "signals": int(len(signals)),
+                "cross_epoch_outcomes_purged": int(cross_boundary.sum()),
                 "valid_outcomes": metric["valid_outcomes"],
                 "outcome_coverage": (
                     float(metric["valid_outcomes"]) / len(signals)
@@ -285,6 +299,8 @@ def main() -> None:
         "",
         "## Research boundary",
         "",
+        f"- epoch: {EFFECT_PERIOD.label}",
+        "- E1 is the default effect period; E2 requires explicit RESEARCH_EPOCH=E2.",
         "- This is a candidate-level research screen, not executable portfolio evidence.",
         f"- Absolute outcome: {OUTCOME_DIRECTION.lower()}-direction adjusted close-to-close return {FORWARD_SESSIONS} source sessions after the signal date.",
         "- Demeaned outcome: stock forward return minus the same-date P2-060 common-support cross-sectional mean, then direction-adjusted.",
@@ -307,6 +323,7 @@ def main() -> None:
         "",
         f"- combinations with at least one valid forward outcome: {len(valid):,}/{len(results):,}",
         f"- total signal candidates across combinations: {int(results['signals'].sum()):,}",
+        f"- cross-epoch forward outcomes purged: {int(results['cross_epoch_outcomes_purged'].sum()):,}",
         f"- median absolute-outcome coverage: {coverage.median()*100:.2f}%" if len(coverage) else "- median absolute-outcome coverage: n/a",
         f"- median demeaned-outcome coverage: {demeaned_coverage.median()*100:.2f}%" if len(demeaned_coverage) else "- median demeaned-outcome coverage: n/a",
         f"- absolute expectancy q10 / median / q90 across combinations: "
@@ -357,6 +374,18 @@ def main() -> None:
 
     REPORT_PATH.parent.mkdir(parents=True, exist_ok=True)
     REPORT_PATH.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    append_contact_record(
+        CONTACT_REGISTRY_PATH,
+        ContactRecord(
+            result_id=REPORT_PATH.stem,
+            covered_period=f"{SIGNAL_START.date()} ~ {SIGNAL_END.date()}",
+            contact_date=datetime.now(ZoneInfo("Asia/Taipei")).date(),
+            context=(
+                f"candidate-level effect report; epoch={EFFECT_PERIOD.epoch.value}; "
+                f"source_revision={source_revision}; forward_sessions={FORWARD_SESSIONS}"
+            ),
+        ),
+    )
 
 
 if __name__ == "__main__":

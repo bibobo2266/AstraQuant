@@ -45,7 +45,9 @@ def build_forward_outcomes_with_cross_sectional_demean(
         raise ValueError("outcome panel contains duplicate logical keys")
 
     x = x.sort_values(["stock_id", "date"], kind="stable").reset_index(drop=True)
-    future = x.groupby("stock_id", sort=False)["close"].shift(-forward_sessions)
+    grouped = x.groupby("stock_id", sort=False)
+    future = grouped["close"].shift(-forward_sessions)
+    x["forward_date"] = grouped["date"].shift(-forward_sessions)
     x["forward_return"] = future / x["close"] - 1.0
 
     common_support = (
@@ -71,6 +73,7 @@ def build_forward_outcomes_with_cross_sectional_demean(
         [
             "date",
             "stock_id",
+            "forward_date",
             "forward_return",
             "demean_cross_section_count",
             "demean_cross_section_mean",
