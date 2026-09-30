@@ -2,11 +2,11 @@
 
 ## 目前狀態
 
-更新時間：2026-09-30T08:34:25Z
-做完：第 5 項決策時點可用性契約與受控 feature-panel 串接完成，待審查驗收
-結果：integration QA 36690479141 success；15 tests passed；close_to_ma120 真實 E1 狀態 UNAVAILABLE；策略 gate fail-closed
-卡住：現有 adjusted history 會被未來公司行動回寫；其他 EOD/RAW/TRI/industry 歷史截止時間證據仍有 UNKNOWN；L3-G02 BLOCKED_DATA
-下一項：第 5 項審查驗收
+更新時間：2026-09-30T08:57:51Z
+做完：第 5 項公司行動影響稽核已完成來源算法核對，正在建立 E1 資料／特徵／母體對照程式
+結果：確認未來事件以 after/before 正倍率回寫歷史 OHLC；Trading_Volume／Trading_money 不隨該因子調整；本輪尚未提交 audit 產物
+卡住：無
+下一項：第 5 項公司行動影響稽核驗收
 
 狀態：ACTIVE
 
