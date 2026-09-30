@@ -19,8 +19,8 @@ KD_SATURATION_STATE、OVERNIGHT_MARKET_CONTEXT、COLUMN_THRESHOLD
 | baseline 需要 | 現有元件 | 映射 |
 |---|---|---|
 | 突破 N 日高 | `N_SESSION_HIGH` | `lookback` = 20 / 60 / 250 |
-| 固定百分比停損停利 | `FIXED_STOP_TARGET` | 需確認同時支援停損與停利兩側 |
-| ATR 移動停利 | `ATR_TRAILING` | 週期與倍數為參數，李佛摩 14/3.0 在範圍內 |
+| 固定百分比停損 | `FIXED_STOP_TARGET` | 僅 `stop_pct`（自進場價的比例）。**停利側未實作**：傳 `target_pct` 會拋 `UnsupportedComponentError` |
+| ATR 移動停利 | `ATR_TRAILING` | 追蹤持倉最高價並只上移。**不可用來表達「自進場價 −N×ATR」的停損**（見下方 C 類 `ATR_FROM_ENTRY_STOP`）。且 smoothing 限 WILDER、trigger_field 限 CLOSE、execution 限 NEXT_OPEN |
 | 跌破均線出場 | `MA_BREAK` | 週期為參數 |
 
 **但 `N_SESSION_HIGH` 與來源實作有語意差異，必須記錄、不得默默對齊：**
@@ -50,7 +50,8 @@ KD_SATURATION_STATE、OVERNIGHT_MARKET_CONTEXT、COLUMN_THRESHOLD
 |---|---|---|
 | `PRICE_ABOVE_MA` | 李佛摩、林區、巴菲特、美股隔夜 | 單條均線的狀態判定。若特徵矩陣產出 ma_N 欄位，可退化為 COLUMN_THRESHOLD 比較，需確認引擎是否支援欄位對欄位比較 |
 | `BREAK_N_DAY_LOW`（出場） | 李佛摩(20)、動能(10) | 出場端沒有任何對應元件 |
-| `FIXED_PCT_TARGET`（出場） | 麥克連 +10% | 視 FIXED_STOP_TARGET 是否已含停利側而定 |
+| `FIXED_PCT_TARGET`（出場） | 麥克連 +10% | 已確認：`FIXED_STOP_TARGET` 的停利側未實作，確實缺 |
+| `ATR_FROM_ENTRY_STOP`（出場） | 60 日突破基線（3×ATR） | 自**進場價**減 N×ATR 的停損。`ATR_TRAILING` 追蹤最高價、`FIXED_STOP_TARGET` 用固定比例，兩者皆無法表達 |
 | `MA_BIAS_EXIT`（出場） | 麥克連（離 MA5 正乖離 ≥10%） | — |
 | `PARTIAL_TAKE_PROFIT`（出場） | Qullamaggie（浮盈 1R 賣 1/3、餘額移成本） | 會動到部位模型，是這批唯一的結構性改動 |
 | `MA_BIAS_PERCENTILE` | 地板股 | 乖離的歷史分位須為 PIT expanding 分布 |
@@ -90,19 +91,36 @@ KD_SATURATION_STATE、OVERNIGHT_MARKET_CONTEXT、COLUMN_THRESHOLD
 **元件數**：不再使用未對帳的「18 個」。對帳後為：A 類 4 項可直接重用、
 B 類 4 項可重用計算需改介面、C 類 10 項確實缺 evaluator、D 類 3 項缺資料。
 
-## 建議：只推薦一套完整基線 — 李佛摩
+## Config 狀態：四件事分開記錄
+
+先前把「沒跑回測」寫成「語意相容 0/12」是錯的 —— 那是把「還沒做」講成「已判定不相容」。
+四件事各自獨立：
+
+| 層次 | 狀態 |
+|---|---|
+| 1. schema 載入 | **12/12 通過**（移除 provenance 後） |
+| 2. 元件可解析 | 觸發 4/12 可解析；filter 逐份列於 drafts 檔頭註記 |
+| 3. 與來源規則是否一致 | 逐項查核中，已知差異列於 `BASELINE_SOURCE_LEDGER.md`。**不是「不一致」，是「部分已知差異、其餘未查」** |
+| 4. 完整來源回測 | **未完成**。無任何一套執行過，故不得標為可執行完整策略 |
+
+## 建議：只推薦一套完整基線 — 60 日突破基線
+
+**不稱為「李佛摩」。** 觸發語意已採引擎版（要求首次穿越、用 `>`），與來源不同；
+來源亦為第三方實作，原始著作未取得。這是一套研究端定義的基線，
+名稱為 `baseline_60d_breakout_v1`，來源關聯記於 ledger。
 
 理由是它相對現有引擎的**最小新增能力最少**：
 
 | 環節 | 狀態 |
 |---|---|
 | 觸發：突破 60 日高 | ✅ `N_SESSION_HIGH` lookback=60（採引擎的首次穿越語意，報告註明） |
-| 條件：價 ≥ MA120 | ❌ 缺 `PRICE_ABOVE_MA`。若第 5 項特徵矩陣產出 ma_120 欄位且引擎支援欄位比較，可降為零新增 |
-| 出場：ATR(14) × 3.0 | ✅ `ATR_TRAILING` |
+| 條件：價 ≥ MA120 | ❌ 缺 `PRICE_ABOVE_MA`。**光有 ma_120 欄位不夠** —— 已查 `COLUMN_THRESHOLD` 只比較「欄位對固定值」，不支援欄位對欄位。若要靠它，特徵矩陣須直接產出 `close / ma_120` 的比值欄位，再以 `min: 1.0` 判定；公式、價格口徑（還原或 RAW）與可用時間都要與此處對齊 |
+| 出場：自進場價 −3×ATR(14) | ❌ 缺 `ATR_FROM_ENTRY_STOP`。**不是 `ATR_TRAILING`** —— 來源基準是進場價、不隨股價上移 |
 | 出場：跌破 20 日低 | ❌ 缺 `BREAK_N_DAY_LOW` |
 
-**最小新增：2 個 evaluator**（其中 1 個可能被特徵矩陣消化掉）。
-相較之下短線動能要 3 個、Qullamaggie 要 8 個以上。
+**最小新增：3 個 evaluator** —— `PRICE_ABOVE_MA`、`ATR_FROM_ENTRY_STOP`、`BREAK_N_DAY_LOW`。
+其中第一個可能被特徵矩陣消化為比值欄位 + `COLUMN_THRESHOLD`，待第 5 項交付後確認。
+先前寫的「2 個」建立在「ATR×3 可用 ATR_TRAILING」的誤讀上，已更正。
 
 與 VCP Round 1 的比較條件必須完全對齊，否則數字不可比：
 E1 2016-01-04~2021-12-31、同一 all_liquid 母體與 P2-060 凍結排除名單、
@@ -111,3 +129,16 @@ E1 2016-01-04~2021-12-31、同一 all_liquid 母體與 P2-060 凍結排除名單
 
 **本項不啟動實作，不跑 workflow，不插隊第 5 項。** 待第 5 項交付後，
 先確認特徵矩陣產出哪些欄位，再決定 `PRICE_ABOVE_MA` 是否還需要獨立 evaluator。
+
+
+## 兩種比較不可混為一談
+
+整套基線與 VCP Round 1 並排，回答的是 **「哪一套完整方法表現如何」**。
+那不等於「VCP 的收縮條件有沒有額外價值」—— 後者必須固定出場與其他條件、
+**只改進場定義**，才是對收縮條件本身的檢定。
+
+兩種比較都值得做，但結論不可互相引用：
+- 完整方法比較：多個元件同時不同，差異無法歸因到任一條件
+- 只改進場定義：可歸因，但只回答那一個問題
+
+本文件推薦的「60 日突破基線」屬於前者。要做後者需另立實驗版本。
