@@ -95,12 +95,52 @@ jobs:
             AstraQuant/out/ca_adjustment_invariance_manifest.json
           retention-days: 90
 
+      # 回寫與計算分離：產物已由上一步上傳為 artifact，這裡失敗不得導致資料重算。
+      # 失敗時把 git 狀態寫進 step summary，因為執行紀錄存放於外部儲存，
+      # 審查端未必讀得到；沒有這段就只能靠猜測判斷卡在哪個檔案。
       - name: Commit audit report
+        if: always()
         working-directory: AstraQuant
         run: |
+          set -o pipefail
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          {
+            echo "### 回寫前的工作樹狀態"
+            echo '```'
+            git status --porcelain
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
           git add docs/CA_ADJUSTMENT_INVARIANCE_AUDIT.md out/ca_adjustment_invariance_*
-          git commit -m "report: record CA adjustment invariance audit" || exit 0
-          git pull --rebase origin main
-          git push origin HEAD:main
+          if git diff --staged --quiet; then
+            echo "無變更，略過回寫" >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          git commit -m "report: record CA adjustment invariance audit"
+
+          # autostash 處理稽核留下的其他未暫存改動（例如共用模組的副作用輸出），
+          # 那些不屬於本報告，不應該讓 rebase 直接拒絕。
+          for attempt in 1 2 3; do
+            git fetch origin main
+            if git -c rebase.autoStash=true rebase origin/main; then
+              if git push origin HEAD:main; then
+                echo "回寫成功（第 $attempt 次嘗試）" >> "$GITHUB_STEP_SUMMARY"
+                exit 0
+              fi
+            else
+              git rebase --abort || true
+            fi
+            sleep 5
+          done
+
+          {
+            echo "### 回寫失敗"
+            echo "稽核計算與 artifact 上傳已完成，產物未遺失。"
+            echo "請單獨重試發布，**不要重算資料**。"
+            echo '```'
+            git status --porcelain
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+          exit 1
