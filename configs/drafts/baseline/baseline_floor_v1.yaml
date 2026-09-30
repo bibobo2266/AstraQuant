@@ -1,0 +1,13 @@
+schema_version: '1'
+name: baseline_floor_v1
+trigger:
+  type: MA_BIAS_PERCENTILE
+  params:
+    ma_window: 20
+    floor_pct: 0.05
+filters:
+- type: VOLUME_SPIKE
+  params:
+    lookback: 20
+    multiplier: 2.0
+ranking: []
