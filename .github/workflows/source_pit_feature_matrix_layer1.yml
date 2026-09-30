@@ -28,7 +28,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: bibobo2266/minervini_picks
-          token: \${{ secrets.MINERVINI_READ_TOKEN }}
+          token: ${{ secrets.MINERVINI_READ_TOKEN }}
           path: source_runtime/minervini_picks
           persist-credentials: false
           sparse-checkout: |
@@ -64,8 +64,8 @@ jobs:
       - name: Build E1 PIT feature matrix
         working-directory: AstraQuant
         env:
-          SOURCE_ROOT: \${{ github.workspace }}/source_runtime/minervini_picks/data
-          SOURCE_REVISION: \${{ env.SOURCE_REVISION }}
+          SOURCE_ROOT: ${{ github.workspace }}/source_runtime/minervini_picks/data
+          SOURCE_REVISION: ${{ env.SOURCE_REVISION }}
           FEATURE_TICKER_CHUNK: "200"
         run: python scripts/source_pit_feature_matrix_layer1.py
 
@@ -104,7 +104,7 @@ jobs:
       - name: Upload versioned feature data
         uses: actions/upload-artifact@v4
         with:
-          name: pit-feature-matrix-layer1-v1-\${{ github.run_id }}
+          name: pit-feature-matrix-layer1-v1-${{ github.run_id }}
           path: AstraQuant/artifacts/pit_feature_matrix_layer1_v1/*.parquet
           if-no-files-found: error
           retention-days: 90
