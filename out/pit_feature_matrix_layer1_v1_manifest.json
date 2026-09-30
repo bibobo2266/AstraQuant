@@ -1,0 +1,79 @@
+{
+  "artifact_name": "pit-feature-matrix-layer1-v1-36662962925",
+  "availability_policy": "AFTER_SESSION_CLOSE",
+  "available_at_audit_rows": 1000,
+  "available_at_violations": 0,
+  "blocked_data_features": [
+    "theme_membership"
+  ],
+  "cache_hits": 11,
+  "cache_misses": 143,
+  "cache_repeat_hit_gate": true,
+  "config_path": "configs/research/pit_feature_matrix_layer1_v1.yaml",
+  "config_sha256": "dc4ad74beebdf4d9cb8f82180e12826b99dcfa337e8223329d59dc80ffa769d8",
+  "epoch": "E1",
+  "formula_version": "pit_feature_matrix_layer1_v1",
+  "market_context": {
+    "path": "artifacts/pit_feature_matrix_layer1_v1/market_context.parquet",
+    "rows": 1468,
+    "sha256": "e1fbae9e3f9fbdd808b6c59388e6a8bc1c22861eb8e4b2ad98defcb06ef2e747",
+    "size_bytes": 110220
+  },
+  "name": "pit_feature_matrix_layer1_v1",
+  "no_effect_metrics": true,
+  "p2_060_exclusion_sha256": "379d58f6a8aa06b1e020d56911930f4bc01861d3eeca109613d9e5b1e490d134",
+  "peak_rss_mb": 1679.03515625,
+  "period": [
+    "2016-01-04",
+    "2021-12-31"
+  ],
+  "random_controls": 10,
+  "real_feature_keys": 43,
+  "real_parameter_versions": 61,
+  "round2_executed": false,
+  "runtime_seconds": 139.83843762000004,
+  "source_revision": "fb8b042b46dc38838d103544ca17da10286c7bfe",
+  "stock_files": [
+    {
+      "path": "artifacts/pit_feature_matrix_layer1_v1/stock_features_2016.parquet",
+      "rows": 57650,
+      "sha256": "b0e0befd7c5d63de84700b4fab5e32cd22ea70d572b076b68946b037f25d762c",
+      "size_bytes": 36329547
+    },
+    {
+      "path": "artifacts/pit_feature_matrix_layer1_v1/stock_features_2017.parquet",
+      "rows": 65831,
+      "sha256": "a0f492e6e6ae9beaebab7085c74876bcfd6c70364a2c65d12f21e460fd90c707",
+      "size_bytes": 42285244
+    },
+    {
+      "path": "artifacts/pit_feature_matrix_layer1_v1/stock_features_2018.parquet",
+      "rows": 69933,
+      "sha256": "51eebc1dcc5941b2e8efe29098f57cbf895658eb8976f518e939726995002b3b",
+      "size_bytes": 44456350
+    },
+    {
+      "path": "artifacts/pit_feature_matrix_layer1_v1/stock_features_2019.parquet",
+      "rows": 70804,
+      "sha256": "a308ed5754164daf374c0c3a33774c5a70b9586f43fc16c609fa710532bec204",
+      "size_bytes": 44842084
+    },
+    {
+      "path": "artifacts/pit_feature_matrix_layer1_v1/stock_features_2020.parquet",
+      "rows": 74025,
+      "sha256": "374be869aac8c7f9192930fb9e67f5d15ceba382b57c5e2992ca02454e21a6c1",
+      "size_bytes": 50608538
+    },
+    {
+      "path": "artifacts/pit_feature_matrix_layer1_v1/stock_features_2021.parquet",
+      "rows": 83119,
+      "sha256": "5d60027bb3b753487a8668faea43a404fad620090ee1279f1f3833ebbd7f6414",
+      "size_bytes": 53441336
+    }
+  ],
+  "total_return_benchmark": "FinMind TaiwanStockTotalReturnIndex:TAIEX",
+  "universe_config": "configs/examples/universes/all_liquid.yaml",
+  "warmup_start": "2015-06-01",
+  "workflow_run_id": "36662962925",
+  "workflow_run_url": "https://github.com/bibobo2266/AstraQuant/actions/runs/36662962925"
+}
