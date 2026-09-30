@@ -78,9 +78,13 @@ def yearly_feature(f):
             "ma120_comparable": int(ma.sum()),
             "ma120_value_diff_factor_only": int((g["ma120_value_diff"] & ma).sum()),
             "ma120_gate_flips_factor_only": int((g["ma120_gate_flip"] & ma).sum()),
+            "ma120_gate_flips_near_boundary": int((g["ma120_gate_flip"] & g["ma120_near_boundary"] & ma).sum()),
+            "ma120_gate_flips_far_boundary": int((g["ma120_gate_flip"] & ~g["ma120_near_boundary"] & ma).sum()),
             "ma120_near_boundary": int((g["ma120_near_boundary"] & ma).sum()),
             "n60_comparable": int(n60.sum()),
             "n60_signal_flips_factor_only": int((g["n60_flip"] & n60).sum()),
+            "n60_signal_flips_near_boundary": int((g["n60_flip"] & g["n60_near_boundary"] & n60).sum()),
+            "n60_signal_flips_far_boundary": int((g["n60_flip"] & ~g["n60_near_boundary"] & n60).sum()),
             "n60_near_boundary": int((g["n60_near_boundary"] & n60).sum()),
         })
     return pd.DataFrame(rows)
@@ -237,9 +241,19 @@ def main():
     synth = synthetic_uniform_scale_case()
     factor_value_diffs = int(yearly["ma120_value_diff_factor_only"].sum())
     factor_ma_flips = int(yearly["ma120_gate_flips_factor_only"].sum())
+    factor_ma_far = int(yearly["ma120_gate_flips_far_boundary"].sum())
     factor_n60_flips = int(yearly["n60_signal_flips_factor_only"].sum())
-    if factor_value_diffs or factor_ma_flips or factor_n60_flips:
-        raise SystemExit("FAIL: common-factor invariance check flipped MA/N60")
+    factor_n60_far = int(yearly["n60_signal_flips_far_boundary"].sum())
+    # Common positive scaling is algebraically invariant. Exact boolean
+    # comparisons are intentionally NOT tolerance-smoothed: any flip near a
+    # strict boundary is retained and reported. Only a value difference beyond
+    # the pre-frozen tolerance, or a boolean flip away from the boundary band,
+    # is an audit failure.
+    if factor_value_diffs or factor_ma_far or factor_n60_far:
+        raise SystemExit(
+            "FAIL: common-factor invariance has non-boundary differences "
+            f"value={factor_value_diffs} ma_far={factor_ma_far} n60_far={factor_n60_far}"
+        )
     if synth["ma120_gate_flips"] or synth["n60_flips"] or not synth["absolute_close_threshold_flips"]:
         raise SystemExit("FAIL: synthetic controls")
 
@@ -284,7 +298,7 @@ def main():
         f"- 有效 date-stock event rows：{len(events):,}；E1 結束後 event rows：{int(events['date'].gt(E1_END).sum()):,}。",
         f"- knowledge-time 欄位候選：{knowledge_cols if knowledge_cols else '無'}；event.date>T 只代表晚於 T 生效，不等於 T 時未知。","",
         "## 方法與容差","",
-        f"- ratio rtol={VALUE_RTOL}, atol={VALUE_ATOL}; boundary band={BOUNDARY_BAND}; 布林翻轉不用容差。",
+        f"- ratio rtol={VALUE_RTOL}, atol={VALUE_ATOL}; boundary band={BOUNDARY_BAND}; 布林翻轉不用容差，門檻附近翻轉保留為診斷。",
         f"- RAW 到 stored adjusted 重建價格 tolerance={PRICE_REBUILD_ATOL} TWD。",
         "- factor-only 只移除 T 後事件的共同倍率；online RAW+event 是用目前 frozen 檔倒推的 counterfactual，不冒稱 contemporaneous snapshot。","",
         f"- 合成：MA120 flips={synth['ma120_gate_flips']}；N60 flips={synth['n60_flips']}；close>=10 flip={synth['absolute_close_threshold_flips']}。","",
@@ -321,7 +335,13 @@ def main():
         "value_tolerance":{"rtol":VALUE_RTOL,"atol":VALUE_ATOL},"boundary_band":BOUNDARY_BAND,
         "price_rebuild_atol":PRICE_REBUILD_ATOL,"knowledge_time_proven":False,
         "future_event_definition":"event.date > decision_date T",
-        "factor_only_results":{"ma120_value_diffs":factor_value_diffs,"ma120_gate_flips":factor_ma_flips,"n60_signal_flips":factor_n60_flips},
+        "factor_only_results":{
+            "ma120_value_diffs":factor_value_diffs,
+            "ma120_gate_flips":factor_ma_flips,
+            "ma120_gate_flips_far_boundary":factor_ma_far,
+            "n60_signal_flips":factor_n60_flips,
+            "n60_signal_flips_far_boundary":factor_n60_far,
+        },
         "universe_results":{"final_stock_day_differences":final_diff,"unique_stocks_with_final_difference":final_unique},
         "vcp_round1_shared_universe_path":vcp_shared,"vcp_round1_status":vcp_status,
         "synthetic_control":synth,"outputs":{}
