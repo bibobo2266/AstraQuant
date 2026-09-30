@@ -1,0 +1,14 @@
+schema_version: '1'
+name: baseline_raiho_v1
+trigger:
+  type: RANGE_POSITION
+  params:
+    window: 120
+    max_pos: 0.4
+filters:
+- type: FUNDAMENTAL_THRESHOLD
+  params:
+    roe_min: 15.0
+    fcf_positive: true
+    pe_max: 18.0
+ranking: []
