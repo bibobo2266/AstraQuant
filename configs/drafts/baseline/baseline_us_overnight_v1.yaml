@@ -1,0 +1,13 @@
+schema_version: '1'
+name: baseline_us_overnight_v1
+trigger:
+  type: US_OVERNIGHT_RETURN
+  params:
+    mode: momentum
+    up_threshold: 0.01
+filters:
+- type: PRICE_ABOVE_MA
+  params:
+    window: 20
+    average: SMA
+ranking: []
