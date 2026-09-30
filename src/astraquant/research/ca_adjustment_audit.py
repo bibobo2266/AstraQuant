@@ -9,10 +9,13 @@ import numpy as np
 import pandas as pd
 
 
-VALUE_RTOL = 1e-10
-VALUE_ATOL = 1e-12
-BOUNDARY_BAND = 1e-6
-PRICE_REBUILD_ATOL = 5e-5
+# Frozen before the E1 audit in configs/quality/ca_adjustment_invariance_audit_v1.yaml.
+# Boolean comparisons remain exact; these tolerances classify value differences
+# and near-boundary cases only.
+VALUE_RTOL = 0.0
+VALUE_ATOL = 1e-6
+BOUNDARY_BAND = 1e-4
+PRICE_REBUILD_ATOL = 1e-4
 RATIO_LO = 0.5
 RATIO_HI = 1.2
 
@@ -86,10 +89,12 @@ def current_price_feature_frame(
     work["date"] = pd.to_datetime(work["date"], errors="coerce").dt.normalize()
     work["stock_id"] = work["stock_id"].astype(str)
     work["close"] = pd.to_numeric(work["close"], errors="coerce")
-    work = work.sort_values(["stock_id", "date"], kind="stable").reset_index(drop=True)
     if len(work) != len(future_factor):
         raise ValueError("future_factor length mismatch")
+    # Attach before sorting so a caller's row order cannot detach a factor
+    # from its logical (date, stock_id) observation.
     work["future_factor"] = np.asarray(future_factor, dtype=float)
+    work = work.sort_values(["stock_id", "date"], kind="stable").reset_index(drop=True)
 
     by = work.groupby("stock_id", sort=False)["close"]
     ma120 = by.transform(lambda s: s.rolling(120, min_periods=120).mean())
