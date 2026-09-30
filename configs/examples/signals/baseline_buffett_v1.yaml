@@ -1,0 +1,20 @@
+schema_version: '1'
+name: baseline_buffett_v1
+provenance:
+  source: Joyen09 src/strategies/buffett.py
+  method: 巴菲特 護城河
+  parameter_origin: TRANSLATED — 從公開實作抄錄的參數，非老手原話，也非已驗證的有效值
+  captured: '2026-09-30'
+trigger:
+  type: FUNDAMENTAL_THRESHOLD
+  params:
+    roe_min: 15.0
+    debt_ratio_max: 50.0
+    pe_max: 22.0
+    gross_margin_min: 20.0
+filters:
+- type: PRICE_ABOVE_MA
+  params:
+    window: 200
+    average: SMA
+ranking: []
