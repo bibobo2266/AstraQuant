@@ -4,13 +4,48 @@ import numpy as np
 import pandas as pd
 
 from astraquant.research.ca_adjustment_audit import (
+    BOUNDARY_BAND,
+    RATIO_HI,
+    RATIO_LO,
     current_price_feature_frame,
     future_factor_for_rows,
     normalize_dividend_events,
     online_asof_price_features,
+    rebuild_final_adjusted_close,
     synthetic_uniform_scale_case,
     universe_masks,
 )
+
+NO_EVENTS = pd.DataFrame(
+    {
+        "stock_id": pd.Series(dtype=str),
+        "date": pd.Series(dtype="datetime64[ns]"),
+        "ratio": pd.Series(dtype=float),
+    }
+)
+
+
+def _rows(stock_id, close, start="2020-01-01"):
+    dates = pd.bdate_range(start, periods=len(close))
+    return pd.DataFrame(
+        {"date": dates, "stock_id": stock_id, "close": np.asarray(close, dtype=float)}
+    )
+
+
+def _online_rows(stock_id, raw_close, start="2020-01-01"):
+    dates = pd.bdate_range(start, periods=len(raw_close))
+    return pd.DataFrame(
+        {"date": dates, "stock_id": stock_id, "raw_close": np.asarray(raw_close, dtype=float)}
+    )
+
+
+def _events(**cols):
+    return normalize_dividend_events(pd.DataFrame(cols))
+
+
+def _features(close, stock_id="2330"):
+    frame = _rows(stock_id, close)
+    return current_price_feature_frame(frame, future_factor=np.ones(len(frame)))
 
 def test_uniform_positive_scale_preserves_ma120_and_n60_but_not_absolute_gate():
     out = synthetic_uniform_scale_case()
@@ -89,3 +124,249 @@ def test_factor_alignment_survives_unsorted_input():
     assert got[("2330", pd.Timestamp("2020-01-03"))] == 0.8
     assert got[("2317", pd.Timestamp("2020-01-02"))] == 0.9
     assert got[("2330", pd.Timestamp("2020-01-06"))] == 0.8
+
+
+# ==========================================================================
+# 以下為 2026-09-30 依審查端裁定補齊的性質。
+# 舊的 tests/test_ca_adjustment_audit.py 是前一版設計的殘留（import 六個模組
+# 不存在的名稱，導致 collection error），已刪除；其涵蓋的性質由本檔承接。
+# 裁定：以模組實際呼叫契約為準，不新增相容 wrapper，不為測試通過改訊號門檻。
+# ==========================================================================
+
+
+# -- 突破邊界：保留正式的 > 與 <=，不得用近似比較改寫交易判定 ----------------
+
+def test_breakout_requires_strictly_greater_than_prior_high():
+    out = _features([10.0] * 60 + [12.0] + [10.0] * 59 + [12.0])
+    last = out.iloc[-1]
+    assert float(last["prior_high60_current"]) == 12.0
+    # 恰好等於前高：嚴格 > 為假。
+    assert bool(last["n60_current"]) is False
+
+
+def test_breakout_fires_on_first_cross_only_and_not_while_already_above():
+    # 需 61 列暖機：previous_prior 是 prior_high60 再 shift(1)，比 prior_high60 晚一天成立。
+    out = _features([10.0] * 61 + [15.0, 16.0, 17.0])
+    assert out["n60_current"].to_numpy()[-3:].tolist() == [True, False, False]
+
+
+def test_breakout_and_gate_are_false_during_warmup():
+    out = _features(list(np.linspace(10.0, 20.0, 40)))
+    assert not out["n60_current"].any()
+    assert not out["n60_comparable"].any()
+
+
+def test_missing_close_does_not_fabricate_a_breakout_or_gate():
+    out = _features([10.0] * 60 + [np.nan, 11.0])
+    row = out.iloc[60]
+    assert bool(row["n60_current"]) is False
+    assert bool(row["ma120_gate_current"]) is False
+    assert not bool(row["ma120_comparable"])
+
+
+def test_near_boundary_is_only_a_flag_and_does_not_change_the_decision():
+    out = _features([10.0] * 61 + [10.0 * (1.0 + BOUNDARY_BAND / 2.0)])
+    last = out.iloc[-1]
+    assert bool(last["n60_near_boundary"]) is True
+    assert bool(last["n60_current"]) is True
+
+
+# -- 事件處理 ---------------------------------------------------------------
+
+def test_events_outside_the_source_ratio_range_are_dropped():
+    got = normalize_dividend_events(
+        pd.DataFrame(
+            {
+                "date": ["2020-01-03", "2020-01-06", "2020-01-07", "bad", "2020-01-08"],
+                "stock_id": ["2330"] * 5,
+                "before_price": [100, 100, 100, 100, 0],
+                "after_price": [90, 40, 130, 90, 90],
+            }
+        )
+    )
+    assert len(got) == 1
+    assert RATIO_LO <= float(got.iloc[0]["ratio"]) <= RATIO_HI
+
+
+def test_no_events_means_factor_is_exactly_one():
+    rows = _rows("2330", [10.0] * 5)
+    np.testing.assert_array_equal(future_factor_for_rows(rows, NO_EVENTS), np.ones(5))
+
+
+def test_an_event_on_one_stock_never_touches_another():
+    rows = pd.concat(
+        [_rows("2330", [10.0] * 5), _rows("2454", [10.0] * 5)], ignore_index=True
+    )
+    ev = _events(
+        date=[rows["date"].iloc[2]], stock_id=["2330"],
+        before_price=[100.0], after_price=[80.0],
+    )
+    ff = future_factor_for_rows(rows, ev)
+    np.testing.assert_allclose(ff[:5], [0.8, 0.8, 1.0, 1.0, 1.0])
+    np.testing.assert_array_equal(ff[5:], np.ones(5))
+
+
+# -- 逐時重建：T 後新增的事件不得改變 T 及以前的輸出 ------------------------
+
+def test_events_after_t_do_not_change_online_output_at_or_before_t():
+    rows = _online_rows("2330", np.linspace(20.0, 30.0, 200))
+    cut = rows["date"].iloc[150]
+    ev = _events(
+        date=[rows["date"].iloc[180]], stock_id=["2330"],
+        before_price=[100.0], after_price=[80.0],
+    )
+    without = online_asof_price_features(rows, NO_EVENTS)
+    with_future = online_asof_price_features(rows, ev)
+    upto = with_future["date"].le(cut)
+    np.testing.assert_allclose(
+        without.loc[upto, "close_to_ma120_online_asof"].to_numpy(float),
+        with_future.loc[upto, "close_to_ma120_online_asof"].to_numpy(float),
+        rtol=0.0, atol=0.0, equal_nan=True,
+    )
+    assert without.loc[upto, "n60_online_asof"].equals(
+        with_future.loc[upto, "n60_online_asof"]
+    )
+
+
+def test_an_event_dated_on_a_day_without_a_price_row_is_not_silently_dropped():
+    rows = _rows("2330", [10.0] * 6)
+    gap_day = rows["date"].iloc[3]
+    rows = rows.drop(index=3).reset_index(drop=True)
+    ev = _events(
+        date=[gap_day], stock_id=["2330"], before_price=[100.0], after_price=[80.0]
+    )
+    ff = future_factor_for_rows(rows, ev)
+    assert len(ff) == len(rows)
+    # 事件日之前的列仍被縮放；事件日無行情列不會讓該事件失效。
+    np.testing.assert_allclose(ff, [0.8, 0.8, 0.8, 1.0, 1.0])
+
+
+def test_missing_raw_close_is_reported_separately_from_a_price_condition():
+    rows = _online_rows("2330", [10.0] * 3 + [np.nan] + [10.0] * 2)
+    out = online_asof_price_features(rows, NO_EVENTS)
+    assert bool(out.iloc[3]["raw_close_missing"]) is True
+    assert bool(out.iloc[3]["ma120_gate_online_asof"]) is False
+
+
+# -- 四捨五入：比較兩種重建，不強迫相等 --------------------------------------
+
+def test_round_once_and_sequential_round_are_compared_not_forced_equal():
+    rows = _online_rows("2330", np.linspace(20.0, 35.0, 40))
+    d = rows["date"]
+    ev = _events(
+        date=[d.iloc[10], d.iloc[20], d.iloc[30]],
+        stock_id=["2330"] * 3,
+        before_price=[100.0] * 3,
+        after_price=[83.0, 91.0, 77.0],
+    )
+    out = rebuild_final_adjusted_close(rows, ev)
+    once = out["rebuild_round_once"].to_numpy(float)
+    seq = out["rebuild_sequential_round4"].to_numpy(float)
+    assert once.shape == seq.shape
+    assert np.isfinite(once).all() and np.isfinite(seq).all()
+    # 兩者不主張相等；差異本身就是稽核要回報的量，此處只界定量級。
+    assert np.abs(once - seq).max() < 1.0
+
+
+# -- 可比較樣本：暖機不足造成的 False 不得計為翻轉 --------------------------
+
+def test_warmup_rows_are_not_comparable_and_are_not_counted_as_flips():
+    out = _features(np.linspace(10.0, 20.0, 130))
+    assert not out["ma120_comparable"].iloc[:119].any()
+    assert out["ma120_comparable"].iloc[119:].all()
+    assert not out["ma120_gate_flip"].iloc[:119].any()
+
+
+def test_a_non_positive_factor_makes_the_row_not_comparable():
+    frame = _rows("2330", np.linspace(10.0, 20.0, 130))
+    ff = np.ones(len(frame))
+    ff[125] = 0.0
+    out = current_price_feature_frame(frame, future_factor=ff)
+    assert not bool(out.iloc[125]["n60_comparable"])
+
+
+# -- 母體：與 universe_engine 的排序、同值與缺值語意對照 ---------------------
+
+def _universe_frame():
+    day = pd.Timestamp("2021-06-01")
+    return pd.DataFrame(
+        {
+            "date": [day] * 4,
+            "stock_id": ["2330", "2454", "1301", "1303"],
+            "adjusted_close": [50.0, 9.5, 20.0, 30.0],
+            "raw_close": [50.0, 10.5, 20.0, 30.0],
+            "Trading_money": [400.0, 300.0, 200.0, 200.0],
+            "observed_trade": [True] * 4,
+            "valid_ohlc": [True] * 4,
+        }
+    )
+
+
+def test_turnover_ranking_matches_universe_engine_semantics():
+    frame = _universe_frame()
+    out = universe_masks(frame, excluded=set())
+    base = out["adjusted_base_pass"]
+    # 與 universe_engine._all_pool 相同：pct=True, ascending=False, method="average"
+    expected = (
+        frame["Trading_money"].where(base)
+        .groupby(frame["date"])
+        .rank(pct=True, ascending=False, method="average")
+    )
+    pd.testing.assert_series_equal(
+        out["adjusted_turnover_pct"], expected, check_names=False
+    )
+    # 同值取平均名次；未通過 base 的列 pct 為 NaN 且不得算入。
+    tie = out[out["stock_id"].isin(["1301", "1303"])]["adjusted_turnover_pct"]
+    assert tie.nunique() == 1
+    assert out.loc[~base, "adjusted_turnover_pct"].isna().all()
+    assert not out.loc[~base, "adjusted_counts"].any()
+
+
+def test_excluded_and_malformed_ids_never_enter_the_base():
+    frame = _universe_frame()
+    frame.loc[len(frame)] = {
+        "date": frame["date"].iloc[0], "stock_id": "00878",
+        "adjusted_close": 20.0, "raw_close": 20.0, "Trading_money": 999.0,
+        "observed_trade": True, "valid_ohlc": True,
+    }
+    out = universe_masks(frame, excluded={"1301"})
+    assert not bool(out[out["stock_id"] == "00878"].iloc[0]["fixed_other_qualifiers"])
+    assert not bool(out[out["stock_id"] == "1301"].iloc[0]["fixed_other_qualifiers"])
+
+
+# -- 多股票與列順序 ----------------------------------------------------------
+
+def test_two_stocks_do_not_contaminate_each_others_rolling_windows():
+    rows = pd.concat(
+        [_rows("2330", [10.0] * 61 + [15.0]), _rows("2454", [100.0] * 61 + [1.0])],
+        ignore_index=True,
+    )
+    out = current_price_feature_frame(rows, future_factor=np.ones(len(rows)))
+    a = out[out["stock_id"] == "2330"].reset_index(drop=True)
+    b = out[out["stock_id"] == "2454"].reset_index(drop=True)
+    assert bool(a.iloc[61]["n60_current"]) is True
+    assert bool(b.iloc[61]["n60_current"]) is False
+    assert float(a.iloc[61]["prior_high60_current"]) == 10.0
+    assert float(b.iloc[61]["prior_high60_current"]) == 100.0
+
+
+def test_shuffled_rows_keep_each_factor_bound_to_its_stock_day():
+    rows = pd.concat(
+        [_rows("2330", [10.0] * 6), _rows("2454", [20.0] * 6)], ignore_index=True
+    )
+    ev = _events(
+        date=[rows["date"].iloc[3]], stock_id=["2330"],
+        before_price=[100.0], after_price=[80.0],
+    )
+    ordered = current_price_feature_frame(
+        rows, future_factor=future_factor_for_rows(rows, ev)
+    )
+    shuffled = rows.sample(frac=1.0, random_state=7).reset_index(drop=True)
+    shuffled_out = current_price_feature_frame(
+        shuffled, future_factor=future_factor_for_rows(shuffled, ev)
+    )
+    key = ["stock_id", "date"]
+    pd.testing.assert_frame_equal(
+        ordered.sort_values(key).reset_index(drop=True)[key + ["close", "future_factor"]],
+        shuffled_out.sort_values(key).reset_index(drop=True)[key + ["close", "future_factor"]],
+    )
