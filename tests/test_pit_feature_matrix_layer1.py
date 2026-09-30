@@ -1,11 +1,16 @@
 from __future__ import annotations
 
+import sys
+from pathlib import Path
+
 import numpy as np
 import pandas as pd
 import pytest
 
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
+
 from astraquant.research.feature_cache import FeatureCache
-from scripts.pit_feature_matrix_layer1 import (
+from pit_feature_matrix_layer1 import (
     Layer1Parameters,
     _percentile,
     add_random_controls_and_ranks,
