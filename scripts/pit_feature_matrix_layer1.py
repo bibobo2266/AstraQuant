@@ -893,15 +893,21 @@ def add_industry_and_cross_section_features(
     x["liquidity_tier"] = _tier_from_pct(liq_pct, ("LOW", "MID", "HIGH"))
     x["volatility_cluster"] = _tier_from_pct(vol_pct, ("LOW", "MID", "HIGH"))
 
-    industry_key = x["industry"].astype("string")
     for h in p.relative_strength_horizons:
         stock_col = f"__stock_return_{h}"
-        industry_return = x.groupby(["date", industry_key], dropna=True)[stock_col].transform("median")
-        industry_return = industry_return.where(industry_key.notna())
+        industry_key = x["industry"].astype("string")
+        industry_return = x.groupby(
+            ["date", industry_key],
+            dropna=True,
+        )[stock_col].transform("median")
+        industry_return = industry_return.where(x["industry"].notna())
         x[f"rs_industry_{h}"] = x[stock_col] - industry_return
         x[f"industry_rs_market_{h}"] = industry_return - x[f"market_return_{h}"]
         industry_table = (
-            x.loc[industry_key.notna(), ["date", "industry", f"industry_rs_market_{h}"]]
+            x.loc[
+                x["industry"].notna(),
+                ["date", "industry", f"industry_rs_market_{h}"],
+            ]
             .dropna()
             .drop_duplicates(["date", "industry"])
         )
