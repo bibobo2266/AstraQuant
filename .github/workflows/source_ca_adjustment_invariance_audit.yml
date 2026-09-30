@@ -73,8 +73,11 @@ jobs:
           assert m["no_effect_metrics"] is True
           assert m["strategy_runs_executed"]==[]
           assert m["factor_only_results"]["ma120_value_diffs"]==0
-          assert m["factor_only_results"]["ma120_gate_flips"]==0
-          assert m["factor_only_results"]["n60_signal_flips"]==0
+          assert m["factor_only_results"]["ma120_gate_flips_far_boundary"]==0
+          assert m["factor_only_results"]["n60_signal_flips_far_boundary"]==0
+          assert m["synthetic_control"]["ma120_gate_flips"]==0
+          assert m["synthetic_control"]["n60_flips"]==0
+          assert m["synthetic_control"]["absolute_close_threshold_flips"]
           banned={"outcome","forward_return","net_return","win_rate","expectancy","exit_date","exit_price"}
           for p in Path("out").glob("ca_adjustment_invariance_*.csv"):
               cols=set(pd.read_csv(p,nrows=2).columns)
