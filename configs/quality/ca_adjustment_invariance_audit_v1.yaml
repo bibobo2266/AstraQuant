@@ -1,0 +1,28 @@
+schema_version: "1"
+name: ca_adjustment_invariance_audit_v1
+epoch: E1
+source_revision: "fb8b042b46dc38838d103544ca17da10286c7bfe"
+load_start: "2015-06-01"
+audit_start: "2016-01-04"
+audit_end: "2021-12-31"
+ticker_pattern: "^[1-9]\\d{3}$"
+universe_config: "configs/examples/universes/all_liquid.yaml"
+p2_060_exclusion_sha256: "379d58f6a8aa06b1e020d56911930f4bc01861d3eeca109613d9e5b1e490d134"
+adjustment_ratio_min: 0.5
+adjustment_ratio_max: 1.2
+source_price_round_decimals: 4
+ma_window: 120
+breakout_lookback: 60
+tolerances:
+  ma_ratio_abs: 0.000001
+  reconstruction_price_abs: 0.0001
+  near_ma_threshold_abs: 0.0001
+  near_breakout_margin_abs: 0.0001
+  near_close_threshold_twd: 0.05
+case_limit_per_reason: 40
+outputs:
+  report: "docs/CA_ADJUSTMENT_INVARIANCE_AUDIT.md"
+  yearly: "out/ca_adjustment_invariance_yearly.csv"
+  cases: "out/ca_adjustment_invariance_cases.csv"
+  classification: "out/ca_adjustment_invariance_feature_classification.csv"
+  manifest: "out/ca_adjustment_invariance_manifest.json"
