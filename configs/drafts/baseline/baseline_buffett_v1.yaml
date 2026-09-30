@@ -1,0 +1,15 @@
+schema_version: '1'
+name: baseline_buffett_v1
+trigger:
+  type: FUNDAMENTAL_THRESHOLD
+  params:
+    roe_min: 15.0
+    debt_ratio_max: 50.0
+    pe_max: 22.0
+    gross_margin_min: 20.0
+filters:
+- type: PRICE_ABOVE_MA
+  params:
+    window: 200
+    average: SMA
+ranking: []
