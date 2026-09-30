@@ -43,7 +43,7 @@
 - fixed-seed random controls 不讀外部資料，raw control value 為 PASS；若使用其同日橫截面 percentile，仍會依賴 eligible-universe 輸入的可用時間。
 - 所以目前真實 COMPLETE features 不可被宣稱為『已證實可在精確 AFTER_SESSION_CLOSE 決策時點 PIT 安全』。它們仍可作描述性／資料建置用途，待來源時間戳或更強的發布契約補齊。
 
-完整逐 feature 證據見 availability_evidence CSV。
+完整逐 feature 證據見 availability_evidence CSV。逐 feature 證據列的結果為：**10 個 deterministic random controls = PASS；61 個 COMPLETE 真實特徵 + 1 個 BLOCKED_DATA = UNKNOWN；FAIL=0**。這裡的 PASS 只適用於不讀外部資料的 control raw value，不可轉述成真實特徵已通過 PIT。
 
 ## 長窗暖機診斷
 
@@ -51,7 +51,8 @@
 - RAW execution price 可早到 **2015-01-05**，但 RAW 與 ADJUSTED_RESEARCH 是不同價格座標，不能拿 RAW 補 MA250 等 adjusted 技術特徵。
 - market_value 實際最早：2015-06-01。
 - industry monthly snapshot available_date 可早於 adjusted price；但股票技術矩陣仍受 adjusted 起點限制。
-- TAIEX total-return index 的實際起點與 252 日市場長窗限制詳見 warmup_diagnostic CSV。
+- TAIEX total-return index 實際最早：**2015-06-01**；market MA200 第一個可用日為 **2016-03-23**，market position252 第一個可用日為 **2016-06-07**。
+- 股票長窗第一個可用日：`close_to_ma250` / `ma_order_score` / `distance_250_high` / `distance_250_low` 為 **2016-06-04**；`ma250_slope10` 為 **2016-06-21**。
 - 因此原 v1 的 2015-06-01 不是 loader 人為截短，而是 adjusted source 本身的起點；本次沒有可合法擴大的 adjusted 暖機資料，所以不重建 feature parquet。
 - MA250 家族 2016 早期 null 必須保留；來源歷史不足之外，部分較晚上市股票另有個股歷史不足。null 不得補零、前填或視為條件不成立。
 
@@ -82,14 +83,14 @@
 ## Baseline 缺口更正
 
 - `BASELINE_COMPONENT_GAPS.md` 已移除『PRICE_ABOVE_MA 確實缺 evaluator』的舊結論。
-- C 類確實缺 evaluator 由 10 改為 **9**；B 類可重用計算但缺介面由 4 改為 **5**。
+- 舊文件的 C 類文字計數本身少算一列；實體表原為 11 列。移出 `PRICE_ABOVE_MA` 後，C 類現為 **10**；B 類可重用計算但缺介面為 **5**。
 - 60 日突破 baseline 的最小缺口改為：**2 個確實缺的 exit evaluator + 1 個 feature-panel 串接工作**；不再寫『最少新增 3 個 evaluator』。
 - 本次沒有新增 baseline evaluator，也沒有跑 baseline。
 
 ## 測試與產物
 
 - review workflow：https://github.com/bibobo2266/AstraQuant/actions/runs/36685799139
-- review artifact：`pit-feature-matrix-layer1-v1-review1-36685799139`
+- review artifact：`pit-feature-matrix-layer1-v1-review1-36685799139`；ID `11083208566`；90 天 retention；到期 `2026-12-29T07:48:02Z`（台北時間 2026-12-29 15:48:02）
 - review manifest：`out/pit_feature_matrix_layer1_v1_review1_manifest.json`
 - stratified audit：`out/pit_feature_matrix_layer1_v1_review1_available_at_audit.csv`
 - availability evidence：`out/pit_feature_matrix_layer1_v1_review1_availability_evidence.csv`
@@ -97,12 +98,12 @@
 - coverage comparison：`out/pit_feature_matrix_layer1_v1_review1_coverage_comparison.csv`
 - MA120 audit：`out/pit_feature_matrix_layer1_v1_review1_ma120_audit.csv`
 
-review unit tests 必須包含：跨年分層抽樣不會被第一年吃完整 quota；UNKNOWN 不會被聚合成 PASS；MA120 threshold=0 語意。
+review workflow 的 unit gate 實際結果：**13 passed in 1.25s**。其中明確覆蓋：跨年分層抽樣不會被第一年吃完整 quota；UNKNOWN 不會被聚合成 PASS；MA120 threshold=0 語意；另與原第 5 項測試一起執行。
 
 ## 尚未解決限制
 
 - 真實 features 的精確 provider availability timestamp 仍未建立，所以 decision-time PIT 為 UNKNOWN。
 - L3-G02 theme_membership 仍為 BLOCKED_DATA。
-- 第 5 項 feature parquet 本身仍使用原 v1 artifact；review1 沒有改值也沒有延長其保存期限。
+- 第 5 項 feature parquet 本身仍使用原 v1 artifact `pit-feature-matrix-layer1-v1-36662962925`；ID `11075033221`；到期 `2026-12-29T03:07:12Z`（台北時間 2026-12-29 11:07:12）。review1 沒有改值也沒有延長其保存期限；到期後若未另行持久化，parquet 需重建才能取得。
 - 未啟動 ML、baseline 回測、VCP Round 2；未讀 E2/E3 效果。
 
