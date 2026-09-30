@@ -14,6 +14,7 @@ from pit_feature_matrix_layer1 import (
     Layer1Parameters,
     _percentile,
     add_random_controls_and_ranks,
+    add_industry_and_cross_section_features,
     attach_industry_pit,
     build_market_context,
     build_stock_features,
@@ -252,3 +253,29 @@ def test_industry_pit_normalizes_mixed_datetime_resolutions():
     )
     out = attach_industry_pit(rows, pit)
     assert out["industry"].tolist() == ["半導體", "半導體"]
+
+
+def test_industry_cross_section_handles_noncontiguous_index():
+    frame = pd.DataFrame(
+        {
+            "date": pd.to_datetime(
+                ["2020-01-02", "2020-01-02", "2020-01-03", "2020-01-03"]
+            ),
+            "stock_id": ["1101", "2330", "1101", "2330"],
+            "industry": ["水泥", "半導體", "水泥", "半導體"],
+            "market_cap_twd": [100.0, 200.0, 101.0, 205.0],
+            "amount_mean20_twd": [10.0, 20.0, 11.0, 21.0],
+            "rv60": [0.2, 0.3, 0.21, 0.31],
+            "__stock_return_20": [0.05, 0.10, 0.06, 0.11],
+            "__stock_return_60": [0.08, 0.14, 0.09, 0.15],
+            "__stock_return_120": [0.12, 0.20, 0.13, 0.21],
+            "market_return_20": [0.03, 0.03, 0.04, 0.04],
+            "market_return_60": [0.05, 0.05, 0.06, 0.06],
+            "market_return_120": [0.08, 0.08, 0.09, 0.09],
+        },
+        index=[10, 20, 30, 40],
+    )
+    out, _ = add_industry_and_cross_section_features(frame)
+    assert len(out) == 4
+    assert out["rs_industry_20"].notna().all()
+    assert out["industry_strength_rank_20"].notna().all()
