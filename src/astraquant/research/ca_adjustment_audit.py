@@ -174,31 +174,49 @@ def online_asof_price_features(
     work["raw_close"] = pd.to_numeric(work["raw_close"], errors="coerce")
     work = work.sort_values(["stock_id", "date"], kind="stable").reset_index(drop=True)
 
-    ratio_by_stock_date = {
-        (str(row.stock_id), pd.Timestamp(row.date)): float(row.ratio)
-        for row in events.itertuples(index=False)
-    }
+    # Events are applied by interval, not by exact date match on a price row.
+    # At observation day T, every not-yet-applied event with event.date <= T is
+    # applied once, in source date order, each scaling only the history entries
+    # dated strictly before that event; T's own RAW close is appended after.
+    # An event dated on a day with no price row (non-trading day, halt) must
+    # therefore still take effect — matching build_adj's `date < event.date`
+    # rule, which rebuild_final_adjusted_close already follows. This reproduces
+    # the source algorithm; it is not a claim about when a real corporate
+    # action may be settled.
+    events_by_stock: dict[str, list[tuple[pd.Timestamp, float]]] = {}
+    if len(events):
+        for sid, grp in events.groupby("stock_id", sort=False):
+            ordered = grp.sort_values("date", kind="stable")
+            events_by_stock[str(sid)] = [
+                (pd.Timestamp(d), float(r))
+                for d, r in zip(ordered["date"], ordered["ratio"])
+            ]
 
     ma_out = np.full(len(work), np.nan, dtype=float)
     gate_out = np.zeros(len(work), dtype=bool)
     n60_out = np.zeros(len(work), dtype=bool)
     raw_missing = np.zeros(len(work), dtype=bool)
+    ma_comparable = np.zeros(len(work), dtype=bool)
+    n60_comparable = np.zeros(len(work), dtype=bool)
+    events_applied = np.zeros(len(work), dtype=int)
 
     for sid, positions in work.groupby("stock_id", sort=False).indices.items():
         hist: deque[float] = deque(maxlen=120)
+        hist_dates: deque[pd.Timestamp] = deque(maxlen=120)
+        pending = events_by_stock.get(str(sid), [])
+        next_event = 0
         for pos in positions:
             day = pd.Timestamp(work.at[pos, "date"])
-            event_ratio = ratio_by_stock_date.get((str(sid), day))
-            if event_ratio is not None:
-                hist = deque(
-                    [
-                        np.nan
-                        if not np.isfinite(v)
-                        else round(float(v) * float(event_ratio), 4)
-                        for v in hist
-                    ],
-                    maxlen=120,
-                )
+            applied_here = 0
+            while next_event < len(pending) and pending[next_event][0] <= day:
+                ev_date, ev_ratio = pending[next_event]
+                for i in range(len(hist)):
+                    if hist_dates[i] < ev_date and np.isfinite(hist[i]):
+                        # Rounding stays per event, as in the source.
+                        hist[i] = round(float(hist[i]) * ev_ratio, 4)
+                next_event += 1
+                applied_here += 1
+            events_applied[pos] = applied_here
 
             arr = np.asarray(hist, dtype=float)
             prior_high = (
@@ -221,21 +239,27 @@ def online_asof_price_features(
             if not np.isfinite(current):
                 raw_missing[pos] = True
 
+            # Comparability is decided on the online side's own inputs: a False
+            # produced by insufficient history is not an observed non-breakout
+            # and must never be counted as a signal flip.
             if (
                 np.isfinite(current)
                 and np.isfinite(prior_high)
                 and np.isfinite(prev_close)
                 and np.isfinite(prev_prior)
             ):
+                n60_comparable[pos] = True
                 n60_out[pos] = bool(
                     current > prior_high and prev_close <= prev_prior
                 )
 
             hist.append(current)
+            hist_dates.append(day)
             arr2 = np.asarray(hist, dtype=float)
             if len(arr2) >= 120 and np.isfinite(arr2[-120:]).all():
                 ma = float(np.mean(arr2[-120:]))
                 if ma != 0 and np.isfinite(current):
+                    ma_comparable[pos] = True
                     ma_out[pos] = current / ma - 1.0
                     gate_out[pos] = bool(ma_out[pos] >= 0.0)
 
@@ -244,6 +268,9 @@ def online_asof_price_features(
     out["ma120_gate_online_asof"] = gate_out
     out["n60_online_asof"] = n60_out
     out["raw_close_missing"] = raw_missing
+    out["ma120_comparable_online"] = ma_comparable
+    out["n60_comparable_online"] = n60_comparable
+    out["events_applied_online"] = events_applied
     return out
 
 

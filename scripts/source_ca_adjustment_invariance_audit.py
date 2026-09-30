@@ -94,11 +94,30 @@ def online_compare(online, current):
     x = online.merge(current[cols], on=["date","stock_id"], how="left", validate="one_to_one")
     x = x[x["date"].between(E1_START, E1_END, inclusive="both")].copy()
     x["year"] = x["date"].dt.year
-    x["online_ma_comparable"] = x["close_to_ma120_online_asof"].notna() & x["close_to_ma120_current"].notna()
+    # Comparability must hold on BOTH sides with each side's own inputs.
+    # online_*_comparable_online is produced by online_asof_price_features and
+    # is False when its own rolling history is short or has gaps; a False
+    # signal from an uncomputable window is not an observed non-breakout.
+    x["online_ma_comparable"] = (
+        x["ma120_comparable_online"].fillna(False)
+        & x["close_to_ma120_current"].notna()
+    )
     x["online_ma_diff"] = ~np.isclose(x["close_to_ma120_online_asof"], x["close_to_ma120_current"], rtol=VALUE_RTOL, atol=VALUE_ATOL, equal_nan=True)
     x["online_ma_gate_flip"] = x["ma120_gate_online_asof"] != x["ma120_gate_current"]
-    x["online_n_comparable"] = x["n60_comparable"].fillna(False) & ~x["raw_close_missing"].fillna(True)
+    x["online_n_comparable"] = (
+        x["n60_comparable_online"].fillna(False)
+        & x["n60_comparable"].fillna(False)
+        & ~x["raw_close_missing"].fillna(True)
+    )
     x["online_n_flip"] = x["n60_online_asof"] != x["n60_current"]
+    # Rows excluded for incomparability are reported separately, never folded
+    # into the flip counts.
+    x["online_n_incomparable_online_side"] = (
+        ~x["n60_comparable_online"].fillna(False)
+    ) & x["n60_comparable"].fillna(False)
+    x["online_ma_incomparable_online_side"] = (
+        ~x["ma120_comparable_online"].fillna(False)
+    ) & x["close_to_ma120_current"].notna()
     rows = []
     for year, g in x.groupby("year", sort=True):
         ma = g["online_ma_comparable"]
@@ -110,6 +129,9 @@ def online_compare(online, current):
             "online_ma120_gate_flips_vs_final": int((g["online_ma_gate_flip"] & ma).sum()),
             "online_n60_comparable": int(ns.sum()),
             "online_n60_signal_flips_vs_final": int((g["online_n_flip"] & ns).sum()),
+            "online_n60_excluded_online_history_incomplete": int(g["online_n_incomparable_online_side"].sum()),
+            "online_ma120_excluded_online_history_incomplete": int(g["online_ma_incomparable_online_side"].sum()),
+            "online_events_applied": int(g["events_applied_online"].sum()),
             "raw_close_missing_on_adjusted_rows": int(g["raw_close_missing"].sum()),
         })
     return pd.DataFrame(rows), x
@@ -127,6 +149,15 @@ def yearly_universe(u):
         final_add = g["raw_counts"] & ~g["adjusted_counts"]
         final_rem = g["adjusted_counts"] & ~g["raw_counts"]
         fd = final_add | final_rem
+        # Split the final-universe difference three ways so that no part of it
+        # is attributed to the 10 TWD gate by default:
+        #   (a) both prices valid -> a genuine threshold effect
+        #   (b) one side missing  -> a data-availability effect
+        #   (c) neither gate differs -> knock-on from the turnover ranking pool
+        gate_differs = g["raw_close_gate"] != g["adjusted_close_gate"]
+        fd_priced = fd & comparable & gate_differs
+        fd_missing = fd & ~comparable
+        fd_rank_only = fd & comparable & ~gate_differs
         rows.append({
             "year": int(year),
             "universe_source_rows": len(g),
@@ -137,6 +168,9 @@ def yearly_universe(u):
             "close_gate_diff_unique_stocks": int(g.loc[add_gate | rem_gate, "stock_id"].nunique()),
             "base_pass_raw_add_vs_adjusted": int(base_add.sum()),
             "base_pass_raw_remove_vs_adjusted": int(base_rem.sum()),
+            "final_universe_diff_threshold_both_priced": int(fd_priced.sum()),
+            "final_universe_diff_missing_data": int(fd_missing.sum()),
+            "final_universe_diff_ranking_knock_on": int(fd_rank_only.sum()),
             "final_universe_raw_add_vs_adjusted": int(final_add.sum()),
             "final_universe_raw_remove_vs_adjusted": int(final_rem.sum()),
             "final_universe_diff_unique_stocks": int(g.loc[fd, "stock_id"].nunique()),

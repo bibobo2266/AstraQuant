@@ -370,3 +370,97 @@ def test_shuffled_rows_keep_each_factor_bound_to_its_stock_day():
         ordered.sort_values(key).reset_index(drop=True)[key + ["close", "future_factor"]],
         shuffled_out.sort_values(key).reset_index(drop=True)[key + ["close", "future_factor"]],
     )
+
+
+# ==========================================================================
+# 2026-09-30 第二輪：審查端指出前一輪的測試打到錯誤路徑。
+# 「事件日無行情列」原測 future_factor_for_rows（本來就用區間遮罩，測不到問題），
+# 真正會漏事件的是 online_asof_price_features 的逐日重建。以下直接打正式路徑。
+# ==========================================================================
+
+
+def _online_with_gap_event(ratio_after=50.0):
+    dates = pd.bdate_range("2020-01-01", periods=130)
+    rows = pd.DataFrame(
+        {"date": dates, "stock_id": "2330", "raw_close": np.linspace(100.0, 130.0, 130)}
+    )
+    friday = next(d for d in dates[120:] if d.weekday() == 4)
+    saturday = friday + pd.Timedelta(days=1)
+    assert not (rows["date"] == saturday).any()
+    ev = _events(
+        date=[saturday], stock_id=["2330"],
+        before_price=[100.0], after_price=[ratio_after],
+    )
+    return rows, ev, saturday
+
+
+def test_online_rebuild_applies_an_event_dated_on_a_day_with_no_price_row():
+    rows, ev, _ = _online_with_gap_event()
+    with_event = online_asof_price_features(rows, ev)
+    without = online_asof_price_features(rows, NO_EVENTS)
+    changed = not np.allclose(
+        with_event["close_to_ma120_online_asof"].to_numpy(float),
+        without["close_to_ma120_online_asof"].to_numpy(float),
+        equal_nan=True,
+    )
+    assert changed, "非交易日的事件被靜默漏掉"
+    assert int(with_event["events_applied_online"].sum()) == 1
+
+
+def test_online_and_rebuild_agree_on_which_rows_an_event_touches():
+    rows, ev, saturday = _online_with_gap_event()
+    rebuilt = rebuild_final_adjusted_close(rows, ev)
+    # rebuild 用 date < event.date；online 現在採同一語意，兩者對「哪些列被調整」必須一致。
+    touched = rebuilt["future_factor"].to_numpy(float) < 1.0
+    expected = (rows["date"] < saturday).to_numpy()
+    np.testing.assert_array_equal(touched, expected)
+
+
+def test_online_applies_multiple_events_in_source_order_each_once():
+    dates = pd.bdate_range("2020-01-01", periods=140)
+    rows = pd.DataFrame(
+        {"date": dates, "stock_id": "2330", "raw_close": np.linspace(100.0, 140.0, 140)}
+    )
+    ev = _events(
+        date=[dates[125], dates[130], dates[135]],
+        stock_id=["2330"] * 3,
+        before_price=[100.0] * 3,
+        after_price=[90.0, 80.0, 70.0],
+    )
+    out = online_asof_price_features(rows, ev)
+    # 三個事件各套一次，不多不少。
+    assert int(out["events_applied_online"].sum()) == 3
+    applied = out.set_index("date")["events_applied_online"]
+    assert applied.loc[dates[125]] == 1
+    assert applied.loc[dates[130]] == 1
+    assert applied.loc[dates[135]] == 1
+
+
+def test_online_marks_short_history_as_not_comparable_instead_of_false_signal():
+    rows = _online_rows("2330", np.linspace(20.0, 30.0, 80))
+    out = online_asof_price_features(rows, NO_EVENTS)
+    # 前 61 列歷史不足，N60 不可比較；MA120 需 120 列，全程不可比較。
+    assert not out["n60_comparable_online"].iloc[:61].any()
+    assert out["n60_comparable_online"].iloc[61:].all()
+    assert not out["ma120_comparable_online"].any()
+    # 不可比較處的 n60 為 False，但那是算不出來，不是觀測到沒突破。
+    assert not out["n60_online_asof"].iloc[:61].any()
+
+
+def test_online_nan_in_history_breaks_comparability_until_the_window_clears():
+    raw = np.linspace(20.0, 40.0, 140)
+    raw[70] = np.nan
+    out = online_asof_price_features(_online_rows("2330", raw), NO_EVENTS)
+    assert bool(out.iloc[70]["raw_close_missing"]) is True
+    # NaN 落在視窗內時不可比較；視窗滑過之後恢復。
+    assert not bool(out.iloc[75]["n60_comparable_online"])
+    assert bool(out.iloc[135]["n60_comparable_online"])
+
+
+def test_online_reports_a_normal_non_breakout_as_comparable_and_false():
+    # 正常、資料完整、確實沒有突破：必須是「可比較且為 False」，
+    # 與「不可比較的 False」區分得開。
+    out = online_asof_price_features(_online_rows("2330", [10.0] * 130), NO_EVENTS)
+    last = out.iloc[-1]
+    assert bool(last["n60_comparable_online"]) is True
+    assert bool(last["n60_online_asof"]) is False
