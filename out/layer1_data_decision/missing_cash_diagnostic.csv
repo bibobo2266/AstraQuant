@@ -1,0 +1,5 @@
+date,stock_id,ex_date,prior_date,prior_raw_close,cash_per_share,diagnostic_missing_ratio,diagnostic_rebuild,stored_adjusted,residual,interpretation
+2016-01-04,1216,2016-08-04,2016-08-03,66,2,0.96969696969697,34.6906810817662,34.690681,-8.17662169083633e-08,diagnostic only; no production event inserted
+2016-08-03,1216,2016-08-04,2016-08-03,66,2,0.96969696969697,42.4783849980811,42.478385,1.91892723933051e-09,diagnostic only; no production event inserted
+2016-01-04,2330,2016-06-27,2016-06-24,159,6,0.962264150943396,105.26257135122,104.959,-0.303571351219645,diagnostic only; no production event inserted
+2016-06-24,2330,2016-06-27,2016-06-24,159,6,0.962264150943396,119.976694228272,119.6307,-0.345994228271863,diagnostic only; no production event inserted

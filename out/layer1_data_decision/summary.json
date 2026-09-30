@@ -1,0 +1,21 @@
+{
+  "source_revision": "fb8b042b46dc38838d103544ca17da10286c7bfe",
+  "raw_event_rows": 14591,
+  "normalized_event_rows": 14586,
+  "invalid_date_rows": 0,
+  "e1_processed": 6763,
+  "event2016_rows": 0,
+  "official2016_rows": 1244,
+  "official2016_stocks": 1202,
+  "sample_rows": 28,
+  "sample_ids": [
+    "1101",
+    "1216",
+    "2317",
+    "2330"
+  ],
+  "full_audit_rerun": false,
+  "strategy_runs": [],
+  "source_validation_tolerance": 0.0001,
+  "legacy_match_column_name": "match_within_0_00005 actually uses 0.0001; unchanged"
+}

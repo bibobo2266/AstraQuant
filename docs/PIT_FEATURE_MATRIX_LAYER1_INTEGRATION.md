@@ -3,6 +3,12 @@
 狀態：**IMPLEMENTED / AWAITING REVIEW**  
 本文件是 OWNER_PRIORITY_QUEUE 第 5 項的剩餘驗收交接。它不宣告第 5 項審查通過，不計算任何策略效果。
 
+## 本次稽核後的解讀補充
+
+三項稽核修復已驗收；真實資料適用性尚未全面通過。下文原第 2～4、8 節的策略阻擋維持，但不得將「adjusted 會回寫」單獨解讀為所有衍生公式的值都受影響：MA 比值與 N60 在完整比較視窗共同正倍率下不變。現有 v1 artifact 仍因母體資格、來源重建與必要可得性依賴未通過而阻擋；公式不變不等於整份 artifact 可用。
+
+已完成的來源定位及核定建議以 [資料決策](PIT_FEATURE_LAYER1_DATA_DECISION.md) 與 [證據](PIT_FEATURE_LAYER1_DATA_EVIDENCE.md) 為準；本次沒有修改 availability config 或 gate。
+
 ## 1. 決策／送單時間契約
 
 AstraQuant 日線策略的實際時序定義為：

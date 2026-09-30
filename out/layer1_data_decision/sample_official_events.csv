@@ -1,0 +1,147 @@
+stock_id,event_date,known_date,event_type,cash_per_share,share_multiplier,rights_ratio,subscription_price,market,source_url,source_name,confidence,notes
+1101,2014-07-23,2014-06-30,dividend,2.3,,0,,,,FinMind TaiwanStockDividend,source_row,Use known_date/available_date for PIT; verify field semantics before wealth accounting
+1101,2015-07-23,,ex_right_dividend,,,,,TWSE,https://www.twse.com.tw/rwd/zh/exRight/TWT49U,TWSE TWT49U,official,台泥; type=息; official ex-right/ex-dividend result; detailed cash/share amounts may come from FinMind dividend row
+1101,2015-07-29,2015-06-24,dividend,2.49,,0,,,,FinMind TaiwanStockDividend,source_row,Use known_date/available_date for PIT; verify field semantics before wealth accounting
+1101,2016-07-25,,ex_right_dividend,,,,,TWSE,https://www.twse.com.tw/rwd/zh/exRight/TWT49U,TWSE TWT49U,official,台泥; type=息; official ex-right/ex-dividend result; detailed cash/share amounts may come from FinMind dividend row
+1101,2016-07-31,2016-07-04,dividend,1.33,,0,,,,FinMind TaiwanStockDividend,source_row,Use known_date/available_date for PIT; verify field semantics before wealth accounting
+1101,2017-07-25,,ex_right_dividend,,,,,TWSE,https://www.twse.com.tw/rwd/zh/exRight/TWT49U,TWSE TWT49U,official,台泥; type=息; official ex-right/ex-dividend result; detailed cash/share amounts may come from FinMind dividend row
+1101,2017-07-31,2017-07-10,dividend,1.45,,0,,,,FinMind TaiwanStockDividend,source_row,Use known_date/available_date for PIT; verify field semantics before wealth accounting
+1101,2018-07-26,,ex_right_dividend,,,,,TWSE,https://www.twse.com.tw/rwd/zh/exRight/TWT49U,TWSE TWT49U,official,台泥; type=權息; official ex-right/ex-dividend result; detailed cash/share amounts may come from FinMind dividend row
+1101,2018-08-01,2018-07-11,dividend,1.5,,1,,,,FinMind TaiwanStockDividend,source_row,Use known_date/available_date for PIT; verify field semantics before wealth accounting
+1101,2018-11-26,2018-11-13,dividend,0,,0,,,,FinMind TaiwanStockDividend,source_row,Use known_date/available_date for PIT; verify field semantics before wealth accounting
+1101,2019-08-13,,ex_right_dividend,,,,,TWSE,https://www.twse.com.tw/rwd/zh/exRight/TWT49U,TWSE TWT49U,official,台泥; type=權息; official ex-right/ex-dividend result; detailed cash/share amounts may come from FinMind dividend row
+1101,2019-08-19,2019-07-29,dividend,3.30513111,,0.70108841,,,,FinMind TaiwanStockDividend,source_row,Use known_date/available_date for PIT; verify field semantics before wealth accounting
+1101,2020-08-12,,ex_right_dividend,,,,,TWSE,https://www.twse.com.tw/rwd/zh/exRight/TWT49U,TWSE TWT49U,official,台泥; type=權息; official ex-right/ex-dividend result; detailed cash/share amounts may come from FinMind dividend row
+1101,2020-08-18,2020-07-28,dividend,2.50081632,,0.50016326,,,,FinMind TaiwanStockDividend,source_row,Use known_date/available_date for PIT; verify field semantics before wealth accounting
+1101,2021-08-12,,ex_right_dividend,,,,,TWSE,https://www.twse.com.tw/rwd/zh/exRight/TWT49U,TWSE TWT49U,official,台泥; type=息; official ex-right/ex-dividend result; detailed cash/share amounts may come from FinMind dividend row
+1101,2021-08-18,2021-07-28,dividend,3.36811984,,0,,,,FinMind TaiwanStockDividend,source_row,Use known_date/available_date for PIT; verify field semantics before wealth accounting
+1101,2022-07-21,,ex_right_dividend,,,,,TWSE,https://www.twse.com.tw/rwd/zh/exRight/TWT49U,TWSE TWT49U,official,台泥; type=權息; official ex-right/ex-dividend result; detailed cash/share amounts may come from FinMind dividend row
+1101,2022-07-27,2022-07-07,dividend,0.99928258,,0.99928258,,,,FinMind TaiwanStockDividend,source_row,Use known_date/available_date for PIT; verify field semantics before wealth accounting
+1101,2023-07-11,,ex_right_dividend,,,,,TWSE,https://www.twse.com.tw/rwd/zh/exRight/TWT49U,TWSE TWT49U,official,台泥; type=息; official ex-right/ex-dividend result; detailed cash/share amounts may come from FinMind dividend row
+1101,2023-07-17,2023-06-21,dividend,0.49971973,,0,,,,FinMind TaiwanStockDividend,source_row,Use known_date/available_date for PIT; verify field semantics before wealth accounting
+1101,2024-07-01,,ex_right_dividend,,,,,TWSE,https://www.twse.com.tw/rwd/zh/exRight/TWT49U,TWSE TWT49U,official,台泥; type=息; official ex-right/ex-dividend result; detailed cash/share amounts may come from FinMind dividend row
+1101,2024-07-07,2024-06-13,dividend,1,,0,,,,FinMind TaiwanStockDividend,source_row,Use known_date/available_date for PIT; verify field semantics before wealth accounting
+1101,2025-07-02,,ex_right_dividend,,,,,TWSE,https://www.twse.com.tw/rwd/zh/exRight/TWT49U,TWSE TWT49U,official,台泥; type=息; official ex-right/ex-dividend result; detailed cash/share amounts may come from FinMind dividend row
+1101,2025-07-08,2025-06-10,dividend,1,,0,,,,FinMind TaiwanStockDividend,source_row,Use known_date/available_date for PIT; verify field semantics before wealth accounting
+1101,2026-07-01,,ex_right_dividend,,,,,TWSE,https://www.twse.com.tw/rwd/zh/exRight/TWT49U,TWSE TWT49U,official,台泥; type=息; official ex-right/ex-dividend result; detailed cash/share amounts may come from FinMind dividend row
+1101,2026-07-07,2026-06-15,dividend,0,,0,,,,FinMind TaiwanStockDividend,source_row,Use known_date/available_date for PIT; verify field semantics before wealth accounting
+1216,2014-08-15,2014-07-15,dividend,1.5,,0.6,,,,FinMind TaiwanStockDividend,source_row,Use known_date/available_date for PIT; verify field semantics before wealth accounting
+1216,2015-08-06,,ex_right_dividend,,,,,TWSE,https://www.twse.com.tw/rwd/zh/exRight/TWT49U,TWSE TWT49U,official,統一; type=權息; official ex-right/ex-dividend result; detailed cash/share amounts may come from FinMind dividend row
+1216,2015-08-14,2015-07-17,dividend,1.4,,0.4,,,,FinMind TaiwanStockDividend,source_row,Use known_date/available_date for PIT; verify field semantics before wealth accounting
+1216,2016-08-04,,ex_right_dividend,,,,,TWSE,https://www.twse.com.tw/rwd/zh/exRight/TWT49U,TWSE TWT49U,official,統一; type=息; official ex-right/ex-dividend result; detailed cash/share amounts may come from FinMind dividend row
+1216,2016-08-12,2016-07-20,dividend,2,,0,,,,FinMind TaiwanStockDividend,source_row,Use known_date/available_date for PIT; verify field semantics before wealth accounting
+1216,2017-08-03,,ex_right_dividend,,,,,TWSE,https://www.twse.com.tw/rwd/zh/exRight/TWT49U,TWSE TWT49U,official,統一; type=息; official ex-right/ex-dividend result; detailed cash/share amounts may come from FinMind dividend row
+1216,2017-08-11,2017-07-10,dividend,2.1,,0,,,,FinMind TaiwanStockDividend,source_row,Use known_date/available_date for PIT; verify field semantics before wealth accounting
+1216,2018-08-02,,ex_right_dividend,,,,,TWSE,https://www.twse.com.tw/rwd/zh/exRight/TWT49U,TWSE TWT49U,official,統一; type=息; official ex-right/ex-dividend result; detailed cash/share amounts may come from FinMind dividend row
+1216,2018-08-10,2018-07-13,dividend,5.5,,0,,,,FinMind TaiwanStockDividend,source_row,Use known_date/available_date for PIT; verify field semantics before wealth accounting
+1216,2019-08-01,,ex_right_dividend,,,,,TWSE,https://www.twse.com.tw/rwd/zh/exRight/TWT49U,TWSE TWT49U,official,統一; type=息; official ex-right/ex-dividend result; detailed cash/share amounts may come from FinMind dividend row
+1216,2019-08-09,2019-07-15,dividend,2.5,,0,,,,FinMind TaiwanStockDividend,source_row,Use known_date/available_date for PIT; verify field semantics before wealth accounting
+1216,2020-08-06,,ex_right_dividend,,,,,TWSE,https://www.twse.com.tw/rwd/zh/exRight/TWT49U,TWSE TWT49U,official,統一; type=息; official ex-right/ex-dividend result; detailed cash/share amounts may come from FinMind dividend row
+1216,2020-08-14,2020-07-15,dividend,2.5,,0,,,,FinMind TaiwanStockDividend,source_row,Use known_date/available_date for PIT; verify field semantics before wealth accounting
+1216,2021-09-09,,ex_right_dividend,,,,,TWSE,https://www.twse.com.tw/rwd/zh/exRight/TWT49U,TWSE TWT49U,official,統一; type=息; official ex-right/ex-dividend result; detailed cash/share amounts may come from FinMind dividend row
+1216,2021-09-17,2021-08-18,dividend,2.7,,0,,,,FinMind TaiwanStockDividend,source_row,Use known_date/available_date for PIT; verify field semantics before wealth accounting
+1216,2022-08-04,,ex_right_dividend,,,,,TWSE,https://www.twse.com.tw/rwd/zh/exRight/TWT49U,TWSE TWT49U,official,統一; type=息; official ex-right/ex-dividend result; detailed cash/share amounts may come from FinMind dividend row
+1216,2022-08-11,2022-07-15,dividend,2.7,,0,,,,FinMind TaiwanStockDividend,source_row,Use known_date/available_date for PIT; verify field semantics before wealth accounting
+1216,2023-08-03,,ex_right_dividend,,,,,TWSE,https://www.twse.com.tw/rwd/zh/exRight/TWT49U,TWSE TWT49U,official,統一; type=息; official ex-right/ex-dividend result; detailed cash/share amounts may come from FinMind dividend row
+1216,2023-08-11,2023-07-12,dividend,3.15,,0,,,,FinMind TaiwanStockDividend,source_row,Use known_date/available_date for PIT; verify field semantics before wealth accounting
+1216,2024-08-01,,ex_right_dividend,,,,,TWSE,https://www.twse.com.tw/rwd/zh/exRight/TWT49U,TWSE TWT49U,official,統一; type=息; official ex-right/ex-dividend result; detailed cash/share amounts may come from FinMind dividend row
+1216,2024-08-09,2024-07-11,dividend,3,,0,,,,FinMind TaiwanStockDividend,source_row,Use known_date/available_date for PIT; verify field semantics before wealth accounting
+1216,2025-07-31,,ex_right_dividend,,,,,TWSE,https://www.twse.com.tw/rwd/zh/exRight/TWT49U,TWSE TWT49U,official,統一; type=息; official ex-right/ex-dividend result; detailed cash/share amounts may come from FinMind dividend row
+1216,2025-08-08,2025-07-02,dividend,3,,0,,,,FinMind TaiwanStockDividend,source_row,Use known_date/available_date for PIT; verify field semantics before wealth accounting
+1216,2026-07-30,,ex_right_dividend,,,,,TWSE,https://www.twse.com.tw/rwd/zh/exRight/TWT49U,TWSE TWT49U,official,統一; type=息; official ex-right/ex-dividend result; detailed cash/share amounts may come from FinMind dividend row
+1216,2026-08-07,2026-07-08,dividend,3,,0,,,,FinMind TaiwanStockDividend,source_row,Use known_date/available_date for PIT; verify field semantics before wealth accounting
+2317,2014-09-03,2014-08-14,dividend,1.8,,1.2,,,,FinMind TaiwanStockDividend,source_row,Use known_date/available_date for PIT; verify field semantics before wealth accounting
+2317,2015-09-03,,ex_right_dividend,,,,,TWSE,https://www.twse.com.tw/rwd/zh/exRight/TWT49U,TWSE TWT49U,official,鴻海; type=權息; official ex-right/ex-dividend result; detailed cash/share amounts may come from FinMind dividend row
+2317,2015-09-10,2015-08-14,dividend,3.8,,0.5,,,,FinMind TaiwanStockDividend,source_row,Use known_date/available_date for PIT; verify field semantics before wealth accounting
+2317,2016-09-02,,ex_right_dividend,,,,,TWSE,https://www.twse.com.tw/rwd/zh/exRight/TWT49U,TWSE TWT49U,official,鴻海; type=權息; official ex-right/ex-dividend result; detailed cash/share amounts may come from FinMind dividend row
+2317,2016-09-10,2016-08-18,dividend,4,,1,,,,FinMind TaiwanStockDividend,source_row,Use known_date/available_date for PIT; verify field semantics before wealth accounting
+2317,2017-07-13,,ex_right_dividend,,,,,TWSE,https://www.twse.com.tw/rwd/zh/exRight/TWT49U,TWSE TWT49U,official,鴻海; type=息; official ex-right/ex-dividend result; detailed cash/share amounts may come from FinMind dividend row
+2317,2017-07-21,2017-06-26,dividend,4.5,,0,,,,FinMind TaiwanStockDividend,source_row,Use known_date/available_date for PIT; verify field semantics before wealth accounting
+2317,2018-07-25,,ex_right_dividend,,,,,TWSE,https://www.twse.com.tw/rwd/zh/exRight/TWT49U,TWSE TWT49U,official,鴻海; type=息; official ex-right/ex-dividend result; detailed cash/share amounts may come from FinMind dividend row
+2317,2018-07-31,2018-07-10,dividend,2,,0,,,,FinMind TaiwanStockDividend,source_row,Use known_date/available_date for PIT; verify field semantics before wealth accounting
+2317,2018-10-26,,capital_reduction,,,,,TWSE,https://www.twse.com.tw/rwd/zh/reducation/TWTAUU,TWSE TWTAUU,official,鴻海; reason=退還股款; halt=2018-10-18; prev=68.10; ref=82.62
+2317,2019-07-25,,ex_right_dividend,,,,,TWSE,https://www.twse.com.tw/rwd/zh/exRight/TWT49U,TWSE TWT49U,official,鴻海; type=息; official ex-right/ex-dividend result; detailed cash/share amounts may come from FinMind dividend row
+2317,2019-07-31,2019-07-09,dividend,4,,0,,,,FinMind TaiwanStockDividend,source_row,Use known_date/available_date for PIT; verify field semantics before wealth accounting
+2317,2020-07-23,,ex_right_dividend,,,,,TWSE,https://www.twse.com.tw/rwd/zh/exRight/TWT49U,TWSE TWT49U,official,鴻海; type=息; official ex-right/ex-dividend result; detailed cash/share amounts may come from FinMind dividend row
+2317,2020-07-31,2020-07-08,dividend,4.2,,0,,,,FinMind TaiwanStockDividend,source_row,Use known_date/available_date for PIT; verify field semantics before wealth accounting
+2317,2021-07-22,,ex_right_dividend,,,,,TWSE,https://www.twse.com.tw/rwd/zh/exRight/TWT49U,TWSE TWT49U,official,鴻海; type=息; official ex-right/ex-dividend result; detailed cash/share amounts may come from FinMind dividend row
+2317,2021-07-30,2021-07-07,dividend,4,,0,,,,FinMind TaiwanStockDividend,source_row,Use known_date/available_date for PIT; verify field semantics before wealth accounting
+2317,2022-07-04,,ex_right_dividend,,,,,TWSE,https://www.twse.com.tw/rwd/zh/exRight/TWT49U,TWSE TWT49U,official,鴻海; type=息; official ex-right/ex-dividend result; detailed cash/share amounts may come from FinMind dividend row
+2317,2022-07-10,2022-06-08,dividend,5.2,,0,,,,FinMind TaiwanStockDividend,source_row,Use known_date/available_date for PIT; verify field semantics before wealth accounting
+2317,2023-07-04,,ex_right_dividend,,,,,TWSE,https://www.twse.com.tw/rwd/zh/exRight/TWT49U,TWSE TWT49U,official,鴻海; type=息; official ex-right/ex-dividend result; detailed cash/share amounts may come from FinMind dividend row
+2317,2023-07-10,2023-06-06,dividend,5.3,,0,,,,FinMind TaiwanStockDividend,source_row,Use known_date/available_date for PIT; verify field semantics before wealth accounting
+2317,2024-07-02,,ex_right_dividend,,,,,TWSE,https://www.twse.com.tw/rwd/zh/exRight/TWT49U,TWSE TWT49U,official,鴻海; type=息; official ex-right/ex-dividend result; detailed cash/share amounts may come from FinMind dividend row
+2317,2024-07-08,2024-06-05,dividend,5.4,,0,,,,FinMind TaiwanStockDividend,source_row,Use known_date/available_date for PIT; verify field semantics before wealth accounting
+2317,2025-07-02,,ex_right_dividend,,,,,TWSE,https://www.twse.com.tw/rwd/zh/exRight/TWT49U,TWSE TWT49U,official,鴻海; type=息; official ex-right/ex-dividend result; detailed cash/share amounts may come from FinMind dividend row
+2317,2025-07-08,2025-06-17,dividend,5.79998376,,0,,,,FinMind TaiwanStockDividend,source_row,Use known_date/available_date for PIT; verify field semantics before wealth accounting
+2317,2026-07-02,,ex_right_dividend,,,,,TWSE,https://www.twse.com.tw/rwd/zh/exRight/TWT49U,TWSE TWT49U,official,鴻海; type=息; official ex-right/ex-dividend result; detailed cash/share amounts may come from FinMind dividend row
+2317,2026-07-08,2026-06-16,dividend,7.17179227,,0,,,,FinMind TaiwanStockDividend,source_row,Use known_date/available_date for PIT; verify field semantics before wealth accounting
+2330,2014-07-20,2014-06-27,dividend,2.99991232,,0,,,,FinMind TaiwanStockDividend,source_row,Use known_date/available_date for PIT; verify field semantics before wealth accounting
+2330,2015-06-29,,ex_right_dividend,,,,,TWSE,https://www.twse.com.tw/rwd/zh/exRight/TWT49U,TWSE TWT49U,official,台積電; type=息; official ex-right/ex-dividend result; detailed cash/share amounts may come from FinMind dividend row
+2330,2015-07-05,2015-06-11,dividend,4.49987539,,0,,,,FinMind TaiwanStockDividend,source_row,Use known_date/available_date for PIT; verify field semantics before wealth accounting
+2330,2016-06-27,,ex_right_dividend,,,,,TWSE,https://www.twse.com.tw/rwd/zh/exRight/TWT49U,TWSE TWT49U,official,台積電; type=息; official ex-right/ex-dividend result; detailed cash/share amounts may come from FinMind dividend row
+2330,2016-07-03,2016-06-08,dividend,6,,0,,,,FinMind TaiwanStockDividend,source_row,Use known_date/available_date for PIT; verify field semantics before wealth accounting
+2330,2017-06-26,,ex_right_dividend,,,,,TWSE,https://www.twse.com.tw/rwd/zh/exRight/TWT49U,TWSE TWT49U,official,台積電; type=息; official ex-right/ex-dividend result; detailed cash/share amounts may come from FinMind dividend row
+2330,2017-07-02,2017-06-09,dividend,7,,0,,,,FinMind TaiwanStockDividend,source_row,Use known_date/available_date for PIT; verify field semantics before wealth accounting
+2330,2018-06-25,,ex_right_dividend,,,,,TWSE,https://www.twse.com.tw/rwd/zh/exRight/TWT49U,TWSE TWT49U,official,台積電; type=息; official ex-right/ex-dividend result; detailed cash/share amounts may come from FinMind dividend row
+2330,2018-07-01,2018-06-07,dividend,8,,0,,,,FinMind TaiwanStockDividend,source_row,Use known_date/available_date for PIT; verify field semantics before wealth accounting
+2330,2019-06-24,,ex_right_dividend,,,,,TWSE,https://www.twse.com.tw/rwd/zh/exRight/TWT49U,TWSE TWT49U,official,台積電; type=息; official ex-right/ex-dividend result; detailed cash/share amounts may come from FinMind dividend row
+2330,2019-06-30,2019-06-06,dividend,8,,0,,,,FinMind TaiwanStockDividend,source_row,Use known_date/available_date for PIT; verify field semantics before wealth accounting
+2330,2019-09-19,,ex_right_dividend,,,,,TWSE,https://www.twse.com.tw/rwd/zh/exRight/TWT49U,TWSE TWT49U,official,台積電; type=息; official ex-right/ex-dividend result; detailed cash/share amounts may come from FinMind dividend row
+2330,2019-09-25,2019-07-09,dividend,2,,0,,,,FinMind TaiwanStockDividend,source_row,Use known_date/available_date for PIT; verify field semantics before wealth accounting
+2330,2019-12-19,,ex_right_dividend,,,,,TWSE,https://www.twse.com.tw/rwd/zh/exRight/TWT49U,TWSE TWT49U,official,台積電; type=息; official ex-right/ex-dividend result; detailed cash/share amounts may come from FinMind dividend row
+2330,2019-12-25,2019-08-14,dividend,2.5,,0,,,,FinMind TaiwanStockDividend,source_row,Use known_date/available_date for PIT; verify field semantics before wealth accounting
+2330,2020-03-19,,ex_right_dividend,,,,,TWSE,https://www.twse.com.tw/rwd/zh/exRight/TWT49U,TWSE TWT49U,official,台積電; type=息; official ex-right/ex-dividend result; detailed cash/share amounts may come from FinMind dividend row
+2330,2020-03-25,2019-11-14,dividend,2.5,,0,,,,FinMind TaiwanStockDividend,source_row,Use known_date/available_date for PIT; verify field semantics before wealth accounting
+2330,2020-06-18,,ex_right_dividend,,,,,TWSE,https://www.twse.com.tw/rwd/zh/exRight/TWT49U,TWSE TWT49U,official,台積電; type=息; official ex-right/ex-dividend result; detailed cash/share amounts may come from FinMind dividend row
+2330,2020-06-24,2020-02-14,dividend,2.5,,0,,,,FinMind TaiwanStockDividend,source_row,Use known_date/available_date for PIT; verify field semantics before wealth accounting
+2330,2020-09-17,,ex_right_dividend,,,,,TWSE,https://www.twse.com.tw/rwd/zh/exRight/TWT49U,TWSE TWT49U,official,台積電; type=息; official ex-right/ex-dividend result; detailed cash/share amounts may come from FinMind dividend row
+2330,2020-09-23,2020-05-14,dividend,2.5,,0,,,,FinMind TaiwanStockDividend,source_row,Use known_date/available_date for PIT; verify field semantics before wealth accounting
+2330,2020-12-17,,ex_right_dividend,,,,,TWSE,https://www.twse.com.tw/rwd/zh/exRight/TWT49U,TWSE TWT49U,official,台積電; type=息; official ex-right/ex-dividend result; detailed cash/share amounts may come from FinMind dividend row
+2330,2020-12-23,2020-08-17,dividend,2.5,,0,,,,FinMind TaiwanStockDividend,source_row,Use known_date/available_date for PIT; verify field semantics before wealth accounting
+2330,2021-03-17,,ex_right_dividend,,,,,TWSE,https://www.twse.com.tw/rwd/zh/exRight/TWT49U,TWSE TWT49U,official,台積電; type=息; official ex-right/ex-dividend result; detailed cash/share amounts may come from FinMind dividend row
+2330,2021-03-23,2020-11-12,dividend,2.5,,0,,,,FinMind TaiwanStockDividend,source_row,Use known_date/available_date for PIT; verify field semantics before wealth accounting
+2330,2021-06-17,,ex_right_dividend,,,,,TWSE,https://www.twse.com.tw/rwd/zh/exRight/TWT49U,TWSE TWT49U,official,台積電; type=息; official ex-right/ex-dividend result; detailed cash/share amounts may come from FinMind dividend row
+2330,2021-06-23,2021-03-22,dividend,2.5,,0,,,,FinMind TaiwanStockDividend,source_row,Use known_date/available_date for PIT; verify field semantics before wealth accounting
+2330,2021-09-16,,ex_right_dividend,,,,,TWSE,https://www.twse.com.tw/rwd/zh/exRight/TWT49U,TWSE TWT49U,official,台積電; type=息; official ex-right/ex-dividend result; detailed cash/share amounts may come from FinMind dividend row
+2330,2021-09-22,2021-06-16,dividend,2.75,,0,,,,FinMind TaiwanStockDividend,source_row,Use known_date/available_date for PIT; verify field semantics before wealth accounting
+2330,2021-12-16,,ex_right_dividend,,,,,TWSE,https://www.twse.com.tw/rwd/zh/exRight/TWT49U,TWSE TWT49U,official,台積電; type=息; official ex-right/ex-dividend result; detailed cash/share amounts may come from FinMind dividend row
+2330,2021-12-22,2021-08-13,dividend,2.75,,0,,,,FinMind TaiwanStockDividend,source_row,Use known_date/available_date for PIT; verify field semantics before wealth accounting
+2330,2022-03-16,,ex_right_dividend,,,,,TWSE,https://www.twse.com.tw/rwd/zh/exRight/TWT49U,TWSE TWT49U,official,台積電; type=息; official ex-right/ex-dividend result; detailed cash/share amounts may come from FinMind dividend row
+2330,2022-03-22,2022-03-01,dividend,2.75,,0,,,,FinMind TaiwanStockDividend,source_row,Use known_date/available_date for PIT; verify field semantics before wealth accounting
+2330,2022-06-16,,ex_right_dividend,,,,,TWSE,https://www.twse.com.tw/rwd/zh/exRight/TWT49U,TWSE TWT49U,official,台積電; type=息; official ex-right/ex-dividend result; detailed cash/share amounts may come from FinMind dividend row
+2330,2022-06-22,2022-05-18,dividend,2.75,,0,,,,FinMind TaiwanStockDividend,source_row,Use known_date/available_date for PIT; verify field semantics before wealth accounting
+2330,2022-09-15,,ex_right_dividend,,,,,TWSE,https://www.twse.com.tw/rwd/zh/exRight/TWT49U,TWSE TWT49U,official,台積電; type=息; official ex-right/ex-dividend result; detailed cash/share amounts may come from FinMind dividend row
+2330,2022-09-21,2022-08-30,dividend,2.75,,0,,,,FinMind TaiwanStockDividend,source_row,Use known_date/available_date for PIT; verify field semantics before wealth accounting
+2330,2022-12-15,,ex_right_dividend,,,,,TWSE,https://www.twse.com.tw/rwd/zh/exRight/TWT49U,TWSE TWT49U,official,台積電; type=息; official ex-right/ex-dividend result; detailed cash/share amounts may come from FinMind dividend row
+2330,2022-12-21,2022-11-30,dividend,2.75,,0,,,,FinMind TaiwanStockDividend,source_row,Use known_date/available_date for PIT; verify field semantics before wealth accounting
+2330,2023-03-16,,ex_right_dividend,,,,,TWSE,https://www.twse.com.tw/rwd/zh/exRight/TWT49U,TWSE TWT49U,official,台積電; type=息; official ex-right/ex-dividend result; detailed cash/share amounts may come from FinMind dividend row
+2330,2023-03-22,2023-03-01,dividend,2.74982072,,0,,,,FinMind TaiwanStockDividend,source_row,Use known_date/available_date for PIT; verify field semantics before wealth accounting
+2330,2023-06-15,,ex_right_dividend,,,,,TWSE,https://www.twse.com.tw/rwd/zh/exRight/TWT49U,TWSE TWT49U,official,台積電; type=息; official ex-right/ex-dividend result; detailed cash/share amounts may come from FinMind dividend row
+2330,2023-06-21,2023-05-31,dividend,2.74982072,,0,,,,FinMind TaiwanStockDividend,source_row,Use known_date/available_date for PIT; verify field semantics before wealth accounting
+2330,2023-09-14,,ex_right_dividend,,,,,TWSE,https://www.twse.com.tw/rwd/zh/exRight/TWT49U,TWSE TWT49U,official,台積電; type=息; official ex-right/ex-dividend result; detailed cash/share amounts may come from FinMind dividend row
+2330,2023-09-20,2023-08-30,dividend,3,,0,,,,FinMind TaiwanStockDividend,source_row,Use known_date/available_date for PIT; verify field semantics before wealth accounting
+2330,2023-12-14,,ex_right_dividend,,,,,TWSE,https://www.twse.com.tw/rwd/zh/exRight/TWT49U,TWSE TWT49U,official,台積電; type=息; official ex-right/ex-dividend result; detailed cash/share amounts may come from FinMind dividend row
+2330,2023-12-20,2023-11-29,dividend,3,,0,,,,FinMind TaiwanStockDividend,source_row,Use known_date/available_date for PIT; verify field semantics before wealth accounting
+2330,2024-03-18,,ex_right_dividend,,,,,TWSE,https://www.twse.com.tw/rwd/zh/exRight/TWT49U,TWSE TWT49U,official,台積電; type=息; official ex-right/ex-dividend result; detailed cash/share amounts may come from FinMind dividend row
+2330,2024-03-24,2024-03-01,dividend,3.49978969,,0,,,,FinMind TaiwanStockDividend,source_row,Use known_date/available_date for PIT; verify field semantics before wealth accounting
+2330,2024-06-13,,ex_right_dividend,,,,,TWSE,https://www.twse.com.tw/rwd/zh/exRight/TWT49U,TWSE TWT49U,official,台積電; type=息; official ex-right/ex-dividend result; detailed cash/share amounts may come from FinMind dividend row
+2330,2024-06-19,2024-05-28,dividend,3.49978969,,0,,,,FinMind TaiwanStockDividend,source_row,Use known_date/available_date for PIT; verify field semantics before wealth accounting
+2330,2024-09-12,,ex_right_dividend,,,,,TWSE,https://www.twse.com.tw/rwd/zh/exRight/TWT49U,TWSE TWT49U,official,台積電; type=息; official ex-right/ex-dividend result; detailed cash/share amounts may come from FinMind dividend row
+2330,2024-09-18,2024-08-28,dividend,4.0001382,,0,,,,FinMind TaiwanStockDividend,source_row,Use known_date/available_date for PIT; verify field semantics before wealth accounting
+2330,2024-12-12,,ex_right_dividend,,,,,TWSE,https://www.twse.com.tw/rwd/zh/exRight/TWT49U,TWSE TWT49U,official,台積電; type=息; official ex-right/ex-dividend result; detailed cash/share amounts may come from FinMind dividend row
+2330,2024-12-18,2024-11-27,dividend,3.99963706,,0,,,,FinMind TaiwanStockDividend,source_row,Use known_date/available_date for PIT; verify field semantics before wealth accounting
+2330,2025-03-18,,ex_right_dividend,,,,,TWSE,https://www.twse.com.tw/rwd/zh/exRight/TWT49U,TWSE TWT49U,official,台積電; type=息; official ex-right/ex-dividend result; detailed cash/share amounts may come from FinMind dividend row
+2330,2025-03-24,2025-03-03,dividend,4.50002042,,0,,,,FinMind TaiwanStockDividend,source_row,Use known_date/available_date for PIT; verify field semantics before wealth accounting
+2330,2025-06-12,,ex_right_dividend,,,,,TWSE,https://www.twse.com.tw/rwd/zh/exRight/TWT49U,TWSE TWT49U,official,台積電; type=息; official ex-right/ex-dividend result; detailed cash/share amounts may come from FinMind dividend row
+2330,2025-06-18,2025-05-28,dividend,4.50002042,,0,,,,FinMind TaiwanStockDividend,source_row,Use known_date/available_date for PIT; verify field semantics before wealth accounting
+2330,2025-09-16,,ex_right_dividend,,,,,TWSE,https://www.twse.com.tw/rwd/zh/exRight/TWT49U,TWSE TWT49U,official,台積電; type=息; official ex-right/ex-dividend result; detailed cash/share amounts may come from FinMind dividend row
+2330,2025-09-22,2025-09-01,dividend,5.00001754,,0,,,,FinMind TaiwanStockDividend,source_row,Use known_date/available_date for PIT; verify field semantics before wealth accounting
+2330,2025-12-11,,ex_right_dividend,,,,,TWSE,https://www.twse.com.tw/rwd/zh/exRight/TWT49U,TWSE TWT49U,official,台積電; type=息; official ex-right/ex-dividend result; detailed cash/share amounts may come from FinMind dividend row
+2330,2025-12-17,2025-11-26,dividend,5.00001118,,0,,,,FinMind TaiwanStockDividend,source_row,Use known_date/available_date for PIT; verify field semantics before wealth accounting
+2330,2026-03-17,,ex_right_dividend,,,,,TWSE,https://www.twse.com.tw/rwd/zh/exRight/TWT49U,TWSE TWT49U,official,台積電; type=息; official ex-right/ex-dividend result; detailed cash/share amounts may come from FinMind dividend row
+2330,2026-03-23,2026-03-02,dividend,6.00003573,,0,,,,FinMind TaiwanStockDividend,source_row,Use known_date/available_date for PIT; verify field semantics before wealth accounting
+2330,2026-06-11,,ex_right_dividend,,,,,TWSE,https://www.twse.com.tw/rwd/zh/exRight/TWT49U,TWSE TWT49U,official,台積電; type=息; official ex-right/ex-dividend result; detailed cash/share amounts may come from FinMind dividend row
+2330,2026-06-17,2026-05-27,dividend,6.00003573,,0,,,,FinMind TaiwanStockDividend,source_row,Use known_date/available_date for PIT; verify field semantics before wealth accounting
+2330,2026-09-16,,ex_right_dividend,,,,,TWSE,https://www.twse.com.tw/rwd/zh/exRight/TWT49U,TWSE TWT49U,official,台積電; type=息; official ex-right/ex-dividend result; detailed cash/share amounts may come from FinMind dividend row
+2330,2026-09-22,2026-09-01,dividend,7.00000137,,0,,,,FinMind TaiwanStockDividend,source_row,Use known_date/available_date for PIT; verify field semantics before wealth accounting

@@ -1,0 +1,142 @@
+[
+  {
+    "path": "data/adj/prices_adj_2016.parquet",
+    "history": [
+      {
+        "sha": "b1c488a2d245ebbb2906581bd021fd9432890f5b",
+        "date": "2026-09-29T08:35:35Z",
+        "message": "data adj 2026-09-29"
+      },
+      {
+        "sha": "561087cd6d392f27768a2e4320f316673e7dfb0f",
+        "date": "2026-09-24T08:39:14Z",
+        "message": "data adj 2026-09-24"
+      },
+      {
+        "sha": "4f33315793a73934216da512da5dbce9a48e946e",
+        "date": "2026-09-23T08:34:11Z",
+        "message": "data adj 2026-09-23"
+      },
+      {
+        "sha": "3c925cfc180e229012d2ce70ef86f3c865129139",
+        "date": "2026-09-22T08:33:39Z",
+        "message": "data adj 2026-09-22"
+      },
+      {
+        "sha": "4aca0002f06853a3cc572475186f478f028e4e39",
+        "date": "2026-09-21T08:32:31Z",
+        "message": "data adj 2026-09-21"
+      },
+      {
+        "sha": "3492f076bbaed71c9064e39a6473d4f38a9f3be5",
+        "date": "2026-09-17T08:33:10Z",
+        "message": "data adj 2026-09-17"
+      },
+      {
+        "sha": "e10810504c07f92dcbcca957d0156b21233db358",
+        "date": "2026-09-16T08:32:51Z",
+        "message": "data adj 2026-09-16"
+      },
+      {
+        "sha": "906f257d73d6515212d922aea4b6afd31b736129",
+        "date": "2026-09-15T08:32:48Z",
+        "message": "data adj 2026-09-15"
+      },
+      {
+        "sha": "25e6512aa888201ece218069ddd3b3f5d80a638b",
+        "date": "2026-09-14T08:32:27Z",
+        "message": "data adj 2026-09-14"
+      },
+      {
+        "sha": "9af2f3b7f9761a81088446d553d3ee6e7bef4883",
+        "date": "2026-09-11T08:33:01Z",
+        "message": "data adj 2026-09-11"
+      },
+      {
+        "sha": "e932954bca71ced2a8183938d0db16c9b6f011a8",
+        "date": "2026-09-10T10:02:03Z",
+        "message": "data adj 2026-09-10"
+      },
+      {
+        "sha": "668d6e602b8934bbf1a4df5d0ecf53ebc12f3a8c",
+        "date": "2026-09-09T08:32:17Z",
+        "message": "data adj 2026-09-09"
+      },
+      {
+        "sha": "c824eb5f7d97dae19e1ae6fee56b60a335b0a20f",
+        "date": "2026-09-08T08:32:48Z",
+        "message": "data adj 2026-09-08"
+      },
+      {
+        "sha": "8b5a1e5883a28cc62ae99e39e72587a163b4b832",
+        "date": "2026-09-07T08:52:22Z",
+        "message": "data adj 2026-09-07"
+      },
+      {
+        "sha": "f5cdb46a7f608f3576bad5cfa2c96d96d0b0d53c",
+        "date": "2026-09-04T02:00:52Z",
+        "message": "chore(data): 公司行動 apply"
+      },
+      {
+        "sha": "bce1f1527487e622fd06425c1ea6e11963bea51a",
+        "date": "2026-09-04T01:38:09Z",
+        "message": "chore(data): 公司行動 apply"
+      },
+      {
+        "sha": "fc0b8e8de859d726bc6409f12e75e8e2867e7e42",
+        "date": "2026-09-03T13:31:08Z",
+        "message": "adj: 官方還原股價回補（backfill）"
+      },
+      {
+        "sha": "4f71f3d4d2e8ec663094b3a760da18c405de397f",
+        "date": "2026-09-02T09:01:33Z",
+        "message": "data adj 2026-09-02"
+      },
+      {
+        "sha": "ee7c2f38129e526d711edd884939ee6ea0f930e5",
+        "date": "2026-09-01T11:58:47Z",
+        "message": "data adj 2026-09-01"
+      },
+      {
+        "sha": "9cce3f3e4a2bbc6d61041a12697ddadf8ef8b05c",
+        "date": "2026-08-31T11:27:18Z",
+        "message": "data adj 2026-08-31"
+      },
+      {
+        "sha": "ede659886f38eac46333d3602c72bb61e9b821cd",
+        "date": "2026-08-30T06:38:41Z",
+        "message": "backfill adj 2026-08-30"
+      }
+    ]
+  },
+  {
+    "path": "data/adj/dividend_events.parquet",
+    "history": [
+      {
+        "sha": "5df25e777af3dc9cc31088dea62e5098a74005c0",
+        "date": "2026-08-30T04:30:47Z",
+        "message": "build adj 2026-08-30"
+      }
+    ]
+  },
+  {
+    "path": "data/raw/prices_raw_2016.parquet",
+    "history": [
+      {
+        "sha": "034a5775e1171a7f780b5644d4315bf283bfe3d4",
+        "date": "2026-09-27T08:59:16Z",
+        "message": "data: fill historical RAW gaps with FinMind"
+      },
+      {
+        "sha": "9a3a46895a3c438e87308af304720f3b29c5ad44",
+        "date": "2026-09-27T01:22:59Z",
+        "message": "data: targeted repair of remaining raw history gaps"
+      },
+      {
+        "sha": "c190277d5e43713a183b47ce667ed458451d65f7",
+        "date": "2026-09-26T15:33:24Z",
+        "message": "data: raw history and tradability batch"
+      }
+    ]
+  }
+]

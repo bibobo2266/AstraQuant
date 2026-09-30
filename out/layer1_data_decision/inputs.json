@@ -1,0 +1,146 @@
+[
+  {
+    "path": "data/raw/prices_raw_2015.parquet",
+    "sha": "3ccedebc792124009adead974ef958992718673f",
+    "size": 7424661,
+    "sha256": "9235f174a6021d11cacfe1901b9ace4445f01dbc595b369b845665aeb84de8c6"
+  },
+  {
+    "path": "data/raw/prices_raw_2016.parquet",
+    "sha": "fc51989d30f9384d34159613eec4134c1d777fbf",
+    "size": 7864138,
+    "sha256": "8c1d9ad7d1baae9117b6cb5caffe1ca71359673702af4889325274e4d5a0f5b2"
+  },
+  {
+    "path": "data/raw/prices_raw_2017.parquet",
+    "sha": "f31cbc77d1d49b91cb9872b755d7d163d9a55719",
+    "size": 8325799,
+    "sha256": "1b51f311e7ca4e2ccf5d7fcf384ac2d274a8006d8d45bf7e84fc82436f40e2aa"
+  },
+  {
+    "path": "data/raw/prices_raw_2018.parquet",
+    "sha": "43c496c1787362c34fb7da7344441fefc55c9c3a",
+    "size": 8601743,
+    "sha256": "06845ef8fb4bcde0869188e35d03d4c388776681c647bf96d8c58121767f68a3"
+  },
+  {
+    "path": "data/raw/prices_raw_2019.parquet",
+    "sha": "642c03a2bdcdf8218a5373bc39d86b6dc837319a",
+    "size": 8695726,
+    "sha256": "08993f01cfa889d12600a6b50893fab83b87516ec99c9fe7e10c5621aab6e467"
+  },
+  {
+    "path": "data/raw/prices_raw_2020.parquet",
+    "sha": "fa6ef705ca4a4791733b085d6d883b08177a972a",
+    "size": 9056866,
+    "sha256": "f206e28600e2303b001081119d0e112ee4117e4fea03b1db191773f41f415861"
+  },
+  {
+    "path": "data/raw/prices_raw_2021.parquet",
+    "sha": "8aa1578a3878477539db1eb5f601c05c9f1f91e4",
+    "size": 11064484,
+    "sha256": "344585aa37b0e2255490bfdb11d83a0d1aee69439c0ae1fa3dffd2d39ff53f55"
+  },
+  {
+    "path": "data/adj/prices_adj_2015.parquet",
+    "sha": "076843415e4dcbdf80c562831c7214c5dcf6d5d7",
+    "size": 8826683,
+    "sha256": "2bad48d316e263e43830d81f2c7a2ee32b34237973596e7c4d2ba79279ea115a"
+  },
+  {
+    "path": "data/adj/prices_adj_2016.parquet",
+    "sha": "27b2cf044a988200efc24c36e802d1f16ee37e0e",
+    "size": 12649147,
+    "sha256": "285cb621c2a911aeaac61328b654b084ff2e05714030e48e47bf0c0afdbd4e61"
+  },
+  {
+    "path": "data/adj/prices_adj_2017.parquet",
+    "sha": "24655da6410ce753aa7ec6796d543bc949c2bbf8",
+    "size": 13061774,
+    "sha256": "40c4b34236b37063b9f043f9c6c0eae6d611f391f7a73b29239a830f03951e35"
+  },
+  {
+    "path": "data/adj/prices_adj_2018.parquet",
+    "sha": "50ee68fb22d0a8bfc70fa7fb4339f05848bb6f22",
+    "size": 13816011,
+    "sha256": "9887a6b45871369f7b5ffad697874a84937004e5ca217ddbb746d9e5ec906707"
+  },
+  {
+    "path": "data/adj/prices_adj_2019.parquet",
+    "sha": "9364c08d8fd6b2a08c749908b574536388ed0ed5",
+    "size": 13763410,
+    "sha256": "c470891519e8a0c40383f4fc66f1dbbebae92a4ca05c433ab1fa63c6a94bd3e4"
+  },
+  {
+    "path": "data/adj/prices_adj_2020.parquet",
+    "sha": "fadd6993f5a10a3dac5bb8899b21cc975c630be7",
+    "size": 15469519,
+    "sha256": "3ed557a0ff246955715d4324c8545538fb66ba8d4754155115c782237d4126c0"
+  },
+  {
+    "path": "data/adj/prices_adj_2021.parquet",
+    "sha": "1bcd49b4372b8db012f29da481954861368658f1",
+    "size": 15460933,
+    "sha256": "df709a235e9e072a3bdf1d5e0f14451d1be739c18c58291e977163d40feae18f"
+  },
+  {
+    "path": "data/reference/corporate_actions_ledger.parquet",
+    "sha": "b98c13c39eee808b050a28fbf7888ed914fce53c",
+    "size": 336709,
+    "sha256": "b7808ed74c2ea3289a7d7690930176f5859e6efe97fb04e49a5dec30dde82b6b"
+  },
+  {
+    "path": "data/reference/tradability.parquet",
+    "sha": "ec3d299ecd223ceacd28eaa828bf23ae24c8eb56",
+    "size": 95805122,
+    "sha256": "3bba4a24ab289fe50165e121865e7bf6fd10a47993339b26fe6975878e6432d0"
+  },
+  {
+    "path": "data/fundamentals/dividend.parquet",
+    "sha": "5c9b860dbeb5c5d7e594817c4949b6b2e9a13322",
+    "size": 472536,
+    "sha256": "f0fa98a466923b25f15135aa7f67edf0633ff00720c034f79e1bfe3851f1a415"
+  },
+  {
+    "path": "data/adj/dividend_events.parquet",
+    "sha": "5c8ae7734357bffc44da7d53d50ee9e1286dc27f",
+    "sha256": "f391c011706a2a75830d8fdd6e3705f7cc8196f376c06acd759f1fb40cf0eb09"
+  },
+  {
+    "path": "scripts/build_adj.py",
+    "sha": "c02795cedf8bc153ed966a89b3b8cdb23cb81902",
+    "sha256": "b8c168146843466fb088e07c06c284c63a2ee99a494eb5c718b6c0432225c376"
+  },
+  {
+    "path": "scripts/backfill_adj.py",
+    "sha": "87f50ba6cfb5cb527f443859a3813f7cd18fa596",
+    "sha256": "8e59a8356625b1b497044aff740d1b4a765a0ac73c96ffab41307c24a3126811"
+  },
+  {
+    "path": "scripts/daily_update_adj.py",
+    "sha": "fa988570d0ec42b1c8646981a5afe3c2a711892d",
+    "sha256": "c41e5185d7dcb0d427c7eb7b82515f387d9c0c5bec53923811c1b4e0cbf645a6"
+  },
+  {
+    "path": "scripts/backfill_raw_official.py",
+    "sha": "268211fdd9b3c09e48204e4e7f6a15cdc8ab0ec5",
+    "sha256": "2e864ca821f2d37d264f80f24e871556df85e8f01c0b02dea81e31cfb965f9dc"
+  },
+  {
+    "path": "scripts/build_corporate_actions_ledger.py",
+    "sha": "78d76994167c2f58b51a5afc48780f607d5993c3",
+    "sha256": "41d4c47a59ad93514d1d5003591b7a015bcc0ca3b219693c61642713bf2ec61e"
+  },
+  {
+    "path": "snapshots/906f257d73d6515212d922aea4b6afd31b736129/prices_adj_2017.parquet",
+    "sha": "0bec638a75f8cf7a03eb32b460aff596f7823316",
+    "ref": "906f257d73d6515212d922aea4b6afd31b736129",
+    "sha256": "9345594dd54d8773875f6e9827279f0497397acd25c57298d53def1ad9d1eeec"
+  },
+  {
+    "path": "snapshots/e10810504c07f92dcbcca957d0156b21233db358/prices_adj_2017.parquet",
+    "sha": "7c442a0665fab2f5f1891f5d759c554989ed73f8",
+    "ref": "e10810504c07f92dcbcca957d0156b21233db358",
+    "sha256": "ce550583a4c8f4052acb7aeab127ea42a50de25f399294f88fb586b43ee83581"
+  }
+]

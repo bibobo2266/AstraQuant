@@ -1,0 +1,29 @@
+{
+  "tests_passed": 42,
+  "test_files": [
+    "tests/test_ca_adjustment_invariance_audit.py",
+    "tests/test_feature_panel_integration.py"
+  ],
+  "accepted_numeric_artifact_hashes_unchanged": true,
+  "full_e1_audit_rerun": false,
+  "strategy_runs": [],
+  "output_sha256": {
+    "event_assignment_counts.csv": "1a4e7b8cc53845e44c08f822b4a8d7483f2d142238bef7c2c088396a3e77aa17",
+    "event_assignment_deferred.csv": "c256ba3ade9295f001562ab576888eee5e53fd46e64448d8119028d1a66a8373",
+    "events_by_year.csv": "f9ed86fee070d67bf5d3161b1c469053836c3b2af685ce3c32c10621a8ee2bf0",
+    "excluded_events.csv": "347b8d59b632bf8cbb4bec59d8b33fe241b76f38442c17c343c0854832026975",
+    "historical_snapshot_trace.csv": "25cd3bdba80db17c1d86ff3186a51606ee846e9a659e28145144f5d5c8688693",
+    "inputs.json": "bf00e5acd893c00b64f583279249defaa83ebe95d504ac9de5cb8e628653426a",
+    "missing_cash_diagnostic.csv": "15aa0ffdacdfca24e8d36042bd1b93729d7d67d10591c52aa105bb0e64276ee8",
+    "official_2016_coverage.csv": "03e857be065b45c6bf4f525b9f4f86ac48973dbca01493277be1dc053cce09fd",
+    "price_key_coverage.csv": "19851cca3ba0e612a0249b750989d9ef2e38bfb6ff298a2d85fb7d22b0693ddd",
+    "price_samples.csv": "7abebade940e74dbb2dc24a90a7e58d6de175f109ab8cd71449e17cb212cf98c",
+    "reconstruction_steps.csv": "d49e28ca6c73321e1bb602e2f22c9458f458ed16df33d1c36c61a6944040671f",
+    "sample_dividend_details.csv": "22543af159dbfe8b89ece615661a35665acdd204208d041a05314723b2381248",
+    "sample_events.csv": "9d3a6ed1657b13aff348d2e2dac9d43ce5d4804a465bd25bf6689117ebf532f8",
+    "sample_official_events.csv": "7f017a42012c777755af436a3b43e85f6aa40d84fda399bf05cacb2c15f8497b",
+    "sample_source_validation.csv": "c323f0aa26083bb94a646df952bcd868e0c1071859b4aa87902c253aefc7b4b6",
+    "source_history.json": "d7a3648c494d7cfe9664b87fb9e1c6f92e3a78cf030e0114622ca9fd9f0682cb",
+    "summary.json": "41ea23c99a5f82043813664f320f292dd6ab1c39401e8a957210fefe2ed75169"
+  }
+}
