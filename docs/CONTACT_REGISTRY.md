@@ -55,3 +55,6 @@
 | SOURCE_ONEIL_TAIWAN_SWEEP | 2016-01-04 ~ 2021-12-31 | 2026-09-30 | candidate-level effect report; epoch=E1; source_revision=12a9aed2ee594d9dd574ba7bf7fc07c1ebf77c67; forward_sessions=250 |
 | VCP_ROUND1_AMP3_DIAGNOSTIC | 2016-01-04 ~ 2021-12-31 | 2026-09-30 | round1 post-hoc amplitude_3 diagnostic only; no round1 config/result mutation; source_revision=39eb22662f74a4591b1e57795174ffc2f7585f44; candidate counts checked against frozen 108-config summary |
 | SOURCE_ONEIL_TAIWAN_SWEEP | 2016-01-04 ~ 2021-12-31 | 2026-09-30 | candidate-level effect report; epoch=E1; source_revision=fb8b042b46dc38838d103544ca17da10286c7bfe; forward_sessions=250 |
+| SOURCE_STRATEGY_PERFORMANCE_REPORT | 2016-01-04 ~ 2021-12-31 | 2026-09-30 | strategy effect report; strategy_version=legacy_breakout_v1; epoch=E1; source_revision=fb8b042b46dc38838d103544ca17da10286c7bfe |
+| SOURCE_RSI_PULLBACK_RECLAIM_ALL_LIQUID_STOP12_TIME250_STRATEGY_PERFORMANCE | 2016-01-04 ~ 2021-12-31 | 2026-09-30 | strategy effect report; strategy_version=rsi_pullback_reclaim_all_liquid_stop12_time250; epoch=E1; source_revision=fb8b042b46dc38838d103544ca17da10286c7bfe |
+| SOURCE_VCP_ALL_LIQUID_STOP12_TIME250_STRATEGY_PERFORMANCE | 2016-01-04 ~ 2021-12-31 | 2026-09-30 | strategy effect report; strategy_version=vcp_all_liquid_stop12_time250; epoch=E1; source_revision=fb8b042b46dc38838d103544ca17da10286c7bfe |
