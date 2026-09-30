@@ -1,0 +1,20 @@
+schema_version: '1'
+name: baseline_lynch_v1
+provenance:
+  source: Joyen09 src/strategies/lynch.py
+  method: 林區 GARP／PEG
+  parameter_origin: TRANSLATED — 從公開實作抄錄的參數，非老手原話，也非已驗證的有效值
+  captured: '2026-09-30'
+trigger:
+  type: FUNDAMENTAL_THRESHOLD
+  params:
+    peg_max: 1.2
+    growth_min: 15.0
+    growth_max: 50.0
+    debt_ratio_max: 60.0
+filters:
+- type: PRICE_ABOVE_MA
+  params:
+    window: 60
+    average: SMA
+ranking: []
