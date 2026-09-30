@@ -2,11 +2,11 @@
 
 ## 目前狀態
 
-更新時間：2026-09-29T23:58:18Z
-做完：執行中，工作流 36647944420
-結果：無
+更新時間：2026-09-30T00:12:41Z
+做完：第 4 項完成
+結果：amplitude_3=0 為 0/21756；amplitude_3<0.01 為 15/21756（0.0689%）；2 檔股票、2 個訊號日
 卡住：無
-下一項：4
+下一項：5
 
 狀態：ACTIVE
 
@@ -148,9 +148,9 @@ E3 豁免：EX-001 已由 owner 裁定；僅允許 breakout 長窗 final NAV 51,
 
 ---
 
-### 4. [NOW] VCP Round 2 前置修正與 Round 1 診斷
+### 4. VCP Round 2 前置修正與 Round 1 診斷
 
-狀態：NOW
+狀態：DONE
 
 本項不得修改或重跑 round1。Round1 既有 config、程式行為與 out/ 產物視為凍結結果。
 
@@ -159,6 +159,7 @@ E3 豁免：EX-001 已由 owner 裁定；僅允許 breakout 長窗 final NAV 51,
 - 新增 round2 版本與 `min_amplitude_3` 參數，round2 預設 0.01；round1 行為維持等價 0.0。
 - 測試 amplitude_3=0 在 round2 不觸發、round1 仍觸發。
 - round2 summary schema 預備 exit_atr_count / exit_ma21_count / exit_both_count / exit_open_count，總和必須等於 n_closed+n_open。
+- 實作封口：round1 既有 27 筆 terminal lifecycle 平倉不屬 ATR / MA21 / BOTH / OPEN；round2 另列 exit_terminal_count，五類合計才與 n_closed+n_open 完全一致，不得把 terminal 偽裝成策略出場或未平倉。
 - round2 trades schema 補 entry_prior_avg_amount_twd / entry_day_amount_twd 與缺值原因；不補零。
 - 本項只做診斷、程式與測試；不得啟動 round2 掃描。
 
