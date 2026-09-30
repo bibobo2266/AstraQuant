@@ -1,0 +1,15 @@
+schema_version: '1'
+name: baseline_lynch_v1
+trigger:
+  type: FUNDAMENTAL_THRESHOLD
+  params:
+    peg_max: 1.2
+    growth_min: 15.0
+    growth_max: 50.0
+    debt_ratio_max: 60.0
+filters:
+- type: PRICE_ABOVE_MA
+  params:
+    window: 60
+    average: SMA
+ranking: []
