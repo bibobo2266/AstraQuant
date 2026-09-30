@@ -89,7 +89,7 @@ KD_SATURATION_STATE、OVERNIGHT_MARKET_CONTEXT、COLUMN_THRESHOLD
 列為可能相關的背景資訊。
 
 **元件數**：不再使用未對帳的「18 個」。對帳後為：A 類 4 項可直接重用、
-B 類 5 項可重用計算需改介面、C 類 9 項確實缺 evaluator、D 類 3 項缺資料。
+B 類 5 項可重用計算需改介面、C 類 10 項確實缺 evaluator、D 類 3 項缺資料。
 
 ## Config 狀態：四件事分開記錄
 
