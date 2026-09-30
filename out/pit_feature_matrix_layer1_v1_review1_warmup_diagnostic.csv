@@ -1,0 +1,13 @@
+kind,name,earliest_date,first_any_valid_date,2016_missing_rate,warmup_insufficient_2016,formula_requirement,diagnosis
+SOURCE,adjusted_research_price,2015-06-01,,,,max stock lookback = 250 sessions + 10-session MA slope lag,SOURCE_HISTORY_INSUFFICIENT_BEFORE_E1
+SOURCE,raw_execution_price,2015-01-05,,,,not eligible as substitute for adjusted research coordinate,EARLIER_BUT_DIFFERENT_PRICE_COORDINATE
+SOURCE,market_value,2015-06-01,,,,same-date descriptive input,SOURCE_START
+SOURCE,industry_snapshot_available_date,2015-01-14,,,,causal interval; no backfill before first observation,SOURCE_START
+SOURCE,market_total_return_index,2015-06-01,,,,market max lookback = 252 sessions,SOURCE_HISTORY_INSUFFICIENT_BEFORE_E1
+FEATURE,close_to_ma250,,2016-06-04,0.4033651344319168,23254,see dictionary lookback,SOURCE_HISTORY_LIMIT_PLUS_LISTING_HISTORY
+FEATURE,ma_order_score,,2016-06-04,0.4033651344319168,23254,see dictionary lookback,SOURCE_HISTORY_LIMIT_PLUS_LISTING_HISTORY
+FEATURE,ma250_slope10,,2016-06-21,0.4432263660017346,25552,see dictionary lookback,SOURCE_HISTORY_LIMIT_PLUS_LISTING_HISTORY
+FEATURE,distance_250_high,,2016-06-04,0.4033651344319168,23254,see dictionary lookback,SOURCE_HISTORY_LIMIT_PLUS_LISTING_HISTORY
+FEATURE,distance_250_low,,2016-06-04,0.4033651344319168,23254,see dictionary lookback,SOURCE_HISTORY_LIMIT_PLUS_LISTING_HISTORY
+FEATURE,market_to_ma200,,2016-03-23,,,see dictionary lookback,MARKET_SOURCE_HISTORY_LIMIT
+FEATURE,market_position252,,2016-06-07,,,see dictionary lookback,MARKET_SOURCE_HISTORY_LIMIT

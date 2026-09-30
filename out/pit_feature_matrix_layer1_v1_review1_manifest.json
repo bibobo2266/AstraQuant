@@ -1,0 +1,100 @@
+{
+  "artifact_name": "pit-feature-matrix-layer1-v1-review1-36685799139",
+  "audit_by_year_scope_status": [
+    {
+      "availability_status": "UNKNOWN",
+      "n": 12,
+      "scope": "market_context",
+      "year": 2016
+    },
+    {
+      "availability_status": "UNKNOWN",
+      "n": 180,
+      "scope": "stock_features",
+      "year": 2016
+    },
+    {
+      "availability_status": "UNKNOWN",
+      "n": 12,
+      "scope": "market_context",
+      "year": 2017
+    },
+    {
+      "availability_status": "UNKNOWN",
+      "n": 180,
+      "scope": "stock_features",
+      "year": 2017
+    },
+    {
+      "availability_status": "UNKNOWN",
+      "n": 12,
+      "scope": "market_context",
+      "year": 2018
+    },
+    {
+      "availability_status": "UNKNOWN",
+      "n": 180,
+      "scope": "stock_features",
+      "year": 2018
+    },
+    {
+      "availability_status": "UNKNOWN",
+      "n": 12,
+      "scope": "market_context",
+      "year": 2019
+    },
+    {
+      "availability_status": "UNKNOWN",
+      "n": 180,
+      "scope": "stock_features",
+      "year": 2019
+    },
+    {
+      "availability_status": "UNKNOWN",
+      "n": 12,
+      "scope": "market_context",
+      "year": 2020
+    },
+    {
+      "availability_status": "UNKNOWN",
+      "n": 180,
+      "scope": "stock_features",
+      "year": 2020
+    },
+    {
+      "availability_status": "UNKNOWN",
+      "n": 12,
+      "scope": "market_context",
+      "year": 2021
+    },
+    {
+      "availability_status": "UNKNOWN",
+      "n": 180,
+      "scope": "stock_features",
+      "year": 2021
+    }
+  ],
+  "audit_rows": 1152,
+  "availability_fail": 0,
+  "availability_pass": 0,
+  "availability_unknown": 1152,
+  "base_config_sha256": "dc4ad74beebdf4d9cb8f82180e12826b99dcfa337e8223329d59dc80ffa769d8",
+  "base_feature_version": "pit_feature_matrix_layer1_v1",
+  "base_formula_version": "pit_feature_matrix_layer1_v1",
+  "base_manifest": "out/pit_feature_matrix_layer1_v1_manifest.json",
+  "base_source_revision": "fb8b042b46dc38838d103544ca17da10286c7bfe",
+  "effect_metrics_computed": false,
+  "feature_availability_counts": {
+    "PASS": 10,
+    "UNKNOWN": 62
+  },
+  "feature_data_rebuilt": false,
+  "feature_values_changed": false,
+  "review_config": "configs/quality/pit_feature_matrix_layer1_v1_review1.yaml",
+  "review_config_sha256": "4bf112a7656d029aefbc50fb43ac719ae739564bd850698f38ce97e58f7b5a7a",
+  "review_name": "pit_feature_matrix_layer1_v1_review1",
+  "round2_executed": false,
+  "sample_seed": 20260930,
+  "workflow_run_id": "36685799139",
+  "workflow_run_url": "https://github.com/bibobo2266/AstraQuant/actions/runs/36685799139"
+}
