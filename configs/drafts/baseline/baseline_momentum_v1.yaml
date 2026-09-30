@@ -1,0 +1,17 @@
+schema_version: '1'
+name: baseline_momentum_v1
+trigger:
+  type: N_SESSION_HIGH
+  params:
+    lookback: 20
+filters:
+- type: VOLUME_SPIKE
+  params:
+    lookback: 20
+    multiplier: 1.2
+- type: MA_STACK
+  params:
+    fast: 20
+    slow: 60
+    average: SMA
+ranking: []
