@@ -1,0 +1,12 @@
+schema_version: '1'
+name: baseline_mclean_v1
+trigger:
+  type: INSTITUTIONAL_NET_BUY_STREAK
+  params:
+    streak_days: 2
+    chips_max_age: 7
+filters:
+- type: WEEKLY_TREND_CONFIRM
+  params:
+    weekly_ma: 20
+ranking: []
