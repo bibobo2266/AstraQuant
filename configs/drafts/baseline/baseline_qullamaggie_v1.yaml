@@ -1,0 +1,41 @@
+schema_version: '1'
+name: baseline_qullamaggie_v1
+trigger:
+  type: N_SESSION_HIGH
+  params:
+    lookback: 15
+filters:
+- type: VOLUME_SPIKE
+  params:
+    lookback: 20
+    multiplier: 1.5
+- type: RETURN_OVER_N_DAYS
+  params:
+    window: 60
+    min_return: 0.3
+- type: RETURN_OVER_N_DAYS
+  params:
+    window: 120
+    min_return: 0.2
+- type: PCT_FROM_N_DAY_HIGH
+  params:
+    window: 60
+    max_pct: 0.1
+- type: MA_STACK
+  params:
+    fast: 50
+    slow: 100
+    average: SMA
+- type: CONSOLIDATION_ATR_CONTRACTION
+  params:
+    min_days: 10
+    max_drawdown: 0.25
+    atr_window: 20
+- type: ENTRY_DAY_STRENGTH_CAP
+  params:
+    atr_window: 20
+    max_atr_multiple: 0.6667
+- type: EXCLUDE_LIMIT_UP
+  params:
+    limit_pct: 0.1
+ranking: []
