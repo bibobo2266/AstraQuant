@@ -1,0 +1,12 @@
+schema_version: '1'
+name: baseline_livermore_v1
+trigger:
+  type: N_SESSION_HIGH
+  params:
+    lookback: 60
+filters:
+- type: PRICE_ABOVE_MA
+  params:
+    window: 120
+    average: SMA
+ranking: []
