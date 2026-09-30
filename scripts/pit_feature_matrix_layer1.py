@@ -534,11 +534,24 @@ def attach_industry_pit(
         raise ValueError(f"industry PIT missing columns: {sorted(missing)}")
     pit = industry_pit[list(required)].copy()
     pit["stock_id"] = pit["stock_id"].astype(str)
-    pit["valid_from"] = pd.to_datetime(pit["valid_from"], errors="coerce").dt.normalize()
-    pit["valid_to"] = pd.to_datetime(pit["valid_to"], errors="coerce").dt.normalize()
+    pit["valid_from"] = (
+        pd.to_datetime(pit["valid_from"], errors="coerce")
+        .dt.normalize()
+        .astype("datetime64[ns]")
+    )
+    pit["valid_to"] = (
+        pd.to_datetime(pit["valid_to"], errors="coerce")
+        .dt.normalize()
+        .astype("datetime64[ns]")
+    )
     pit = pit.dropna(subset=["stock_id", "valid_from", "industry"])
 
     out = frame.copy()
+    out["date"] = (
+        pd.to_datetime(out["date"], errors="coerce")
+        .dt.normalize()
+        .astype("datetime64[ns]")
+    )
     out["industry"] = pd.NA
     out["industry_valid_from"] = pd.NaT
     out["industry_valid_to"] = pd.NaT
