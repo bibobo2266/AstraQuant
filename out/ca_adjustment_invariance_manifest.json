@@ -37,15 +37,15 @@
   },
   "outputs": {
     "out/ca_adjustment_invariance_audit_yearly.csv": {
-      "sha256": "fd17254809b176375c5978ddbc956f1aadbb6a54e4caabde343da269a560b8ea",
-      "size_bytes": 1777
+      "sha256": "40c701a00711e91f5b3c5fcbad0d1f96fc234fe5f88c6b12e444079f749bb7ec",
+      "size_bytes": 2190
     },
     "out/ca_adjustment_invariance_source_validation.csv": {
       "sha256": "711e87b973b2cc80d72f5b3b8a65b6f17f8bed0b048cf3c253a24c4f25438ae7",
       "size_bytes": 1245
     },
     "out/ca_adjustment_invariance_examples.csv": {
-      "sha256": "59ba0a0c8f9bb6a7c05096c0bec58e14d94b6c83373b0c819b0e2ca58e6e2c17",
+      "sha256": "101d096d92d7c7cf6ace855100fe18e081bab559e3ec6ed40f9f49a232673400",
       "size_bytes": 3842
     },
     "out/ca_adjustment_invariance_feature_classification.csv": {
@@ -53,8 +53,8 @@
       "size_bytes": 15783
     },
     "docs/CA_ADJUSTMENT_INVARIANCE_AUDIT.md": {
-      "sha256": "8650156310b91c15a985e3846f3774a13d0cfb30cdc4d30860b532949b644fdb",
-      "size_bytes": 10228
+      "sha256": "c0a5521f84fc1b6497b55af6c43201a3bc026ca4efa6343dbe3ad03f25c20efe",
+      "size_bytes": 10749
     }
   }
 }
