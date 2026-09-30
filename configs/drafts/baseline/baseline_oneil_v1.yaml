@@ -1,0 +1,16 @@
+schema_version: '1'
+name: baseline_oneil_v1
+trigger:
+  type: N_SESSION_HIGH
+  params:
+    lookback: 250
+filters:
+- type: VOLUME_SPIKE
+  params:
+    lookback: 50
+    multiplier: 1.5
+- type: RELATIVE_STRENGTH_VS_INDEX
+  params:
+    lookback: 250
+    rs_min: 1.0
+ranking: []
