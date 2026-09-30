@@ -1,0 +1,24 @@
+schema_version: '1'
+name: baseline_momentum_v1
+provenance:
+  source: Joyen09 src/strategies/momentum.py
+  method: 短線動能突破
+  parameter_origin: TRANSLATED — 從公開實作抄錄的參數，非老手原話，也非已驗證的有效值
+  captured: '2026-09-30'
+trigger:
+  type: BREAKOUT_N_DAY_HIGH
+  params:
+    breakout_window: 20
+    price_field: CLOSE
+    exclude_today: true
+filters:
+- type: VOLUME_MULTIPLE
+  params:
+    vol_window: 20
+    vol_mult: 1.2
+- type: MA_STACK
+  params:
+    fast: 20
+    slow: 60
+    average: SMA
+ranking: []
