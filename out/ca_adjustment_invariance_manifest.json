@@ -1,0 +1,60 @@
+{
+  "audit_version": "ca_adjustment_invariance_audit_v1",
+  "source_revision": "fb8b042b46dc38838d103544ca17da10286c7bfe",
+  "epoch": "E1",
+  "e1_period": [
+    "2016-01-04",
+    "2021-12-31"
+  ],
+  "no_effect_metrics": true,
+  "strategy_runs_executed": [],
+  "value_tolerance": {
+    "rtol": 0.0,
+    "atol": 1e-06
+  },
+  "boundary_band": 0.0001,
+  "price_rebuild_atol": 0.0001,
+  "knowledge_time_proven": false,
+  "future_event_definition": "event.date > decision_date T",
+  "factor_only_results": {
+    "ma120_value_diffs": 0,
+    "ma120_gate_flips": 1,
+    "ma120_gate_flips_far_boundary": 0,
+    "n60_signal_flips": 0,
+    "n60_signal_flips_far_boundary": 0
+  },
+  "universe_results": {
+    "final_stock_day_differences": 37077,
+    "unique_stocks_with_final_difference": 1209
+  },
+  "vcp_round1_shared_universe_path": true,
+  "vcp_round1_status": "待影響評估",
+  "synthetic_control": {
+    "max_ma120_abs_diff": 2.220446049250313e-16,
+    "ma120_gate_flips": 0,
+    "n60_flips": 0,
+    "absolute_close_threshold_flips": true
+  },
+  "outputs": {
+    "out/ca_adjustment_invariance_audit_yearly.csv": {
+      "sha256": "fd17254809b176375c5978ddbc956f1aadbb6a54e4caabde343da269a560b8ea",
+      "size_bytes": 1777
+    },
+    "out/ca_adjustment_invariance_source_validation.csv": {
+      "sha256": "711e87b973b2cc80d72f5b3b8a65b6f17f8bed0b048cf3c253a24c4f25438ae7",
+      "size_bytes": 1245
+    },
+    "out/ca_adjustment_invariance_examples.csv": {
+      "sha256": "59ba0a0c8f9bb6a7c05096c0bec58e14d94b6c83373b0c819b0e2ca58e6e2c17",
+      "size_bytes": 3842
+    },
+    "out/ca_adjustment_invariance_feature_classification.csv": {
+      "sha256": "3cdfed46b1238784a29a3b997da8af383b5cf16150fae533a2f824ee86626ec7",
+      "size_bytes": 15783
+    },
+    "docs/CA_ADJUSTMENT_INVARIANCE_AUDIT.md": {
+      "sha256": "8650156310b91c15a985e3846f3774a13d0cfb30cdc4d30860b532949b644fdb",
+      "size_bytes": 10228
+    }
+  }
+}
