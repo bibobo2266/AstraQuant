@@ -1,0 +1,12 @@
+schema_version: '1'
+name: baseline_graham_v1
+trigger:
+  type: FUNDAMENTAL_THRESHOLD
+  params:
+    pe_max: 15.0
+    pb_max: 1.5
+    graham_number_max: 22.5
+    current_ratio_min: 150.0
+    debt_ratio_max: 60.0
+filters: []
+ranking: []
