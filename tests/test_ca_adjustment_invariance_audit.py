@@ -72,3 +72,20 @@ def test_raw_close_threshold_can_change_final_turnover_membership():
     assert not bool(u.loc[u.stock_id.eq("1101"),"adjusted_base_pass"].iloc[0])
     assert bool(u.loc[u.stock_id.eq("1101"),"raw_base_pass"].iloc[0])
     assert bool((u["adjusted_counts"] != u["raw_counts"]).any())
+
+
+def test_factor_alignment_survives_unsorted_input():
+    rows = pd.DataFrame({
+        "date": pd.to_datetime(["2020-01-03", "2020-01-02", "2020-01-06"]),
+        "stock_id": ["2330", "2317", "2330"],
+        "close": [30.0, 20.0, 31.0],
+    })
+    factors = np.array([0.8, 0.9, 0.8])
+    out = current_price_feature_frame(rows, future_factor=factors)
+    got = {
+        (str(r.stock_id), pd.Timestamp(r.date)): float(r.future_factor)
+        for r in out.itertuples(index=False)
+    }
+    assert got[("2330", pd.Timestamp("2020-01-03"))] == 0.8
+    assert got[("2317", pd.Timestamp("2020-01-02"))] == 0.9
+    assert got[("2330", pd.Timestamp("2020-01-06"))] == 0.8
