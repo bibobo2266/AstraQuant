@@ -1,257 +1,376 @@
 from __future__ import annotations
 
+from collections import deque
 from dataclasses import dataclass
+from pathlib import Path
+from typing import Iterable
 
 import numpy as np
 import pandas as pd
 
 
-@dataclass(frozen=True)
-class AuditTolerance:
-    ma_ratio_abs: float = 1e-6
-    reconstruction_price_abs: float = 1e-4
-    near_ma_threshold_abs: float = 1e-4
-    near_breakout_margin_abs: float = 1e-4
-    near_close_threshold_twd: float = 0.05
+VALUE_RTOL = 1e-10
+VALUE_ATOL = 1e-12
+BOUNDARY_BAND = 1e-6
+PRICE_REBUILD_ATOL = 5e-5
+RATIO_LO = 0.5
+RATIO_HI = 1.2
 
 
-def valid_adjustment_events(
-    frame: pd.DataFrame,
-    *,
-    ratio_min: float = 0.5,
-    ratio_max: float = 1.2,
-) -> pd.DataFrame:
+def normalize_dividend_events(frame: pd.DataFrame) -> pd.DataFrame:
     required = {"date", "stock_id", "before_price", "after_price"}
     missing = required - set(frame.columns)
     if missing:
-        raise ValueError(f"adjustment event columns missing: {sorted(missing)}")
-    x = frame.copy()
-    x["date"] = pd.to_datetime(x["date"], errors="coerce").dt.normalize()
-    x["stock_id"] = x["stock_id"].astype(str)
-    before = pd.to_numeric(x["before_price"], errors="coerce")
-    after = pd.to_numeric(x["after_price"], errors="coerce")
-    x["ratio"] = after / before
-    x = x[
-        x["date"].notna()
-        & before.gt(0)
-        & after.gt(0)
-        & x["ratio"].between(float(ratio_min), float(ratio_max), inclusive="both")
+        raise ValueError(f"dividend events missing columns: {sorted(missing)}")
+    out = frame.copy()
+    out["date"] = pd.to_datetime(out["date"], errors="coerce").dt.normalize()
+    out["stock_id"] = out["stock_id"].astype(str)
+    out["before_price"] = pd.to_numeric(out["before_price"], errors="coerce")
+    out["after_price"] = pd.to_numeric(out["after_price"], errors="coerce")
+    out = out[
+        out["date"].notna()
+        & out["before_price"].gt(0)
+        & out["after_price"].gt(0)
     ].copy()
-    x = (
-        x.groupby(["stock_id", "date"], as_index=False)["ratio"]
+    out["ratio"] = out["after_price"] / out["before_price"]
+    out = out[out["ratio"].between(RATIO_LO, RATIO_HI, inclusive="both")].copy()
+    # daily_update_adj aggregates same-day events by product before one rounding step.
+    out = (
+        out.groupby(["stock_id", "date"], as_index=False)["ratio"]
         .prod()
         .sort_values(["stock_id", "date"], kind="stable")
         .reset_index(drop=True)
     )
-    if (x["ratio"] <= 0).any():
-        raise ValueError("adjustment ratios must remain positive")
-    return x
-
-
-def future_factor(
-    dates: pd.Series,
-    event_dates: np.ndarray,
-    event_ratios: np.ndarray,
-) -> np.ndarray:
-    d = pd.to_datetime(dates, errors="coerce").to_numpy(dtype="datetime64[ns]")
-    if len(event_dates) == 0:
-        return np.ones(len(d), dtype=float)
-    e = np.asarray(event_dates, dtype="datetime64[ns]")
-    r = np.asarray(event_ratios, dtype=float)
-    order = np.argsort(e, kind="stable")
-    e = e[order]
-    r = r[order]
-    suffix = np.ones(len(r) + 1, dtype=float)
-    for i in range(len(r) - 1, -1, -1):
-        suffix[i] = suffix[i + 1] * r[i]
-    pos = np.searchsorted(e, d, side="right")
-    return suffix[pos]
-
-
-def close_to_ma(close: pd.Series, window: int) -> pd.Series:
-    c = pd.to_numeric(close, errors="coerce")
-    ma = c.rolling(window, min_periods=window).mean()
-    return c / ma - 1.0
-
-
-def n_session_high_details(close: pd.Series, lookback: int) -> pd.DataFrame:
-    c = pd.to_numeric(close, errors="coerce")
-    prior = c.shift(1).rolling(lookback, min_periods=lookback).max()
-    previous_close = c.shift(1)
-    previous_prior = prior.shift(1)
-    signal = (
-        c.gt(prior)
-        & previous_close.le(previous_prior)
-        & prior.notna()
-    ).fillna(False)
-    margin = c / prior - 1.0
-    previous_margin = previous_close / previous_prior - 1.0
-    return pd.DataFrame(
-        {
-            "prior_high": prior,
-            "previous_prior_high": previous_prior,
-            "breakout_margin": margin,
-            "previous_margin": previous_margin,
-            "signal": signal.astype(bool),
-        }
-    )
-
-
-def metrics_for_close(close: pd.Series, *, ma_window: int, breakout_lookback: int) -> pd.DataFrame:
-    ma = close_to_ma(close, ma_window)
-    breakout = n_session_high_details(close, breakout_lookback)
-    return pd.DataFrame(
-        {
-            "close_to_ma": ma,
-            "ma_pass": ma.ge(0) & ma.notna(),
-            "prior_high": breakout["prior_high"],
-            "breakout_margin": breakout["breakout_margin"],
-            "previous_margin": breakout["previous_margin"],
-            "breakout_signal": breakout["signal"],
-        }
-    )
-
-
-def asof_metrics_from_raw_and_events(
-    *,
-    dates: pd.Series,
-    raw_close: pd.Series,
-    full_factor: np.ndarray,
-    ma_window: int,
-    breakout_lookback: int,
-    round_decimals: int,
-    target_mask: np.ndarray,
-) -> pd.DataFrame:
-    raw = pd.to_numeric(raw_close, errors="coerce").to_numpy(dtype=float)
-    full_unrounded = raw * np.asarray(full_factor, dtype=float)
-    factors = np.asarray(full_factor, dtype=float)
-    out = pd.DataFrame(
-        {
-            "close_to_ma": np.nan,
-            "ma_pass": False,
-            "prior_high": np.nan,
-            "breakout_margin": np.nan,
-            "previous_margin": np.nan,
-            "breakout_signal": False,
-        },
-        index=np.arange(len(raw)),
-    )
-    wanted = np.asarray(target_mask, dtype=bool)
-    for k in np.unique(factors[wanted & np.isfinite(factors)]):
-        transformed = np.round(full_unrounded / float(k), round_decimals)
-        m = metrics_for_close(
-            pd.Series(transformed),
-            ma_window=ma_window,
-            breakout_lookback=breakout_lookback,
-        )
-        take = wanted & np.isclose(factors, k, rtol=1e-13, atol=1e-15)
-        out.loc[take, :] = m.loc[take, :].to_numpy()
-    out["ma_pass"] = out["ma_pass"].fillna(False).astype(bool)
-    out["breakout_signal"] = out["breakout_signal"].fillna(False).astype(bool)
+    if (out["ratio"] <= 0).any():
+        raise ValueError("corporate-action ratios must be positive")
     return out
 
 
-def classify_feature_rows(dictionary: pd.DataFrame) -> pd.DataFrame:
-    x = dictionary.copy()
-    rows: list[dict[str, object]] = []
-    price_scale_invariant = {
-        "close_to_ma20", "close_to_ma60", "close_to_ma120", "close_to_ma250",
-        "ma_order_score",
-        "ma20_slope10", "ma60_slope10", "ma120_slope10", "ma250_slope10",
-        "distance_250_high", "distance_250_low", "sessions_since_prior_250_high",
-        "atr21_pct", "rv20", "rv60", "rv20_rv60_ratio",
-        "bollinger_bandwidth_14_2", "bollinger_bandwidth_pctile120",
-        "bollinger_channel_position_14_2",
-        "up_day_volume_share20",
-        "rsi13", "rsi14", "rsi26", "rsi13_minus_rsi26", "rsi14_slope5",
-        "kd_k_9_3_3", "kd_d_9_3_3", "kd_high_saturation_days80",
-        "kd_low_saturation_days20", "cci20", "williams_r14",
-        "rs_market_20", "rs_market_60", "rs_market_120",
-        "beta60_market", "corr60_market", "resid_vol60_market",
+def future_factor_for_rows(
+    rows: pd.DataFrame,
+    events: pd.DataFrame,
+) -> np.ndarray:
+    required = {"date", "stock_id"}
+    missing = required - set(rows.columns)
+    if missing:
+        raise ValueError(f"rows missing columns: {sorted(missing)}")
+    work = rows[["date", "stock_id"]].copy().reset_index(drop=True)
+    work["date"] = pd.to_datetime(work["date"], errors="coerce").dt.normalize()
+    work["stock_id"] = work["stock_id"].astype(str)
+    out = np.ones(len(work), dtype=float)
+    event_groups = {
+        sid: g for sid, g in events.groupby("stock_id", sort=False)
     }
-    direct_independent = {
-        "volume_ratio_5_20", "volume_ratio_20_60", "amount_mean20_twd",
-        "turnover_value_ratio", "volume_dryup_prior5_20",
-        "market_cap_twd", "industry",
-    }
-    cross_section_membership = {
-        "market_cap_tier", "liquidity_tier", "volatility_cluster",
-        "rs_industry_20", "rs_industry_60", "rs_industry_120",
-        "industry_rs_market_20", "industry_rs_market_60", "industry_rs_market_120",
-        "industry_strength_rank_20", "industry_strength_rank_60",
-        "industry_strength_rank_120",
-    }
-    market_only = {"market_to_ma200", "market_rv20", "market_position252"}
-    magnitude_affected = {"macd_hist_12_26_9", "macd_hist_slope5"}
+    for sid, positions in work.groupby("stock_id", sort=False).indices.items():
+        ev = event_groups.get(str(sid))
+        if ev is None or ev.empty:
+            continue
+        ev_dates = ev["date"].to_numpy(dtype="datetime64[ns]")
+        ratios = ev["ratio"].to_numpy(dtype=float)
+        suffix = np.ones(len(ratios) + 1, dtype=float)
+        if len(ratios):
+            suffix[:-1] = np.cumprod(ratios[::-1])[::-1]
+        row_dates = work.iloc[positions]["date"].to_numpy(dtype="datetime64[ns]")
+        # build_adj applies an event only to dates strictly before event.date.
+        loc = np.searchsorted(ev_dates, row_dates, side="right")
+        out[np.asarray(positions, dtype=int)] = suffix[loc]
+    return out
 
-    for r in x.itertuples(index=False):
-        col = str(r.column)
-        table = str(r.table)
-        status = str(r.status)
-        if status == "CONTROL":
-            klass = "VALUE_INDEPENDENT_OF_PRICE_FACTOR"
-            proof = "deterministic key/seed transform"
-        elif status == "BLOCKED_DATA":
-            klass = "INSUFFICIENT_DATA"
-            proof = "source absent"
-        elif table == "market_context" or col in market_only:
-            klass = "NOT_DEPENDENT_ON_STOCK_PRICE_FACTOR"
-            proof = "TAIEX market context only"
-        elif col in magnitude_affected:
-            klass = "PROVEN_NUMERICALLY_AFFECTED_BY_SCALE"
-            proof = "EMA differences are homogeneous of degree 1; sign can remain invariant but raw magnitude scales"
-        elif col in price_scale_invariant:
-            klass = "PROVEN_INVARIANT_FIXED_KEYS_UNIFORM_POSITIVE_FACTOR"
-            proof = "dimensionless ratio/order/return formula; common positive factor cancels"
-        elif col in direct_independent:
-            klass = "VALUE_INDEPENDENT_OF_OHLC_FACTOR"
-            proof = "formula uses volume/amount/market-value/industry rather than adjusted OHLC"
-        elif col in cross_section_membership:
-            klass = "INDIRECTLY_AFFECTED_BY_ELIGIBLE_SET"
-            proof = "formula uses same-day eligible cross-section or PIT-industry eligible members"
-        else:
-            klass = "INSUFFICIENT_EVIDENCE"
-            proof = "not classified by the documented factor proof"
-        rows.append(
-            {
-                "item_id": r.item_id,
-                "feature_key": r.feature_key,
-                "column": col,
-                "parameter_version": r.parameter_version,
-                "table": table,
-                "status": status,
-                "formula": r.formula,
-                "adjustment_effect_class": klass,
-                "proof_scope": (
-                    "future-effective dividend factor defined as a common positive multiplier "
-                    "over all OHLC inputs used at decision T; fixed stock-day keys; source-revision "
-                    "or announcement-timing effects are separate"
-                ),
-                "proof_basis": proof,
-                "persisted_stock_artifact_membership": (
-                    "MAY_DIFFER_IF_UNIVERSE_DIFF"
-                    if table == "stock_features"
-                    else "NOT_APPLICABLE"
-                ),
-                "cross_section_rank_dependency": bool(
-                    getattr(r, "cross_section_rank", False)
-                ),
-            }
-        )
-    rows.append(
+
+def current_price_feature_frame(
+    rows: pd.DataFrame,
+    *,
+    future_factor: np.ndarray,
+) -> pd.DataFrame:
+    work = rows[["date", "stock_id", "close"]].copy()
+    work["date"] = pd.to_datetime(work["date"], errors="coerce").dt.normalize()
+    work["stock_id"] = work["stock_id"].astype(str)
+    work["close"] = pd.to_numeric(work["close"], errors="coerce")
+    work = work.sort_values(["stock_id", "date"], kind="stable").reset_index(drop=True)
+    if len(work) != len(future_factor):
+        raise ValueError("future_factor length mismatch")
+    work["future_factor"] = np.asarray(future_factor, dtype=float)
+
+    by = work.groupby("stock_id", sort=False)["close"]
+    ma120 = by.transform(lambda s: s.rolling(120, min_periods=120).mean())
+    prior_high60 = by.transform(
+        lambda s: s.shift(1).rolling(60, min_periods=60).max()
+    )
+    previous_close = by.shift(1)
+    previous_prior = prior_high60.groupby(work["stock_id"], sort=False).shift(1)
+
+    ratio = work["close"] / ma120 - 1.0
+    factor = work["future_factor"].where(work["future_factor"].gt(0))
+    cf_close = work["close"] / factor
+    cf_ma120 = ma120 / factor
+    cf_ratio = cf_close / cf_ma120 - 1.0
+
+    current_gate = ratio.ge(0) & ratio.notna()
+    cf_gate = cf_ratio.ge(0) & cf_ratio.notna()
+
+    current_breakout = (
+        work["close"].gt(prior_high60)
+        & previous_close.le(previous_prior)
+        & prior_high60.notna()
+    ).fillna(False)
+    cf_breakout = (
+        (work["close"] / factor).gt(prior_high60 / factor)
+        & (previous_close / factor).le(previous_prior / factor)
+        & prior_high60.notna()
+    ).fillna(False)
+
+    result = work.copy()
+    result["close_to_ma120_current"] = ratio
+    result["close_to_ma120_remove_future"] = cf_ratio
+    result["ma120_gate_current"] = current_gate.astype(bool)
+    result["ma120_gate_remove_future"] = cf_gate.astype(bool)
+    result["prior_high60_current"] = prior_high60
+    result["n60_current"] = current_breakout.astype(bool)
+    result["n60_remove_future"] = cf_breakout.astype(bool)
+    result["ma120_value_diff"] = ~np.isclose(
+        result["close_to_ma120_current"],
+        result["close_to_ma120_remove_future"],
+        rtol=VALUE_RTOL,
+        atol=VALUE_ATOL,
+        equal_nan=True,
+    )
+    result["ma120_gate_flip"] = (
+        result["ma120_gate_current"] != result["ma120_gate_remove_future"]
+    )
+    result["n60_flip"] = result["n60_current"] != result["n60_remove_future"]
+    result["ma120_near_boundary"] = ratio.abs().le(BOUNDARY_BAND).fillna(False)
+    gap_now = work["close"] / prior_high60 - 1.0
+    gap_prev = previous_close / previous_prior - 1.0
+    result["n60_near_boundary"] = (
+        gap_now.abs().le(BOUNDARY_BAND)
+        | gap_prev.abs().le(BOUNDARY_BAND)
+    ).fillna(False)
+    result["ma120_comparable"] = ratio.notna() & cf_ratio.notna()
+    result["n60_comparable"] = (
+        prior_high60.notna()
+        & previous_close.notna()
+        & previous_prior.notna()
+        & factor.notna()
+    )
+    return result
+
+
+def online_asof_price_features(
+    rows: pd.DataFrame,
+    events: pd.DataFrame,
+) -> pd.DataFrame:
+    required = {"date", "stock_id", "raw_close"}
+    missing = required - set(rows.columns)
+    if missing:
+        raise ValueError(f"online rows missing columns: {sorted(missing)}")
+    work = rows[list(required)].copy()
+    work["date"] = pd.to_datetime(work["date"], errors="coerce").dt.normalize()
+    work["stock_id"] = work["stock_id"].astype(str)
+    work["raw_close"] = pd.to_numeric(work["raw_close"], errors="coerce")
+    work = work.sort_values(["stock_id", "date"], kind="stable").reset_index(drop=True)
+
+    ratio_by_stock_date = {
+        (str(row.stock_id), pd.Timestamp(row.date)): float(row.ratio)
+        for row in events.itertuples(index=False)
+    }
+
+    ma_out = np.full(len(work), np.nan, dtype=float)
+    gate_out = np.zeros(len(work), dtype=bool)
+    n60_out = np.zeros(len(work), dtype=bool)
+    raw_missing = np.zeros(len(work), dtype=bool)
+
+    for sid, positions in work.groupby("stock_id", sort=False).indices.items():
+        hist: deque[float] = deque(maxlen=120)
+        for pos in positions:
+            day = pd.Timestamp(work.at[pos, "date"])
+            event_ratio = ratio_by_stock_date.get((str(sid), day))
+            if event_ratio is not None:
+                hist = deque(
+                    [
+                        np.nan
+                        if not np.isfinite(v)
+                        else round(float(v) * float(event_ratio), 4)
+                        for v in hist
+                    ],
+                    maxlen=120,
+                )
+
+            arr = np.asarray(hist, dtype=float)
+            prior_high = (
+                float(np.max(arr[-60:]))
+                if len(arr) >= 60 and np.isfinite(arr[-60:]).all()
+                else np.nan
+            )
+            prev_close = (
+                float(arr[-1])
+                if len(arr) >= 1 and np.isfinite(arr[-1])
+                else np.nan
+            )
+            prev_prior = (
+                float(np.max(arr[-61:-1]))
+                if len(arr) >= 61 and np.isfinite(arr[-61:-1]).all()
+                else np.nan
+            )
+
+            current = float(work.at[pos, "raw_close"]) if pd.notna(work.at[pos, "raw_close"]) else np.nan
+            if not np.isfinite(current):
+                raw_missing[pos] = True
+
+            if (
+                np.isfinite(current)
+                and np.isfinite(prior_high)
+                and np.isfinite(prev_close)
+                and np.isfinite(prev_prior)
+            ):
+                n60_out[pos] = bool(
+                    current > prior_high and prev_close <= prev_prior
+                )
+
+            hist.append(current)
+            arr2 = np.asarray(hist, dtype=float)
+            if len(arr2) >= 120 and np.isfinite(arr2[-120:]).all():
+                ma = float(np.mean(arr2[-120:]))
+                if ma != 0 and np.isfinite(current):
+                    ma_out[pos] = current / ma - 1.0
+                    gate_out[pos] = bool(ma_out[pos] >= 0.0)
+
+    out = work[["date", "stock_id"]].copy()
+    out["close_to_ma120_online_asof"] = ma_out
+    out["ma120_gate_online_asof"] = gate_out
+    out["n60_online_asof"] = n60_out
+    out["raw_close_missing"] = raw_missing
+    return out
+
+
+def rebuild_final_adjusted_close(
+    rows: pd.DataFrame,
+    events: pd.DataFrame,
+) -> pd.DataFrame:
+    required = {"date", "stock_id", "raw_close"}
+    missing = required - set(rows.columns)
+    if missing:
+        raise ValueError(f"rebuild rows missing columns: {sorted(missing)}")
+    work = rows[list(required)].copy()
+    work["date"] = pd.to_datetime(work["date"], errors="coerce").dt.normalize()
+    work["stock_id"] = work["stock_id"].astype(str)
+    work["raw_close"] = pd.to_numeric(work["raw_close"], errors="coerce")
+    work = work.sort_values(["stock_id", "date"], kind="stable").reset_index(drop=True)
+
+    full_factor = future_factor_for_rows(work, events)
+    once = np.round(work["raw_close"].to_numpy(float) * full_factor, 4)
+    sequential = work["raw_close"].to_numpy(float).copy()
+
+    event_groups = {
+        sid: g for sid, g in events.groupby("stock_id", sort=False)
+    }
+    for sid, positions in work.groupby("stock_id", sort=False).indices.items():
+        ev = event_groups.get(str(sid))
+        if ev is None or ev.empty:
+            continue
+        pos = np.asarray(positions, dtype=int)
+        dates = work.iloc[pos]["date"].to_numpy(dtype="datetime64[ns]")
+        values = sequential[pos].copy()
+        for row in ev.itertuples(index=False):
+            mask = dates < np.datetime64(pd.Timestamp(row.date))
+            finite = mask & np.isfinite(values)
+            values[finite] = np.round(values[finite] * float(row.ratio), 4)
+        sequential[pos] = values
+
+    out = work[["date", "stock_id"]].copy()
+    out["future_factor"] = full_factor
+    out["rebuild_round_once"] = once
+    out["rebuild_sequential_round4"] = sequential
+    return out
+
+
+def universe_masks(
+    frame: pd.DataFrame,
+    *,
+    excluded: set[str],
+    min_close: float = 10.0,
+    turnover_top_fraction: float = 0.25,
+) -> pd.DataFrame:
+    required = {
+        "date", "stock_id", "adjusted_close", "raw_close",
+        "Trading_money", "observed_trade", "valid_ohlc",
+    }
+    missing = required - set(frame.columns)
+    if missing:
+        raise ValueError(f"universe frame missing columns: {sorted(missing)}")
+    x = frame.copy()
+    x["date"] = pd.to_datetime(x["date"], errors="coerce").dt.normalize()
+    x["stock_id"] = x["stock_id"].astype(str)
+    x["adjusted_close"] = pd.to_numeric(x["adjusted_close"], errors="coerce")
+    x["raw_close"] = pd.to_numeric(x["raw_close"], errors="coerce")
+    x["Trading_money"] = pd.to_numeric(x["Trading_money"], errors="coerce")
+    ids = x["stock_id"].str.fullmatch(r"^[1-9]\d{3}$", na=False)
+    observed = x["observed_trade"].fillna(False).astype(bool)
+    valid = x["valid_ohlc"].fillna(False).astype(bool)
+    not_excluded = ~x["stock_id"].isin(excluded)
+    fixed = ids & observed & valid & not_excluded
+
+    adj_gate = x["adjusted_close"].ge(min_close).fillna(False)
+    raw_gate = x["raw_close"].ge(min_close).fillna(False)
+    adj_base = fixed & adj_gate
+    raw_base = fixed & raw_gate
+
+    adj_pct = x["Trading_money"].where(adj_base).groupby(x["date"]).rank(
+        pct=True, ascending=False, method="average"
+    )
+    raw_pct = x["Trading_money"].where(raw_base).groupby(x["date"]).rank(
+        pct=True, ascending=False, method="average"
+    )
+    adj_counts = adj_base & adj_pct.le(turnover_top_fraction).fillna(False)
+    raw_counts = raw_base & raw_pct.le(turnover_top_fraction).fillna(False)
+
+    out = x[["date", "stock_id", "adjusted_close", "raw_close", "Trading_money"]].copy()
+    out["fixed_other_qualifiers"] = fixed
+    out["adjusted_close_gate"] = adj_gate
+    out["raw_close_gate"] = raw_gate
+    out["adjusted_base_pass"] = adj_base
+    out["raw_base_pass"] = raw_base
+    out["adjusted_turnover_pct"] = adj_pct
+    out["raw_turnover_pct"] = raw_pct
+    out["adjusted_counts"] = adj_counts
+    out["raw_counts"] = raw_counts
+    out["raw_close_missing"] = x["raw_close"].isna()
+    return out
+
+
+def synthetic_uniform_scale_case() -> dict[str, object]:
+    dates = pd.bdate_range("2020-01-01", periods=140)
+    close = np.linspace(20.0, 30.0, len(dates))
+    close[-2] = 31.0
+    close[-1] = 32.0
+    base = pd.DataFrame(
+        {"date": dates, "stock_id": "2330", "close": close}
+    )
+    event = pd.DataFrame(
         {
-            "item_id": "BASELINE_SIGNAL",
-            "feature_key": "n_session_high",
-            "column": "N_SESSION_HIGH_60",
-            "parameter_version": "lookback=60",
-            "table": "signal",
-            "status": "AUDIT_TARGET",
-            "formula": "close_t>prior_high60_t AND close_t-1<=prior_high60_t-1",
-            "adjustment_effect_class": "PROVEN_INVARIANT_FIXED_KEYS_UNIFORM_POSITIVE_FACTOR",
-            "proof_scope": "same as above; strict booleans empirically audited without tolerance",
-            "proof_basis": "positive common scaling preserves ordering and strict/equality relations absent rounding",
-            "persisted_stock_artifact_membership": "NOT_APPLICABLE",
-            "cross_section_rank_dependency": False,
+            "date": [dates[-1] + pd.Timedelta(days=20)],
+            "stock_id": ["2330"],
+            "before_price": [100.0],
+            "after_price": [80.0],
         }
     )
-    return pd.DataFrame(rows)
+    ev = normalize_dividend_events(event)
+    scaled = base.copy()
+    scaled["close"] = scaled["close"] * 0.8
+    ff = future_factor_for_rows(scaled, ev)
+    feature = current_price_feature_frame(scaled, future_factor=ff)
+    raw_threshold_before = 11.0
+    adjusted_threshold_after = raw_threshold_before * 0.8
+    return {
+        "max_ma120_abs_diff": float(
+            (
+                feature["close_to_ma120_current"]
+                - feature["close_to_ma120_remove_future"]
+            ).abs().max(skipna=True)
+        ),
+        "ma120_gate_flips": int(feature["ma120_gate_flip"].sum()),
+        "n60_flips": int(feature["n60_flip"].sum()),
+        "absolute_close_threshold_flips": bool(
+            raw_threshold_before >= 10.0
+            and adjusted_threshold_after < 10.0
+        ),
+    }
