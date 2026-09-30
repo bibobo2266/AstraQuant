@@ -2,10 +2,10 @@
 
 ## 目前狀態
 
-更新時間：2026-09-30T08:33:50Z
-做完：執行中，工作流 36690479141
-結果：無
-卡住：無
+更新時間：2026-09-30T08:34:25Z
+做完：第 5 項決策時點可用性契約與受控 feature-panel 串接完成，待審查驗收
+結果：integration QA 36690479141 success；15 tests passed；close_to_ma120 真實 E1 狀態 UNAVAILABLE；策略 gate fail-closed
+卡住：現有 adjusted history 會被未來公司行動回寫；其他 EOD/RAW/TRI/industry 歷史截止時間證據仍有 UNKNOWN；L3-G02 BLOCKED_DATA
 下一項：第 5 項審查驗收
 
 狀態：ACTIVE
