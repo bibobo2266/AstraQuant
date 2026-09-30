@@ -38,6 +38,7 @@ KD_SATURATION_STATE、OVERNIGHT_MARKET_CONTEXT、COLUMN_THRESHOLD
 | 均線排列 | `LONG_TERM_TREND_STRUCTURE` 有 fast/slow + 斜率 + spread 區間 | 它**強制要求兩條均線皆上彎**，比來源的單純 `fast ≥ slow` 嚴格。兩者不等價：要嘛新增寬鬆版，要嘛承認用的是嚴格版並註明 |
 | 最長持有 | `TIME_EXIT` 已存在 | Qullamaggie 是「60 日**無進展**才出場」，不是單純時間到。現有 TIME_EXIT 不等價，需新增無進展判定或改以別的方式表達 |
 | 任何已成為 panel 欄位的數值條件 | `COLUMN_THRESHOLD` 是通用欄位門檻 filter | **這是最重要的一條**：只要特徵矩陣把某個值算成欄位，就不必寫新 evaluator，用 COLUMN_THRESHOLD 下 min/max 即可 |
+| 價格相對單一 MA 條件 | 第 5 項已有 `close_to_ma120 = adjusted_close / SMA120 - 1`；`COLUMN_THRESHOLD min=0.0` 數值語意正確 | **計算已存在，但仍缺串接**：`ResearchConfigEngine` 只吃 caller-supplied panel，現行 canonical runner 尚未自動 join 第 5 項 feature parquet；不需新增 `PRICE_ABOVE_MA` evaluator |
 
 **COLUMN_THRESHOLD 的存在改變了整份清單的結論。** 下方 C 類裡的多項
 （相對強度、N 日漲幅、距高點百分比、區間位置、均量下限）本質上都是「算一個數、設門檻」，
@@ -48,7 +49,6 @@ KD_SATURATION_STATE、OVERNIGHT_MARKET_CONTEXT、COLUMN_THRESHOLD
 
 | 元件 | 用在 | 說明 |
 |---|---|---|
-| `PRICE_ABOVE_MA` | 李佛摩、林區、巴菲特、美股隔夜 | 單條均線的狀態判定。若特徵矩陣產出 ma_N 欄位，可退化為 COLUMN_THRESHOLD 比較，需確認引擎是否支援欄位對欄位比較 |
 | `BREAK_N_DAY_LOW`（出場） | 李佛摩(20)、動能(10) | 出場端沒有任何對應元件 |
 | `FIXED_PCT_TARGET`（出場） | 麥克連 +10% | 已確認：`FIXED_STOP_TARGET` 的停利側未實作，確實缺 |
 | `ATR_FROM_ENTRY_STOP`（出場） | 60 日突破基線（3×ATR） | 自**進場價**減 N×ATR 的停損。`ATR_TRAILING` 追蹤最高價、`FIXED_STOP_TARGET` 用固定比例，兩者皆無法表達 |
@@ -89,7 +89,7 @@ KD_SATURATION_STATE、OVERNIGHT_MARKET_CONTEXT、COLUMN_THRESHOLD
 列為可能相關的背景資訊。
 
 **元件數**：不再使用未對帳的「18 個」。對帳後為：A 類 4 項可直接重用、
-B 類 4 項可重用計算需改介面、C 類 10 項確實缺 evaluator、D 類 3 項缺資料。
+B 類 5 項可重用計算需改介面、C 類 9 項確實缺 evaluator、D 類 3 項缺資料。
 
 ## Config 狀態：四件事分開記錄
 
@@ -114,21 +114,23 @@ B 類 4 項可重用計算需改介面、C 類 10 項確實缺 evaluator、D 類
 | 環節 | 狀態 |
 |---|---|
 | 觸發：突破 60 日高 | ✅ `N_SESSION_HIGH` lookback=60（採引擎的首次穿越語意，報告註明） |
-| 條件：價 ≥ MA120 | ❌ 缺 `PRICE_ABOVE_MA`。**光有 ma_120 欄位不夠** —— 已查 `COLUMN_THRESHOLD` 只比較「欄位對固定值」，不支援欄位對欄位。若要靠它，特徵矩陣須直接產出 `close / ma_120` 的比值欄位，再以 `min: 1.0` 判定；公式、價格口徑（還原或 RAW）與可用時間都要與此處對齊 |
+| 條件：價 ≥ MA120 | ⚠️ **計算已存在但仍缺串接**。第 5 項已產出原值 `close_to_ma120 = adjusted_close / SMA120 - 1`，因此正確門檻是 `COLUMN_THRESHOLD min: 0.0`；不是 `min: 1.0`，也不是 percentile ≥0。現行 canonical runner 尚未自動把 feature parquet join 進 signal panel；且精確 AFTER_SESSION_CLOSE available_at 仍為 UNKNOWN |
 | 出場：自進場價 −3×ATR(14) | ❌ 缺 `ATR_FROM_ENTRY_STOP`。**不是 `ATR_TRAILING`** —— 來源基準是進場價、不隨股價上移 |
 | 出場：跌破 20 日低 | ❌ 缺 `BREAK_N_DAY_LOW` |
 
-**最小新增：3 個 evaluator** —— `PRICE_ABOVE_MA`、`ATR_FROM_ENTRY_STOP`、`BREAK_N_DAY_LOW`。
-其中第一個可能被特徵矩陣消化為比值欄位 + `COLUMN_THRESHOLD`，待第 5 項交付後確認。
-先前寫的「2 個」建立在「ATR×3 可用 ATR_TRAILING」的誤讀上，已更正。
+**目前最小缺口不是 3 個 evaluator。** 已確認 `PRICE_ABOVE_MA` 不需新增 evaluator；
+現況為 **2 個確實缺的 exit evaluator**（`ATR_FROM_ENTRY_STOP`、`BREAK_N_DAY_LOW`）
+加 **1 個 feature artifact → canonical panel 的 hydration/join 串接工作**。
+`close_to_ma120` 的缺值會被 `COLUMN_THRESHOLD` 視為 filter 不通過，但不得在報告中把 null 解讀成「價格低於 MA120」。
+精確決策時點的 available_at 仍待第 5 項 review1 證據補強。
 
 與 VCP Round 1 的比較條件必須完全對齊，否則數字不可比：
 E1 2016-01-04~2021-12-31、同一 all_liquid 母體與 P2-060 凍結排除名單、
 同一成本模型（0.1425%×2 + 0.3% 稅 + 單邊 0.1% 滑價）、次一共同交易日開盤進場、
 每股票同時最多一筆持倉、無跨股票資金競爭、期末未平倉另列。
 
-**本項不啟動實作，不跑 workflow，不插隊第 5 項。** 待第 5 項交付後，
-先確認特徵矩陣產出哪些欄位，再決定 `PRICE_ABOVE_MA` 是否還需要獨立 evaluator。
+**本項不啟動 baseline 實作或回測。** 第 5 項已確認 `close_to_ma120` 數值語意；
+剩餘工作是 feature-panel 串接與 exact decision-time availability 證據，不是新增 `PRICE_ABOVE_MA` evaluator。
 
 
 ## 兩種比較不可混為一談

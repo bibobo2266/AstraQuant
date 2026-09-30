@@ -1,0 +1,20 @@
+schema_version: "1"
+name: pit_feature_matrix_layer1_v1_review1
+base_feature_version: "pit_feature_matrix_layer1_v1"
+base_manifest: "out/pit_feature_matrix_layer1_v1_manifest.json"
+base_dictionary: "out/pit_feature_matrix_layer1_v1_dictionary.csv"
+base_coverage: "out/pit_feature_matrix_layer1_v1_coverage.csv"
+base_daily_valid_counts: "out/pit_feature_matrix_layer1_v1_daily_valid_counts.csv"
+decision_point: "AFTER_SESSION_CLOSE"
+sample_seed: 20260930
+stock_samples_per_year: 180
+market_context_samples_per_year: 12
+years: [2016, 2017, 2018, 2019, 2020, 2021]
+outputs:
+  report: "docs/PIT_FEATURE_MATRIX_LAYER1_V1_REVIEW1.md"
+  audit: "out/pit_feature_matrix_layer1_v1_review1_available_at_audit.csv"
+  availability_evidence: "out/pit_feature_matrix_layer1_v1_review1_availability_evidence.csv"
+  warmup_diagnostic: "out/pit_feature_matrix_layer1_v1_review1_warmup_diagnostic.csv"
+  coverage_comparison: "out/pit_feature_matrix_layer1_v1_review1_coverage_comparison.csv"
+  ma120_audit: "out/pit_feature_matrix_layer1_v1_review1_ma120_audit.csv"
+  manifest: "out/pit_feature_matrix_layer1_v1_review1_manifest.json"

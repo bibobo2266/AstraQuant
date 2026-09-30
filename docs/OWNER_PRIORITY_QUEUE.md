@@ -2,11 +2,11 @@
 
 ## 目前狀態
 
-更新時間：2026-09-30T06:50:00Z
-做完：第 5 項建置完成，待審查驗收
-結果：43 真實特徵；61 參數版本；10 亂數對照；coverage 69 列/年；available_at audit 1000 筆 0 date-level violation
-卡住：L3-G02 theme_membership 為 BLOCKED_DATA；parquet artifact 2026-12-29 到期
-下一項：第 5 項驗收
+更新時間：2026-09-30T07:15:00Z
+做完：第 5 項驗收修正準備完成，待品質稽核工作流
+結果：不重建特徵 parquet；新增跨六年分層 available_at review1 與 MA120 串接驗證
+卡住：精確 AFTER_SESSION_CLOSE 來源發布時間待 review1 分類 PASS／FAIL／UNKNOWN
+下一項：第 5 項審查驗收
 
 狀態：ACTIVE
 
@@ -165,9 +165,9 @@ E3 豁免：EX-001 已由 owner 裁定；僅允許 breakout 長窗 final NAV 51,
 
 ---
 
-### 5. [REVIEW] PIT 安全特徵矩陣第一層
+### 5. [REVIEW_FIX] PIT 安全特徵矩陣第一層
 
-狀態：AWAITING_REVIEW
+狀態：REVIEW_FIX_IN_PROGRESS
 
 範圍：
 
