@@ -1,0 +1,56 @@
+name: PIT feature matrix integration QA
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "run/pit_feature_matrix_layer1_integration_v1.trigger"
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: pyproject.toml
+
+      - name: Install
+        run: python -m pip install --quiet -e ".[dev]"
+
+      - name: Run integration contract tests
+        run: pytest -q tests/test_feature_panel_integration.py tests/test_pit_feature_matrix_layer1_review.py
+
+      - name: Verify real MA120 strategy gate is blocked
+        run: |
+          python - <<'PY'
+          import pandas as pd
+          from astraquant.research.feature_panel_integration import (
+              FeaturePanelIntegrationError,
+              FeaturePanelIntegrator,
+              load_feature_panel_integration_config,
+          )
+          cfg=load_feature_panel_integration_config(
+              "configs/quality/pit_feature_matrix_layer1_integration_v1.yaml"
+          )
+          try:
+              FeaturePanelIntegrator(
+                  config=cfg,
+                  artifact_root="/not-needed-because-gate-fails-first",
+                  verified_only=True,
+              ).hydrate(pd.DataFrame({
+                  "date":[pd.Timestamp("2020-01-02")],
+                  "stock_id":["2330"],
+              }))
+          except FeaturePanelIntegrationError as exc:
+              assert "close_to_ma120:UNAVAILABLE" in str(exc)
+          else:
+              raise AssertionError("real MA120 input unexpectedly passed VERIFIED gate")
+          PY

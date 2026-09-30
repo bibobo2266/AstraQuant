@@ -1,0 +1,116 @@
+schema_version: "1"
+name: pit_feature_matrix_layer1_integration_v1
+epoch: E1
+
+decision_contract:
+  signal_observation: "T session close; computation may finish later"
+  order_intent_cutoff: "must be explicitly evidenced before T+1 opening execution; no date-only inference"
+  canonical_note: "CanonicalStrategySimulator currently compares candidate available_at to a date-level T+1 session-start abstraction; this integration layer does not weaken or override that gate"
+  execution: "T+1 RAW open through canonical execution/tradability"
+  note: "v1 available_at_date is a research label, not source publication evidence"
+
+artifact:
+  manifest_path: "out/pit_feature_matrix_layer1_v1_manifest.json"
+  artifact_name: "pit-feature-matrix-layer1-v1-36662962925"
+  artifact_id: 11075033221
+  workflow_run_id: 36662962925
+  source_revision: "fb8b042b46dc38838d103544ca17da10286c7bfe"
+  formula_version: "pit_feature_matrix_layer1_v1"
+  epoch: "E1"
+  p2_060_exclusion_sha256: "379d58f6a8aa06b1e020d56911930f4bc01861d3eeca109613d9e5b1e490d134"
+  default_artifact_root: "artifacts/pit_feature_matrix_layer1_v1"
+
+policy:
+  strategy_required_status: "VERIFIED"
+  preserve_nulls: true
+  allow_forward_fill: false
+  allow_future_key_lookup: false
+  reject_column_conflicts: true
+  reject_duplicate_keys: true
+
+availability_groups:
+  adjusted_research_price:
+    status: "UNAVAILABLE"
+    period: "E1 frozen v1 artifact"
+    evidence:
+      - "minervini_picks@fb8b042 scripts/daily_update_adj.py::apply_dividends rewrites prior adjusted OHLC when a later dividend occurs"
+      - "minervini_picks@fb8b042 scripts/build_adj.py::build_factors defines a historical factor using later corporate-action events"
+    rationale: "the frozen historical adjusted coordinate can contain post-T corporate-action information"
+
+  stock_artifact_membership:
+    status: "UNAVAILABLE"
+    period: "E1 frozen v1 stock feature parquet"
+    evidence:
+      - "layer1 build persists rows only after all_liquid/P2-060 filtering"
+      - "all_liquid requires adjusted close >= 10 and same-day turnover cross-section"
+    rationale: "row presence itself depends on hindsight-revised adjusted close"
+
+  trading_amount_eod:
+    status: "UNKNOWN"
+    period: "E1"
+    evidence:
+      - "historical files retain trading date/value but no contemporaneous receipt/publish timestamp"
+      - "current 2026 workflow timing is not back-applied to E1"
+    rationale: "historical before-T+1-open availability is not proven"
+
+  raw_observation_and_valid_ohlc:
+    status: "UNKNOWN"
+    period: "E1"
+    evidence:
+      - "official raw history is session-dated and tradability is derived from it"
+      - "no historical receipt timestamp or frozen E1 publication-time contract is retained"
+    rationale: "date-local causality exists, cutoff availability is unproven"
+
+  p2_060_research_governance:
+    status: "VERIFIED"
+    period: "research build"
+    evidence:
+      - "all_liquid config and v1 manifest pin the same exclusion SHA"
+    rationale: "frozen research-governance input; not contemporaneous market information"
+
+  market_total_return_index:
+    status: "UNKNOWN"
+    period: "E1"
+    evidence:
+      - "index_tri retains date/value but no contemporaneous receipt/publish timestamp"
+    rationale: "historical before-T+1-open availability is not proven"
+
+  pit_industry:
+    status: "UNKNOWN"
+    period: "E1"
+    evidence:
+      - "valid_from is causally derived from official available_date/effective_date"
+      - "no receipt/time-of-day evidence covers the full historical period"
+    rationale: "date-level causal order is known; order-cutoff availability remains unproven"
+
+  deterministic_random_control:
+    status: "VERIFIED"
+    period: "all"
+    evidence:
+      - "deterministic date|stock_id|feature_id|seed transform"
+    rationale: "raw control value consumes no external future information"
+
+feature_groups:
+  adjusted_price_features:
+    dependencies: ["stock_artifact_membership", "adjusted_research_price"]
+    examples: ["close_to_ma20", "close_to_ma60", "close_to_ma120", "close_to_ma250", "rsi14", "atr21_pct"]
+  volume_only_stock_features:
+    dependencies: ["stock_artifact_membership", "trading_amount_eod"]
+    examples: ["amount_mean20_twd", "volume_ratio_5_20", "volume_ratio_20_60"]
+  industry_features:
+    dependencies: ["stock_artifact_membership", "pit_industry"]
+    examples: ["industry", "rs_industry_20", "industry_strength_rank_20"]
+  market_context:
+    dependencies: ["market_total_return_index"]
+    examples: ["market_to_ma200", "market_rv20", "market_position252"]
+  random_controls:
+    dependencies: ["stock_artifact_membership", "deterministic_random_control"]
+    examples: ["random_control_01"]
+
+requested_features:
+  - column: "close_to_ma120"
+    kind: "RAW"
+    required: true
+    warmup_sessions: 120
+    dependencies: ["stock_artifact_membership", "adjusted_research_price"]
+    expected_status: "UNAVAILABLE"
