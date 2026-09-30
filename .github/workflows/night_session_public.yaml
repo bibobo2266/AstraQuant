@@ -1,0 +1,70 @@
+name: Night session public mirror (台指夜盤公開版)
+
+# 把 minervini_picks（private）的 out/night_session.md 過濾成公開版，
+# 放進 AstraQuant（public）的 out/night_session.md，供 Cowork 每日 recap 讀取。
+#
+# 為什麼要這一支：Cowork 的排程容器讀不到 private repo，也沒有 token。
+# 直接讓它自己去期交所抓，抓不到時它會編數字——夜盤點位看起來太像真的。
+# 所以改成「這裡算好、它只負責讀」。
+#
+# 過濾掉所有研究常數（斜率 0.514、命中率分級、價差分級統計），
+# 那些寫在 Cowork 的 prompt 裡，不公開。
+#
+# 排程：建議 cron-job.org 台北 07:55（UTC 23:55）觸發，
+# 在 night_session（07:40）之後、recap 產製（08:10）之前。
+# 下面的 GitHub cron 只是備援，內建 cron 是 best-effort，實測會延遲數小時。
+#
+# minervini_picks 只被唯讀 checkout，不會被修改。
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "55 23 * * 1-5"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: night-session-public
+  cancel-in-progress: false
+
+jobs:
+  mirror:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Checkout source (read-only)
+        uses: actions/checkout@v4
+        with:
+          repository: bibobo2266/minervini_picks
+          token: ${{ secrets.MINERVINI_READ_TOKEN }}
+          path: source
+          persist-credentials: false
+          sparse-checkout: out
+          sparse-checkout-cone-mode: true
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Filter
+        run: python scripts/night_session_public.py
+
+      - name: Summary
+        if: always()
+        run: cat out/night_session.md >> "$GITHUB_STEP_SUMMARY" || true
+
+      - name: Commit
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add out/night_session.md
+          if git diff --staged --quiet; then
+            echo "無變更"
+          else
+            git commit -m "night session public $(TZ=Asia/Taipei date +%Y-%m-%d)"
+            git pull --rebase || true
+            git push
+          fi
