@@ -53,7 +53,7 @@ def test_event_filter_matches_source_ratio_rules_and_multiplies_same_day():
     )
     got = valid_adjustment_events(raw, ratio_min=0.5, ratio_max=1.2)
     assert len(got) == 1
-    assert got.iloc[0]["ratio"] == 0.72
+    assert np.isclose(float(got.iloc[0]["ratio"]), 0.72, rtol=0.0, atol=1e-15)
 
 
 def test_asof_reconstruction_preserves_boolean_even_when_rounding_changes_value():
