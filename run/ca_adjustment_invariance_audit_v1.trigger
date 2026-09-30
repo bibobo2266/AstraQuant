@@ -1,1 +1,1 @@
-ca_adjustment_invariance_audit_v1
+ca_adjustment_invariance_audit_v1 retry=2
