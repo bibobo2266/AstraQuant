@@ -1,0 +1,19 @@
+schema_version: '1'
+name: baseline_trust_v1
+trigger:
+  type: TRUST_VOLUME_RATIO_STREAK
+  params:
+    vol_ratio: 0.03
+    ratio_days: 2
+    streak_days: 3
+    chips_max_age: 7
+filters:
+- type: RANGE_POSITION
+  params:
+    window: 60
+    max_pos: 0.5
+- type: MIN_AVG_VOLUME
+  params:
+    window: 20
+    min_shares: 1000000
+ranking: []
