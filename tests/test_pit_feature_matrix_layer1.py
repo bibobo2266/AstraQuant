@@ -227,3 +227,28 @@ def test_market_context_is_single_market_series_not_cross_section_rank():
     assert "market_position252" in market
     assert not any(c.endswith("_pct") for c in market.columns)
     assert market["date"].is_unique
+
+
+def test_industry_pit_normalizes_mixed_datetime_resolutions():
+    rows = pd.DataFrame(
+        {
+            "date": pd.Series(
+                pd.to_datetime(["2020-01-02", "2020-01-03"]),
+                dtype="datetime64[us]",
+            ),
+            "stock_id": ["2330", "2330"],
+        }
+    )
+    pit = pd.DataFrame(
+        {
+            "stock_id": ["2330"],
+            "valid_from": pd.Series(
+                pd.to_datetime(["2020-01-02"]),
+                dtype="datetime64[us]",
+            ),
+            "valid_to": pd.Series([pd.NaT], dtype="datetime64[us]"),
+            "industry": ["半導體"],
+        }
+    )
+    out = attach_industry_pit(rows, pit)
+    assert out["industry"].tolist() == ["半導體", "半導體"]
