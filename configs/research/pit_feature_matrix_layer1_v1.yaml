@@ -1,0 +1,68 @@
+schema_version: "1"
+name: pit_feature_matrix_layer1_v1
+formula_version: "pit_feature_matrix_layer1_v1"
+epoch: E1
+warmup_start: "2015-06-01"
+availability_policy: "AFTER_SESSION_CLOSE"
+universe: "configs/examples/universes/all_liquid.yaml"
+p2_060_exclusion_sha256: "379d58f6a8aa06b1e020d56911930f4bc01861d3eeca109613d9e5b1e490d134"
+
+ranking:
+  method: average
+  ascending: true
+  minimum_valid_count: 2
+
+parameters:
+  ma_windows: [20, 60, 120, 250]
+  ma_slope_lookback: 10
+  high_low_lookback: 250
+  atr_period: 21
+  rv_windows: [20, 60]
+  bollinger_window: 14
+  bollinger_stddev: 2.0
+  bollinger_percentile_lookback: 120
+  volume_short_window: 5
+  volume_mid_window: 20
+  volume_long_window: 60
+  amount_window: 20
+  up_day_volume_window: 20
+  rsi_windows: [13, 14, 26]
+  rsi_difference_fast: 13
+  rsi_difference_slow: 26
+  rsi_slope_window: 14
+  rsi_slope_lookback: 5
+  kd_lookback: 9
+  kd_k_smooth: 3
+  kd_d_smooth: 3
+  kd_high_level: 80
+  kd_low_level: 20
+  macd_fast: 12
+  macd_slow: 26
+  macd_signal: 9
+  macd_slope_lookback: 5
+  cci_window: 20
+  williams_window: 14
+  relative_strength_horizons: [20, 60, 120]
+  beta_window: 60
+  market_ma_window: 200
+  market_rv_window: 20
+  market_position_window: 252
+  tier_count: 3
+
+random_controls:
+  count: 10
+  seeds: [1001, 1002, 1003, 1004, 1005, 1006, 1007, 1008, 1009, 1010]
+  generator: "stable_uint64_splitmix64(date|stock_id|feature_id|seed)"
+  purpose: "negative-control data only; no effect scan in this item"
+
+storage:
+  versioned_dir: "artifacts/pit_feature_matrix_layer1_v1"
+  artifact_prefix: "pit-feature-matrix-layer1-v1"
+  compression: "zstd"
+  report: "docs/PIT_FEATURE_MATRIX_LAYER1_V1.md"
+  dictionary: "out/pit_feature_matrix_layer1_v1_dictionary.csv"
+  coverage: "out/pit_feature_matrix_layer1_v1_coverage.csv"
+  daily_valid_counts: "out/pit_feature_matrix_layer1_v1_daily_valid_counts.csv"
+  unusable_dates: "out/pit_feature_matrix_layer1_v1_unusable_dates.csv"
+  available_at_audit: "out/pit_feature_matrix_layer1_v1_available_at_audit.csv"
+  manifest: "out/pit_feature_matrix_layer1_v1_manifest.json"

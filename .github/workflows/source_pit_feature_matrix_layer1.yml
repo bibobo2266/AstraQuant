@@ -1,0 +1,127 @@
+name: PIT feature matrix layer1
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "run/pit_feature_matrix_layer1_v1.trigger"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: pit-feature-matrix-layer1-v1
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - name: Checkout AstraQuant
+        uses: actions/checkout@v4
+        with:
+          path: AstraQuant
+
+      - name: Checkout immutable source snapshot
+        uses: actions/checkout@v4
+        with:
+          repository: bibobo2266/minervini_picks
+          token: \${{ secrets.MINERVINI_READ_TOKEN }}
+          path: source_runtime/minervini_picks
+          persist-credentials: false
+          sparse-checkout: |
+            data/adj
+            data/reference
+            data/fundamentals
+            data/futures
+          sparse-checkout-cone-mode: true
+
+      - name: Freeze source revision and permissions
+        shell: bash
+        run: |
+          SOURCE_REVISION="$(git -C source_runtime/minervini_picks rev-parse HEAD)"
+          test -n "$SOURCE_REVISION"
+          echo "SOURCE_REVISION=$SOURCE_REVISION" >> "$GITHUB_ENV"
+          chmod -R a-w source_runtime/minervini_picks
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: AstraQuant/pyproject.toml
+
+      - name: Install AstraQuant
+        working-directory: AstraQuant
+        run: python -m pip install --quiet -e ".[dev]"
+
+      - name: Run layer1 unit gate
+        working-directory: AstraQuant
+        run: pytest -q tests/test_pit_feature_matrix_layer1.py
+
+      - name: Build E1 PIT feature matrix
+        working-directory: AstraQuant
+        env:
+          SOURCE_ROOT: \${{ github.workspace }}/source_runtime/minervini_picks/data
+          SOURCE_REVISION: \${{ env.SOURCE_REVISION }}
+          FEATURE_TICKER_CHUNK: "200"
+        run: python scripts/source_pit_feature_matrix_layer1.py
+
+      - name: Verify no-effect contract
+        working-directory: AstraQuant
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          import pandas as pd
+
+          manifest = json.loads(
+              Path("out/pit_feature_matrix_layer1_v1_manifest.json").read_text()
+          )
+          assert manifest["epoch"] == "E1"
+          assert manifest["available_at_violations"] == 0
+          assert manifest["no_effect_metrics"] is True
+          assert manifest["round2_executed"] is False
+          assert manifest["random_controls"] == 10
+          assert len(manifest["stock_files"]) == 6
+          assert Path("docs/PIT_FEATURE_MATRIX_LAYER1_V1.md").exists()
+
+          dictionary = pd.read_csv("out/pit_feature_matrix_layer1_v1_dictionary.csv")
+          assert set(dictionary["status"]) <= {"COMPLETE", "CONTROL", "BLOCKED_DATA"}
+          assert (dictionary["status"] == "CONTROL").sum() == 10
+
+          banned = {
+              "outcome", "forward_return", "net_return",
+              "win_rate", "expectancy", "exit_date", "exit_price",
+          }
+          for path in sorted(Path("artifacts/pit_feature_matrix_layer1_v1").glob("*.parquet")):
+              cols = set(pd.read_parquet(path).columns)
+              assert not (cols & banned), (path, sorted(cols & banned))
+          PY
+
+      - name: Upload versioned feature data
+        uses: actions/upload-artifact@v4
+        with:
+          name: pit-feature-matrix-layer1-v1-\${{ github.run_id }}
+          path: AstraQuant/artifacts/pit_feature_matrix_layer1_v1/*.parquet
+          if-no-files-found: error
+          retention-days: 90
+
+      - name: Commit report and manifests only
+        working-directory: AstraQuant
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add \
+            docs/PIT_FEATURE_MATRIX_LAYER1_V1.md \
+            out/pit_feature_matrix_layer1_v1_dictionary.csv \
+            out/pit_feature_matrix_layer1_v1_coverage.csv \
+            out/pit_feature_matrix_layer1_v1_daily_valid_counts.csv \
+            out/pit_feature_matrix_layer1_v1_unusable_dates.csv \
+            out/pit_feature_matrix_layer1_v1_available_at_audit.csv \
+            out/pit_feature_matrix_layer1_v1_manifest.json
+          git commit -m "report: record PIT feature matrix layer1" || exit 0
+          git pull --rebase origin main
+          git push origin HEAD:main
