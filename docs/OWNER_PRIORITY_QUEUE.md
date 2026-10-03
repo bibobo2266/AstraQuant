@@ -2,11 +2,11 @@
 
 ## 目前狀態
 
-更新時間：2026-10-03T23:21:00Z
-做完：第 5 項 causal RAW v2 程式與 B 合成資料／Parquet hydration 驗證已完成
-結果：workflow 37161408316：327 passed；程式驗證通過，真實 E1 artifact 未產出
-卡住：RAW／Trading_money／tradability 歷史 cutoff 證據與完整 CA 事件覆蓋仍未通過；資料 gate 維持 BLOCKED，待 Astra 驗收
-下一項：baseline_60d_breakout_v1 本地準備（原授權 D；不跑正式回測）
+更新時間：2026-10-03T23:23:00Z
+做完：baseline_60d_breakout_v1 已完成不受歧義影響的本地準備並提交測試
+結果：ATR14 SMA／entry-anchor −3×ATR／strict prior-low 比較已隔離；MA120 與 prior20 amount 確認重用 COLUMN_THRESHOLD；正式回測未執行
+卡住：CA 技術座標、20D valid-observed reference、pending-next-open 與事件順序仍待規格核定；第 5 項真實資料 gate 仍 BLOCKED
+下一項：停止於本次授權範圍；待 Astra 驗收與未定義 baseline 規格裁定
 
 狀態：ACTIVE
 
