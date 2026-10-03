@@ -50,3 +50,10 @@ The dedicated tests lock:
 - both not-yet-wired exit component names remain fail-closed in `ExitCompiler`.
 
 A formal baseline run config, simulator close-rule wiring, real E1 run, and strategy report remain outside this preparation step.
+
+## CI verification
+
+- GitHub `tests` workflow `37161695576`: **334 passed in 6.73s**.
+- Existing legacy breakout final-NAV boolean regression workflow `37161695551`: **success**.
+- Strategy-effect publication/sensitivity workflows triggered by the D software commit were **skipped** by the `[no-effects]` guard.
+- No baseline backtest, E2/E3 effect query, VCP Round 2, or other strategy scan was executed by this preparation step.
