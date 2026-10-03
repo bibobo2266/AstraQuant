@@ -2,9 +2,9 @@
 
 ## 目前狀態
 
-更新時間：2026-10-03T23:19:00Z
-做完：第 5 項最小 causal RAW v2 核心已實作，B 的 Parquet hydration／E1 邊界驗收測試已納入
-結果：核心 14 項＋hydration 4 項 targeted tests；effect workflow [no-effects] 護欄已生效
+更新時間：2026-10-03T23:21:00Z
+做完：第 5 項 causal RAW v2 程式與 B 合成資料／Parquet hydration 驗證已完成
+結果：workflow 37161408316：327 passed；程式驗證通過，真實 E1 artifact 未產出
 卡住：RAW／Trading_money／tradability 歷史 cutoff 證據與完整 CA 事件覆蓋仍未通過；資料 gate 維持 BLOCKED，待 Astra 驗收
 下一項：baseline_60d_breakout_v1 本地準備（原授權 D；不跑正式回測）
 

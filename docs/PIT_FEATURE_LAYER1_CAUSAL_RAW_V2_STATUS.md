@@ -27,9 +27,9 @@ No execution, accounting, terminal lifecycle, signal thresholds, VCP Round 1 res
 Local synthetic verification after implementation:
 
 - causal RAW v2 core: 14 tests passed;
-- core + v2/hydration integration: 18 targeted tests defined; repository CI verification follows this commit;
+- core + v2/hydration integration: 18 targeted tests are included in the repository suite;
 - Python compile check passed;
-- repository `tests` workflow for commit `129ef0a2` completed successfully.
+- repository `tests` workflow for implementation commit `129ef0a2` completed successfully;\n- repository `tests` workflow `37161408316` for hydration-evidence commit `9eb825e2` completed successfully: **327 passed in 6.51s**.
 
 Covered cases include:
 
