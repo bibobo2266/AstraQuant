@@ -2,11 +2,11 @@
 
 ## 目前狀態
 
-更新時間：2026-09-30T11:23:33Z
-做完：三項稽核修復與 fcfeffd 交付已驗收；完成第 5 項資料查核及最小修正決策文件，未重跑完整 E1 稽核
-結果：2016 原事件表 0 筆、同版官方 ledger 1,244 筆；normalize 14,591→14,586；28 個股票日追蹤已完成；母體差異仍為 16,384／2,963／17,730，合計 37,077
-卡住：真實資料可交易 PIT 適用性尚未全面通過；必要來源的事件完備性、歷史截止／修訂證據仍待補齊，策略 gate 保持阻擋
-下一項：核定第 5 項最小資料修正方案；見 docs/PIT_FEATURE_LAYER1_DATA_DECISION.md 與 docs/PIT_FEATURE_LAYER1_DATA_EVIDENCE.md
+更新時間：2026-10-03T00:00:00Z
+做完：eac32af 查核交付已核定；已採用 layer1_60d_ma120_causal_raw_v2，完整 E1 加必要暖機
+結果：第 5 項最小 v2 實作中；必要來源對帳、同座標窗口與條件式建置依核定範圍執行
+卡住：真實資料適用性尚未全面通過；正式 artifact 需先通過必要依賴驗收，策略 gate 保持阻擋
+下一項：第 5 項最小 v2 資料路徑驗收
 
 狀態：ACTIVE
 
@@ -165,13 +165,13 @@ E3 豁免：EX-001 已由 owner 裁定；僅允許 breakout 長窗 final NAV 51,
 
 ---
 
-### 5. [REVIEW] PIT 安全特徵矩陣第一層
+### 5. [IN_PROGRESS] PIT 安全特徵矩陣第一層
 
-狀態：AWAITING_REVIEW
+狀態：IN_PROGRESS
 
 三項稽核修復已驗收；真實資料適用性尚未全面通過。
 
-本次停止於核定 [最小資料修正方案](PIT_FEATURE_LAYER1_DATA_DECISION.md)；[來源查核證據](PIT_FEATURE_LAYER1_DATA_EVIDENCE.md) 已完成。不得據此解除 gate 或啟動第 6 項。
+eac32af 查核交付已通過，最小 v2 方向已核定，維持完整 E1 及 2015 暖機。正在實作必要來源對帳與條件式建置；不再等待方案核定。不得據此解除策略 gate 或啟動第 6 項。
 
 範圍：
 
