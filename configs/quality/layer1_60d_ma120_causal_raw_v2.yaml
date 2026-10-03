@@ -1,0 +1,95 @@
+schema_version: "1"
+name: layer1_60d_ma120_causal_raw_v2
+formula_version: layer1_60d_ma120_causal_raw_v2
+epoch: E1
+period:
+  start: "2016-01-04"
+  end: "2021-12-31"
+  warmup_start: "2015-01-01"
+source_revision: fb8b042b46dc38838d103544ca17da10286c7bfe
+
+frozen_parameters:
+  ma_window: 120
+  breakout_lookback: 60
+  liquidity_lookback: 20
+
+price_coordinates:
+  eligibility_absolute_price: RAW_EXECUTION
+  rolling_feature_coordinate: CAUSAL_RAW_V2
+  execution: RAW_EXECUTION
+  causal_transform: "P_post = (P_pre - cash_per_share) / share_multiplier"
+  rounding: none
+
+rolling_contract:
+  session_basis: common_market_sessions_with_explicit_missing_rows
+  ma120: includes_current_row_and_requires_120_finite_closes
+  n60: strict_first_cross_close_gt_prior60_and_previous_close_le_previous_prior60
+  n60_missing: nullable_not_false
+  prior20_amount: prior_20_common_session_rows_excluding_current
+  missing_session: preserved_as_null_not_compressed
+
+corporate_actions:
+  normalized_source: astraquant.data.corporate_actions.normalized_actions_frame
+  allowed_components:
+    - CASH_DIVIDEND
+    - STOCK_DIVIDEND
+  activation: "effective_date <= observation_date AND known_at < decision_cutoff_at"
+  ordering: effective_date_ascending_fail_closed_on_first_unavailable_event
+  no_market_effective_date: apply_once_before_first_later_observation
+  future_event_rule: never_rewrite_already_emitted_feature_rows
+  unsupported_event_rule: fail_closed_do_not_infer_multiplier_or_timing
+
+availability_gate:
+  strategy_required_status: VERIFIED
+  current_result: BLOCKED
+  dependencies:
+    raw_ohlc_eod:
+      status: UNKNOWN
+      table: data/raw/prices_raw_YYYY.parquet
+      fields: [date, stock_id, open, max, min, close]
+      period: "2015 warmup + E1"
+      evidence_gap: historical_receipt_or_publication_time_before_order_intent_cutoff_not_retained
+      affects: [raw_absolute_eligibility, ma120, n60]
+    trading_money_eod:
+      status: UNKNOWN
+      table: data/raw/prices_raw_YYYY.parquet
+      fields: [date, stock_id, Trading_money]
+      period: "2015 warmup + E1"
+      evidence_gap: historical_receipt_or_publication_time_before_order_intent_cutoff_not_retained
+      affects: [turnover_cross_section, prior20_amount]
+    raw_tradability:
+      status: UNKNOWN
+      table: data/reference/tradability.parquet
+      fields: [observed_trade, valid_ohlc, buy_blocked, sell_blocked]
+      period: "2015 warmup + E1"
+      evidence_gap: derived_flags_are_reproducible_but_underlying_historical_cutoff_availability_is_unproven
+      affects: [common_session_missingness, universe_eligibility, execution_gate]
+    normalized_cash_stock_actions:
+      status: UNKNOWN
+      table: data/fundamentals/dividend.parquet
+      fields:
+        - available_date
+        - AnnouncementDate
+        - CashExDividendTradingDate
+        - StockExDividendTradingDate
+        - CashEarningsDistribution
+        - CashStatutorySurplus
+        - StockEarningsDistribution
+        - StockStatutorySurplus
+      period: "2015 warmup + E1"
+      evidence_gap: complete_historical_known_at_and_event_reconciliation_not_yet_proven_for_every_required_event
+      affects: [causal_price_coordinate, ma120, n60]
+    non_dividend_share_events:
+      status: UNAVAILABLE
+      table: data/reference/corporate_actions_ledger.parquet
+      fields: [event_date, known_date, event_type, cash_per_share, share_multiplier]
+      period: "2015 warmup + E1"
+      evidence_gap: causal_raw_v2_current_normalizer_only_certifies_cash_and_stock_dividend_components
+      affects: [causal_price_coordinate_for_affected_ticker_windows]
+
+artifact_policy:
+  preserve_v1: true
+  persist_prefilter_rows: true
+  formal_e1_feature_artifact_allowed_only_when_all_required_dependencies_verified: true
+  current_formal_artifact: null
+  no_strategy_effect_metrics: true
