@@ -2,11 +2,11 @@
 
 ## 目前狀態
 
-更新時間：2026-10-03T00:00:00Z
-做完：eac32af 查核交付已核定；已採用 layer1_60d_ma120_causal_raw_v2，完整 E1 加必要暖機
-結果：第 5 項最小 v2 實作中；必要來源對帳、同座標窗口與條件式建置依核定範圍執行
-卡住：真實資料適用性尚未全面通過；正式 artifact 需先通過必要依賴驗收，策略 gate 保持阻擋
-下一項：第 5 項最小 v2 資料路徑驗收
+更新時間：2026-10-03T23:19:00Z
+做完：第 5 項最小 causal RAW v2 核心已實作，B 的 Parquet hydration／E1 邊界驗收測試已納入
+結果：核心 14 項＋hydration 4 項 targeted tests；effect workflow [no-effects] 護欄已生效
+卡住：RAW／Trading_money／tradability 歷史 cutoff 證據與完整 CA 事件覆蓋仍未通過；資料 gate 維持 BLOCKED，待 Astra 驗收
+下一項：baseline_60d_breakout_v1 本地準備（原授權 D；不跑正式回測）
 
 狀態：ACTIVE
 
@@ -171,7 +171,7 @@ E3 豁免：EX-001 已由 owner 裁定；僅允許 breakout 長窗 final NAV 51,
 
 三項稽核修復已驗收；真實資料適用性尚未全面通過。
 
-eac32af 查核交付已通過，最小 v2 方向已核定，維持完整 E1 及 2015 暖機。正在實作必要來源對帳與條件式建置；不再等待方案核定。不得據此解除策略 gate 或啟動第 6 項。
+eac32af 查核交付已通過，最小 v2 方向已核定，維持完整 E1 及 2015 暖機。causal RAW v2 核心與合成 hydration／E1 邊界驗收已實作；正式真實 E1 artifact 因歷史 cutoff 與完整 CA 證據不足而維持 BLOCKED，等待 Astra 驗收。不得據此解除策略 gate 或啟動第 6 項。
 
 範圍：
 
