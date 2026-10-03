@@ -2,11 +2,11 @@
 
 ## 目前狀態
 
-更新時間：2026-10-03T00:00:00Z
-做完：eac32af 查核交付已核定；已採用 layer1_60d_ma120_causal_raw_v2，完整 E1 加必要暖機
-結果：第 5 項最小 v2 實作中；必要來源對帳、同座標窗口與條件式建置依核定範圍執行
-卡住：真實資料適用性尚未全面通過；正式 artifact 需先通過必要依賴驗收，策略 gate 保持阻擋
-下一項：第 5 項最小 v2 資料路徑驗收
+更新時間：2026-10-03T23:11:00Z
+做完：第 5 項 causal RAW v2 程式核心與 hydration 驗收證據已完成；效果研究 workflow 已改為明確手動觸發
+結果：A 本地 14/14、B 本地 17/17；129ef0a2 的 tests workflow success；真實 E1 artifact 未產出
+卡住：RAW／Trading_money／tradability 歷史 cutoff 證據與完整 CA reconciliation 未通過；資料 gate 維持 BLOCKED，待 Astra 驗收
+下一項：依本次 owner 授權，接續 baseline_60d_breakout_v1 已凍結部分的本地準備；不解鎖第 6 項
 
 狀態：ACTIVE
 
@@ -171,7 +171,7 @@ E3 豁免：EX-001 已由 owner 裁定；僅允許 breakout 長窗 final NAV 51,
 
 三項稽核修復已驗收；真實資料適用性尚未全面通過。
 
-eac32af 查核交付已通過，最小 v2 方向已核定，維持完整 E1 及 2015 暖機。正在實作必要來源對帳與條件式建置；不再等待方案核定。不得據此解除策略 gate 或啟動第 6 項。
+eac32af 查核交付已通過，最小 v2 方向已核定，維持完整 E1 及 2015 暖機。129ef0a2 已完成 causal RAW v2 核心；B 的 synthetic hydration 與 fail-closed 驗收證據已補齊，程式測試與資料 gate 分開記錄。真實 E1 artifact 仍因歷史 cutoff 證據與完整 CA reconciliation 不足而阻擋，狀態維持 IN_PROGRESS / AWAITING ASTRA REVIEW；不得據此解除策略 gate 或啟動第 6 項。
 
 範圍：
 
