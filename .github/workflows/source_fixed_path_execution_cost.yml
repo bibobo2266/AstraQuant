@@ -1,16 +1,9 @@
 name: Fixed-path execution cost attribution
 
+# Effect-producing research workflow: explicit dispatch only; ordinary pushes must not query effect periods.
+
 on:
   workflow_dispatch:
-  push:
-    branches: [main]
-    paths:
-      - ".github/workflows/source_fixed_path_execution_cost.yml"
-      - "scripts/source_fixed_path_execution_cost.py"
-      - "scripts/source_execution_sensitivity.py"
-      - "scripts/source_strategy_integration_smoke.py"
-      - "src/astraquant/**"
-
 permissions:
   contents: write
 

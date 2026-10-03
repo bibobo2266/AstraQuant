@@ -1,15 +1,9 @@
 name: Conditional signal-edge falsification
 
+# Effect-producing research workflow: explicit dispatch only; ordinary pushes must not query effect periods.
+
 on:
   workflow_dispatch:
-  push:
-    branches: [main]
-    paths:
-      - ".github/workflows/source_signal_edge_falsification.yml"
-      - "scripts/source_signal_edge_falsification.py"
-      - "scripts/source_strategy_integration_smoke.py"
-      - "src/astraquant/**"
-
 permissions:
   contents: write
 
