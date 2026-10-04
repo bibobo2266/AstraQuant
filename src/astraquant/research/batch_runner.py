@@ -14,6 +14,7 @@ from astraquant.research.config_io import (
     load_signal_config,
     load_universe_config,
 )
+from astraquant.research.rsi_computability import SignalComputabilityContext
 from astraquant.research.signal_engine import SignalContext
 from astraquant.research.strategy_config import StrategyRunConfig
 from astraquant.research.universe_engine import UniverseContext
@@ -41,6 +42,7 @@ class ResearchBatchRunner:
         universe_context: UniverseContext,
         signal_context: SignalContext,
         base_policy: PortfolioPolicyConfig,
+        signal_computability_context: SignalComputabilityContext | None = None,
     ) -> BatchPreparationResult:
         root_path = Path(root).resolve()
         matrix = load_batch_matrix_config(matrix_config_path)
@@ -92,6 +94,7 @@ class ResearchBatchRunner:
                 universe_context=universe_context,
                 signal_context=signal_context,
                 base_policy=base_policy,
+                signal_computability_context=signal_computability_context,
             )
             prepared.append(result)
             rows.append(
@@ -103,9 +106,7 @@ class ResearchBatchRunner:
                     "universe_rows_counting": int(
                         result.universe_mask.frame["counts"].sum()
                     ),
-                    "signal_candidates": int(
-                        result.signal_frame["counts_as_candidate"].sum()
-                    ),
+                    "signal_candidates": int(len(result.candidates)),
                     "feature_cache_hits": result.feature_cache_hits,
                     "feature_cache_misses": result.feature_cache_misses,
                 }

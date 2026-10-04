@@ -19,6 +19,7 @@ from astraquant.research.config_io import (
 )
 from astraquant.research.exit_engine import CompiledExitPlan, ExitCompiler
 from astraquant.research.feature_cache import FeatureCache
+from astraquant.research.rsi_computability import SignalComputabilityContext
 from astraquant.research.signal_engine import (
     SignalCompiler,
     SignalContext,
@@ -92,6 +93,42 @@ class ResearchConfigEngine:
             raise ValueError(f"config path escapes research root: {configured}") from exc
         return candidate
 
+    @staticmethod
+    def _candidate_mask_column(
+        *,
+        signal_plan: SignalPlan,
+        signal_computability_context: SignalComputabilityContext | None,
+    ) -> str:
+        if signal_computability_context is None:
+            return "counts_as_candidate"
+        if signal_plan.config.ranking:
+            raise ValueError(
+                "strict RSI computability is enabled, but configured ranking "
+                "has no canonical downstream ordering/capacity contract; "
+                "refusing to fall back to legacy ranking values"
+            )
+        return "strict_counts_as_candidate"
+
+    def build_candidates(
+        self,
+        *,
+        signal_frame: pd.DataFrame,
+        signal_plan: SignalPlan,
+        signal_computability_context: SignalComputabilityContext | None,
+    ) -> pd.DataFrame:
+        declaration = SignalDeclaration(
+            source=f"CONFIG:{signal_plan.config.name}",
+            price_semantics=SignalPriceSemantics.SCALE_SENSITIVE,
+        )
+        return candidates_from_signal_frame(
+            signal_frame,
+            declaration=declaration,
+            candidate_mask_column=self._candidate_mask_column(
+                signal_plan=signal_plan,
+                signal_computability_context=signal_computability_context,
+            ),
+        )
+
     def prepare_from_configs(
         self,
         *,
@@ -103,6 +140,7 @@ class ResearchConfigEngine:
         universe_context: UniverseContext,
         signal_context: SignalContext,
         base_policy: PortfolioPolicyConfig,
+        signal_computability_context: SignalComputabilityContext | None = None,
     ) -> PreparedResearchRun:
         mask = self.universe_compiler.compile(
             universe_config,
@@ -115,16 +153,14 @@ class ResearchConfigEngine:
             panel,
             mask,
             signal_context,
+            computability_context=signal_computability_context,
         )
         exit_plan = self.exit_compiler.compile(exit_config)
         policy = exit_plan.apply_to_policy(base_policy)
-        declaration = SignalDeclaration(
-            source=f"CONFIG:{signal_config.name}",
-            price_semantics=SignalPriceSemantics.SCALE_SENSITIVE,
-        )
-        candidates = candidates_from_signal_frame(
-            signal_frame,
-            declaration=declaration,
+        candidates = self.build_candidates(
+            signal_frame=signal_frame,
+            signal_plan=signal_plan,
+            signal_computability_context=signal_computability_context,
         )
 
         return PreparedResearchRun(
@@ -151,6 +187,7 @@ class ResearchConfigEngine:
         universe_context: UniverseContext,
         signal_context: SignalContext,
         base_policy: PortfolioPolicyConfig,
+        signal_computability_context: SignalComputabilityContext | None = None,
     ) -> PreparedResearchRun:
         root_path = Path(root).resolve()
         run_cfg = load_run_config(run_config_path)
@@ -166,6 +203,7 @@ class ResearchConfigEngine:
             universe_context=universe_context,
             signal_context=signal_context,
             base_policy=base_policy,
+            signal_computability_context=signal_computability_context,
         )
 
 

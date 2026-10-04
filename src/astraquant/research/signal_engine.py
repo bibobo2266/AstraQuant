@@ -7,6 +7,13 @@ import pandas as pd
 
 from astraquant.research.component_registry import ComponentRegistry
 from astraquant.research.feature_cache import FeatureCache, FeatureCacheKey
+from astraquant.research.rsi_computability import (
+    SignalComputabilityContext,
+    TriState,
+    combine_tristate,
+    strict_condition_for_component,
+    strict_ranking_for_component,
+)
 from astraquant.research.strategy_config import ComponentSpec, LogicalOp, SignalConfig
 from astraquant.research.technical_components import (
     kd_saturation_release,
@@ -198,11 +205,116 @@ class SignalEvaluator:
         merged["counts"] = merged["counts"].fillna(False).astype(bool)
         return merged
 
+    def _apply_strict_rsi_contract(
+        self,
+        *,
+        plan: SignalPlan,
+        prepared_panel: pd.DataFrame,
+        result: pd.DataFrame,
+        context: SignalContext,
+        computability_context: SignalComputabilityContext,
+        triggered: pd.Series,
+        filter_values: tuple[pd.Series, ...],
+        ranking_values: tuple[pd.Series, ...],
+    ) -> pd.DataFrame:
+        trigger_state, trigger_reason = strict_condition_for_component(
+            panel=prepared_panel,
+            spec=plan.config.trigger,
+            legacy_bool=triggered,
+            cache=self.cache,
+            signal_context=context,
+            computability_context=computability_context,
+        )
+        result["strict_trigger_state"] = trigger_state.to_numpy()
+        result["strict_trigger_reason"] = trigger_reason.to_numpy()
+
+        filter_states: list[pd.Series] = []
+        for index, (spec, legacy_bool) in enumerate(
+            zip(plan.config.filters, filter_values)
+        ):
+            state, reason = strict_condition_for_component(
+                panel=prepared_panel,
+                spec=spec,
+                legacy_bool=legacy_bool,
+                cache=self.cache,
+                signal_context=context,
+                computability_context=computability_context,
+            )
+            filter_states.append(state)
+            result[f"strict_filter_{index}_state"] = state.to_numpy()
+            result[f"strict_filter_{index}_reason"] = reason.to_numpy()
+
+        combined_states: list[str] = []
+        all_filter_components_computable: list[bool] = []
+        for row_index in range(len(result)):
+            states = [
+                TriState(state.iloc[row_index]) for state in filter_states
+            ]
+            combined = combine_tristate(
+                states,
+                plan.config.filter_combine.value,
+            )
+            combined_states.append(combined.value)
+            all_filter_components_computable.append(
+                all(state is not TriState.UNKNOWN for state in states)
+            )
+        result["strict_filter_condition_state"] = combined_states
+        result["strict_all_filter_components_computable"] = (
+            all_filter_components_computable
+        )
+
+        strict_candidate_states: list[str] = []
+        strict_candidates: list[bool] = []
+        for row_index in range(len(result)):
+            universe_state = (
+                TriState.TRUE
+                if bool(result.iloc[row_index]["universe_counts"])
+                else TriState.FALSE
+            )
+            candidate_state = combine_tristate(
+                (
+                    universe_state,
+                    TriState(trigger_state.iloc[row_index]),
+                    TriState(combined_states[row_index]),
+                ),
+                "AND",
+            )
+            strict_candidate_states.append(candidate_state.value)
+            strict_candidates.append(candidate_state is TriState.TRUE)
+        result["strict_candidate_state"] = strict_candidate_states
+        result["strict_counts_as_candidate"] = strict_candidates
+        result["strict_contract_version"] = (
+            computability_context.contract_version
+        )
+        result["strict_expected_sessions_source"] = (
+            computability_context.expected_sessions_source
+        )
+
+        for spec, legacy_values in zip(
+            plan.config.ranking,
+            ranking_values,
+        ):
+            name = str(spec.params.get("name", spec.type)).lower()
+            strict_values, reason = strict_ranking_for_component(
+                panel=prepared_panel,
+                spec=spec,
+                legacy_values=legacy_values,
+                cache=self.cache,
+                signal_context=context,
+                computability_context=computability_context,
+            )
+            result[f"strict_rank_{name}"] = strict_values.to_numpy()
+            result[f"strict_rank_{name}_reason"] = reason.to_numpy()
+
+        return result
+
     def evaluate_prepared(
         self,
         plan: SignalPlan,
         prepared_panel: pd.DataFrame,
         context: SignalContext,
+        *,
+        computability_context: SignalComputabilityContext | None = None,
     ) -> pd.DataFrame:
         merged = prepared_panel
 
@@ -213,25 +325,24 @@ class SignalEvaluator:
             context=context,
         ).fillna(False).astype(bool)
 
-        if plan.filters:
+        filter_values = tuple(
+            handler(
+                panel=merged,
+                spec=spec,
+                cache=self.cache,
+                context=context,
+            ).fillna(False).astype(bool)
+            for spec, handler in zip(plan.config.filters, plan.filters)
+        )
+        if filter_values:
             if plan.config.filter_combine is LogicalOp.AND:
                 filter_pass = pd.Series(True, index=merged.index)
-                for spec, handler in zip(plan.config.filters, plan.filters):
-                    filter_pass &= handler(
-                        panel=merged,
-                        spec=spec,
-                        cache=self.cache,
-                        context=context,
-                    ).fillna(False).astype(bool)
+                for value in filter_values:
+                    filter_pass &= value
             else:
                 filter_pass = pd.Series(False, index=merged.index)
-                for spec, handler in zip(plan.config.filters, plan.filters):
-                    filter_pass |= handler(
-                        panel=merged,
-                        spec=spec,
-                        cache=self.cache,
-                        context=context,
-                    ).fillna(False).astype(bool)
+                for value in filter_values:
+                    filter_pass |= value
         else:
             filter_pass = pd.Series(True, index=merged.index)
 
@@ -244,15 +355,29 @@ class SignalEvaluator:
             triggered & filter_pass & merged["counts"]
         ).to_numpy(bool)
 
+        ranking_values: list[pd.Series] = []
         for spec, handler in zip(plan.config.ranking, plan.rankings):
             name = str(spec.params.get("name", spec.type)).lower()
-            result[f"rank_{name}"] = handler(
+            values = handler(
                 panel=merged,
                 spec=spec,
                 cache=self.cache,
                 context=context,
-            ).to_numpy()
+            )
+            ranking_values.append(values)
+            result[f"rank_{name}"] = values.to_numpy()
 
+        if computability_context is not None:
+            return self._apply_strict_rsi_contract(
+                plan=plan,
+                prepared_panel=merged,
+                result=result,
+                context=context,
+                computability_context=computability_context,
+                triggered=triggered,
+                filter_values=filter_values,
+                ranking_values=tuple(ranking_values),
+            )
         return result
 
     def evaluate(
@@ -261,6 +386,13 @@ class SignalEvaluator:
         panel: pd.DataFrame,
         universe_mask: UniverseMask,
         context: SignalContext,
+        *,
+        computability_context: SignalComputabilityContext | None = None,
     ) -> pd.DataFrame:
         prepared = self.prepare_panel(panel, universe_mask)
-        return self.evaluate_prepared(plan, prepared, context)
+        return self.evaluate_prepared(
+            plan,
+            prepared,
+            context,
+            computability_context=computability_context,
+        )

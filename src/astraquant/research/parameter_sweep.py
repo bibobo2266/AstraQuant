@@ -8,10 +8,7 @@ from typing import Any, Iterable
 
 import pandas as pd
 
-from astraquant.data.market_coordinates import SignalPriceSemantics
-from astraquant.execution.service import SignalDeclaration
 from astraquant.portfolio.policy import PortfolioPolicyConfig
-from astraquant.research.candidates import candidates_from_signal_frame
 from astraquant.research.config_engine import PreparedResearchRun, ResearchConfigEngine
 from astraquant.research.config_io import (
     load_exit_config,
@@ -19,6 +16,7 @@ from astraquant.research.config_io import (
     load_signal_config,
     load_universe_config,
 )
+from astraquant.research.rsi_computability import SignalComputabilityContext
 from astraquant.research.signal_engine import SignalContext
 from astraquant.research.strategy_config import (
     ExitConfig,
@@ -144,6 +142,7 @@ class ResearchParameterSweepRunner:
         universe_context: UniverseContext,
         signal_context: SignalContext,
         base_policy: PortfolioPolicyConfig,
+        signal_computability_context: SignalComputabilityContext | None = None,
     ) -> SweepRunStream:
         root_path = Path(root).resolve()
         sweep: ParameterSweepConfig = load_parameter_sweep_config(sweep_config_path)
@@ -215,6 +214,7 @@ class ResearchParameterSweepRunner:
                         signal_plan,
                         prepared_panel,
                         signal_context,
+                        computability_context=signal_computability_context,
                     )
                     exit_plan = self.engine.exit_compiler.compile(ecfg)
                     policy = exit_plan.apply_to_policy(base_policy)
@@ -234,13 +234,10 @@ class ResearchParameterSweepRunner:
                         exit=sweep.exit,
                         execution_assumptions_id=sweep.execution_assumptions_id,
                     )
-                    declaration = SignalDeclaration(
-                        source=f"CONFIG:{scfg.name}",
-                        price_semantics=SignalPriceSemantics.SCALE_SENSITIVE,
-                    )
-                    candidates = candidates_from_signal_frame(
-                        signal_frame,
-                        declaration=declaration,
+                    candidates = self.engine.build_candidates(
+                        signal_frame=signal_frame,
+                        signal_plan=signal_plan,
+                        signal_computability_context=signal_computability_context,
                     )
                     prepared = PreparedResearchRun(
                         run_config=run_cfg,
@@ -278,6 +275,7 @@ class ResearchParameterSweepRunner:
         universe_context: UniverseContext,
         signal_context: SignalContext,
         base_policy: PortfolioPolicyConfig,
+        signal_computability_context: SignalComputabilityContext | None = None,
     ) -> SweepPreparationResult:
         stream = self.stream_sweep(
             sweep_config_path=sweep_config_path,
@@ -286,6 +284,7 @@ class ResearchParameterSweepRunner:
             universe_context=universe_context,
             signal_context=signal_context,
             base_policy=base_policy,
+            signal_computability_context=signal_computability_context,
         )
         prepared: list[PreparedResearchRun] = []
         rows: list[dict[str, object]] = []
@@ -303,9 +302,7 @@ class ResearchParameterSweepRunner:
                     "universe_rows_counting": int(
                         result.universe_mask.frame["counts"].sum()
                     ),
-                    "signal_candidates": int(
-                        result.signal_frame["counts_as_candidate"].sum()
-                    ),
+                    "signal_candidates": int(len(result.candidates)),
                     "feature_cache_hits": result.feature_cache_hits,
                     "feature_cache_misses": result.feature_cache_misses,
                 }
