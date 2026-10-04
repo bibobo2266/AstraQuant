@@ -538,6 +538,29 @@ def test_successor_and_unknown_ca_block_technical_evaluation_without_losing_stat
     assert state.holding_state("2330") is holding
 
 
+def test_unknown_ca_mapping_is_blocked_without_destroying_holding():
+    state = Baseline60DExitState()
+    state.register_entry(_fill(price=100.0), session_index=0)
+    _seed_flat(state, 1)
+
+    unknown = _ca(
+        event_id="unknown-other",
+        effective_index=1,
+        event_type=CorporateActionType.OTHER,
+        cash_per_share=1.0,
+        known_index=0,
+        approved=True,
+    )
+    result = _apply_ca(state, unknown, effective_index=1)
+
+    assert result[0].status is BaselineCAApplyStatus.BLOCKED
+    assert result[0].reason == "CANONICAL_LIFECYCLE_REQUIRED"
+    holding = state.holding_state("2330")
+    assert holding is not None
+    assert holding.entry_anchor == pytest.approx(100.0)
+    assert holding.blocked_reason == "CANONICAL_LIFECYCLE_REQUIRED"
+
+
 def test_late_known_or_nonpositive_ca_blocks_without_partial_transform():
     late_state = Baseline60DExitState()
     late_state.register_entry(_fill(price=100.0), session_index=0)
