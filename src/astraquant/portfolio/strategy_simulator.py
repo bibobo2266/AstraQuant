@@ -819,6 +819,43 @@ class CanonicalStrategySimulator:
             total_stop_exits += stop_exits
             total_max_hold_exits += max_hold_exits
 
+            if baseline_exit_state is not None:
+                close_tickers = baseline_tickers | set(baseline_exit_state.holdings)
+                for ticker in sorted(close_tickers):
+                    decision = self.execution.market_data.resolve(
+                        ticker=ticker,
+                        session_date=day,
+                        side="sell",
+                        use=PriceUse.MARK,
+                        field="close",
+                    )
+                    raw_bar = decision.bar
+                    tradability = decision.tradability
+                    baseline_exit_state.observe_bar(
+                        BaselineBarInput(
+                            ticker=ticker,
+                            session_date=day,
+                            session_index=idx,
+                            open=(None if raw_bar is None else raw_bar.open),
+                            high=(None if raw_bar is None else raw_bar.high),
+                            low=(None if raw_bar is None else raw_bar.low),
+                            close=(None if raw_bar is None else raw_bar.close),
+                            observed_trade=(
+                                False
+                                if tradability is None
+                                else bool(tradability.observed_trade)
+                            ),
+                            valid_ohlc=(
+                                False
+                                if tradability is None
+                                else bool(tradability.valid_ohlc)
+                            ),
+                            gap_reason=(
+                                None if decision.reason == "OK" else decision.reason
+                            ),
+                        )
+                    )
+
             # Conservative terminal fallback events are close-applied so the
             # final RAW trading session remains fully executable. They use the
             # observed final RAW close as cash consideration and never create a
@@ -858,10 +895,25 @@ class CanonicalStrategySimulator:
                 )
                 if str(event.ticker) in self.policy.managed_positions:
                     self.policy.register_exit(str(event.ticker))
+                if baseline_exit_state is not None:
+                    ticker = str(event.ticker)
+                    if baseline_exit_state.holding_state(ticker) is not None:
+                        audit = baseline_exit_state.record_terminal_result(
+                            BaselineTerminalResult(
+                                ticker=ticker,
+                                session_date=day,
+                                disposition=BaselineTerminalDisposition.EXTINGUISHED,
+                                reason="CANONICAL_CLOSE_TERMINAL_EXTINGUISHMENT",
+                            )
+                        )
+                        if audit.superseded_pending is not None:
+                            baseline_terminal_superseded += 1
+                            total_baseline_terminal_superseded += 1
                 latest_ca_session[str(event.ticker)] = day
                 ca_count += 1
 
             total_ca += ca_count
+            held_at_prior_close = set(self.policy.managed_positions)
 
             snapshot = self.replay.snapshot(
                 at=datetime.combine(day, datetime.max.time()),
@@ -885,6 +937,17 @@ class CanonicalStrategySimulator:
                     corporate_actions_applied=ca_count,
                     corporate_cash_payments=ca_payment_count,
                     snapshot=snapshot,
+                    baseline_exit_fills=baseline_exit_fills,
+                    baseline_blocked_exit_attempts=baseline_blocked_exit_attempts,
+                    baseline_pending_count=(
+                        0
+                        if baseline_exit_state is None
+                        else sum(
+                            holding.pending_exit is not None
+                            for holding in baseline_exit_state.holdings.values()
+                        )
+                    ),
+                    baseline_terminal_superseded=baseline_terminal_superseded,
                 )
             )
 
@@ -899,4 +962,12 @@ class CanonicalStrategySimulator:
             total_blocked_exits=total_blocked_exits,
             total_corporate_actions=total_ca,
             total_corporate_cash_payments=total_ca_payments,
+            total_baseline_exit_fills=total_baseline_exit_fills,
+            total_baseline_blocked_exit_attempts=(
+                total_baseline_blocked_exit_attempts
+            ),
+            total_baseline_terminal_superseded=(
+                total_baseline_terminal_superseded
+            ),
+            baseline_exit_state=baseline_exit_state,
         )
