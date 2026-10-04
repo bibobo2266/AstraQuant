@@ -371,17 +371,13 @@ class ResearchConfigEngine:
             # FORMAL_RESEARCH stops before evidence/artifact revalidation.
             baseline_context.require_runnable()
 
-        if prepared.eligibility_evidence is not None:
-            self.validate_prepared_eligibility(prepared)
-        elif baseline_expected:
-            raise FeaturePanelIntegrationError(
-                "PreparedResearchRun has no eligibility evidence"
-            )
-
         evidence = prepared.eligibility_evidence
         if baseline_expected:
             assert baseline_context is not None
-            assert evidence is not None
+            if evidence is None:
+                raise FeaturePanelIntegrationError(
+                    "PreparedResearchRun has no eligibility evidence"
+                )
             if baseline_context.mode is BaselineSimulationMode.SYNTHETIC_FIXTURE:
                 if (
                     evidence.feature_evidence.scope
@@ -392,17 +388,26 @@ class ResearchConfigEngine:
                         "SYNTHETIC_FIXTURE eligibility evidence"
                     )
                 evidence.feature_evidence.require_strategy_verified()
+
+            # Fail cheap execution mismatches before rereading research
+            # artifact bytes. Full prepared/artifact validation follows only
+            # after the actual simulator policy/calendar/candidates agree.
             validate_prepared_execution_binding(
                 evidence=evidence,
                 exit_plan=expected_exit_plan,
                 actual_policy=simulator.policy.config,
                 sessions=session_list,
                 candidates=prepared.candidates,
+                revalidate_feature_files=False,
             )
-        elif baseline_context is not None:
-            raise FeaturePanelIntegrationError(
-                "baseline_context cannot be used with a non-baseline prepared run"
-            )
+            self.validate_prepared_eligibility(prepared)
+        else:
+            if baseline_context is not None:
+                raise FeaturePanelIntegrationError(
+                    "baseline_context cannot be used with a non-baseline prepared run"
+                )
+            if evidence is not None:
+                self.validate_prepared_eligibility(prepared)
 
         return simulator.run(
             sessions=session_list,
