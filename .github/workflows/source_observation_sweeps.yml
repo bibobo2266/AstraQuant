@@ -38,6 +38,9 @@ permissions:
 
 jobs:
   report:
+    # Software-only integration commits may opt out of real-data effect sweeps.
+    # Explicit workflow_dispatch remains available for authorized research runs.
+    if: github.event_name == 'workflow_dispatch' || !contains(github.event.head_commit.message, '[no-effects]')
     runs-on: ubuntu-latest
     timeout-minutes: 180
     steps:
