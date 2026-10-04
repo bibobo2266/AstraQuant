@@ -17,11 +17,22 @@ from astraquant.portfolio.models import OrderIntent
 from astraquant.portfolio.policy import EntryCandidate, PortfolioIntentPolicy
 from astraquant.portfolio.replay_runner import CanonicalPortfolioReplay, ReplaySnapshot
 from astraquant.portfolio.valuation import value_portfolio
+from astraquant.research.baseline_60d_exit_state import (
+    Baseline60DExitState,
+    BaselineBarInput,
+    BaselineCorporateActionInput,
+    BaselineOpenExecutionOutcome,
+    BaselineOpenExecutionResult,
+    BaselineTerminalDisposition,
+    BaselineTerminalResult,
+)
+from astraquant.research.baseline_60d_simulation import BaselineSimulationContext
 from astraquant.research.candidates import (
     declaration_from_candidate,
     legacy_signals_to_candidates,
     normalize_candidates,
 )
+from astraquant.research.exit_engine import CompiledExitPlan
 
 
 @dataclass(frozen=True)
@@ -46,6 +57,10 @@ class StrategySessionAudit:
     corporate_actions_applied: int
     corporate_cash_payments: int
     snapshot: ReplaySnapshot
+    baseline_exit_fills: int = 0
+    baseline_blocked_exit_attempts: int = 0
+    baseline_pending_count: int = 0
+    baseline_terminal_superseded: int = 0
 
 
 @dataclass(frozen=True)
@@ -60,6 +75,10 @@ class StrategySimulationResult:
     total_blocked_exits: int
     total_corporate_actions: int
     total_corporate_cash_payments: int
+    total_baseline_exit_fills: int = 0
+    total_baseline_blocked_exit_attempts: int = 0
+    total_baseline_terminal_superseded: int = 0
+    baseline_exit_state: Baseline60DExitState | None = None
 
 
 class CanonicalStrategySimulator:
