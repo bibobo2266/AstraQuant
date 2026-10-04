@@ -48,7 +48,7 @@ This is a state/intent module only. It never creates a Fill, never mutates canon
 
 1. The two baseline exit names are compiled only for the exact approved pair and parameters; no generic ATR-from-entry or N-day-low parameter surface is exposed.
 2. CanonicalStrategySimulator consumes the baseline plan only when BaselineSimulationContext is explicitly supplied. Legacy runs remain on the existing stop/max-hold path.
-3. Formal baseline mode requires an explicitly verified PIT/data gate. The current real baseline feature dependency remains blocked, so formal simulation is rejected before transactions.
+3. FORMAL_RESEARCH is unconditionally blocked in this revision. FeaturePanelIntegrator verifies availability/manifest/epoch/artifact SHA256 during hydration, but there is no canonical evidence object bound to the exact PreparedResearchRun for the simulator to consume. Caller-declared VERIFIED/source text cannot unlock formal simulation.
 4. CA technical approval is per-event evidence input with an explicit source. The simulator does not infer approval from accounting-layer event presence.
 5. Successor/composite/unknown mappings remain technical BLOCKED and owned by canonical lifecycle; no new successor matcher or multi-leg strategy exit logic is added.
 6. No formal baseline run config, real E1 run, E2/E3 query, workflow, scan, or strategy report is created by this integration.
@@ -69,8 +69,9 @@ Canonical synthetic E2E is in tests/test_baseline_60d_simulator_integration.py a
 - SideAwareBpsFeeModel + FixedBpsSlippage applied by the canonical fill factory once per fill;
 - period-end pending/open holding preservation;
 - legacy non-opt-in stop/max-hold path regression;
-- formal baseline mode rejected while PIT/data gate is unverified;
-- exact compiler parameter/mix fail-closed regressions.
+- FORMAL_RESEARCH enum and normalized string modes reject UNAVAILABLE/UNKNOWN and also reject caller-declared VERIFIED before market-data reads, order creation or holding mutation;
+- null/unknown mode or availability input is rejected during context construction, while recognized synthetic strings normalize safely;
+- exact compiler parameter/mix fail-closed regressions include non-boolean bool inputs, non-integer windows/periods, and NaN/Inf rejection.
 
 These tests are software integration evidence only, not baseline effectiveness evidence.
 
