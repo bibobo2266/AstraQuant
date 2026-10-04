@@ -55,6 +55,17 @@ def _num(value: object) -> float | None:
     return None if pd.isna(out) else float(out)
 
 
+def _component_sum(raw: pd.Series, first: str, second: str, fallback: str) -> float | None:
+    values = []
+    for name in (first, second):
+        value = _num(raw.get(name))
+        if value is not None:
+            values.append(value)
+    if values:
+        return float(sum(values))
+    return _num(raw.get(fallback))
+
+
 def _date(value: object) -> pd.Timestamp | pd.NaT:
     out = pd.to_datetime(value, errors="coerce")
     return pd.NaT if pd.isna(out) else pd.Timestamp(out).normalize()
@@ -177,19 +188,15 @@ def finmind_components(
         if kind == "CASH_DIVIDEND":
             economic_value = float(r.cash_per_share)
             multiplier = np.nan
-            raw_distribution_value = (
-                (raw["cash_earnings"] or 0.0) + (raw["cash_statutory"] or 0.0)
-                if raw["cash_earnings"] is not None or raw["cash_statutory"] is not None
-                else raw["cash_fallback"]
+            raw_distribution_value = _component_sum(
+                raw, "cash_earnings", "cash_statutory", "cash_fallback"
             )
             unit = CASH_UNIT_SEMANTICS
         elif kind == "STOCK_DIVIDEND":
             economic_value = np.nan
             multiplier = float(r.share_multiplier)
-            raw_distribution_value = (
-                (raw["stock_earnings"] or 0.0) + (raw["stock_statutory"] or 0.0)
-                if raw["stock_earnings"] is not None or raw["stock_statutory"] is not None
-                else raw["stock_fallback"]
+            raw_distribution_value = _component_sum(
+                raw, "stock_earnings", "stock_statutory", "stock_fallback"
             )
             unit = FINMIND_UNIT_SEMANTICS
         else:
