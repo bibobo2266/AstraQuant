@@ -85,7 +85,7 @@ def test_announcement_precision_does_not_promote_date_only_to_midnight():
     assert ts2.isoformat() == "2020-05-01T00:00:00"
 
 
-def test_finmind_stock_conversion_is_explicitly_source_specific():
+def test_finmind_stock_conversion_is_preserved_as_candidate_but_not_certified():
     components = finmind_components(
         _dividend(),
         source_revision=INPUTS.source_revision,
@@ -96,9 +96,38 @@ def test_finmind_stock_conversion_is_explicitly_source_specific():
 
     assert cash["cash_per_share"] == 2.5
     assert cash["source_unit_semantics"] == "NTD_PER_PRE_EVENT_SHARE"
+    assert bool(cash["economic_value_verified"])
     assert stock["source_distribution_value"] == 1.5
     assert stock["share_multiplier"] == 1.15
-    assert stock["source_unit_semantics"] == "NTD_PER_PRE_EVENT_SHARE"
+    assert stock["source_unit_semantics"] == (
+        "NTD_PER_PRE_EVENT_SHARE;MULTIPLIER_REQUIRES_EVENT_PAR_VALUE"
+    )
+    assert not bool(stock["economic_value_verified"])
+    assert stock["conversion_status"] == (
+        "CURRENT_NORMALIZER_DIVIDE_BY_10_CANDIDATE_PAR_VALUE_NOT_VERIFIED"
+    )
+
+
+def test_stock_dividend_amount_does_not_uniquely_determine_multiplier_without_par_value():
+    components = finmind_components(
+        _dividend(
+            CashExDividendTradingDate=None,
+            CashEarningsDistribution=0.0,
+            CashStatutorySurplus=0.0,
+            CashDividend=0.0,
+            StockEarningsDistribution=1.5,
+            StockStatutorySurplus=0.0,
+        ),
+        source_revision=INPUTS.source_revision,
+        dividend_blob_sha=INPUTS.dividend_blob_sha,
+    )
+    stock = components.iloc[0]
+    assert stock["source_distribution_value"] == 1.5
+    assert stock["share_multiplier"] == 1.15
+    assert not bool(stock["economic_value_verified"])
+    # NT$1.5 per share implies 15% only under a NT$10 par-value assumption;
+    # at NT$5 par value the same amount would imply 30%.
+    assert 1.0 + 1.5 / 10.0 != 1.0 + 1.5 / 5.0
 
 
 def test_tpex_stock_conversion_candidate_is_preserved_but_not_certified():
