@@ -2,11 +2,11 @@
 
 ## 目前狀態
 
-更新時間：2026-10-03T23:29:00Z
-做完：本次授權 A、B、D 已完成；D baseline math-only 準備已通過完整測試
-結果：workflow 37161695576：334 passed；legacy regression 37161695551：success；正式 baseline 回測未執行
-卡住：第 5 項真實資料 gate（歷史 cutoff／完整 CA）及 baseline CA 技術座標／20D reference／pending-exit 事件順序仍待 Astra 驗收／規格核定
-下一項：停止於本次授權範圍；待 Astra 驗收與 baseline 未定義規格裁定
+更新時間：2026-10-04T00:44:00Z
+做完：第 5 項真實資料 gate 證據收尾已完成；known_at 時間精度修正、五依賴證據與可處理缺口已入庫
+結果：335 passed；evidence workflow 37165519596 計算成功但回寫失敗且未重算；RAW 3,306,022 rows；官方 CA unmatched candidates 2,172；非股利股數事件 386；正式 E1 artifact 未建
+卡住：RAW／Trading_money 歷史版本同一性、2,172 筆官方 CA 候選的經濟欄位對帳、385 筆非股利事件 known_date 與 209 筆 multiplier 缺口；第 5 項仍 BLOCKED
+下一項：交 Astra 驗收本輪程式與 gate closure；未驗收前不宣告第 5 項通過、不建正式 E1 artifact
 
 狀態：ACTIVE
 
