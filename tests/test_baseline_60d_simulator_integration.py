@@ -1,10 +1,13 @@
 from __future__ import annotations
 
 from datetime import date, datetime
+import hashlib
+import json
 from pathlib import Path
 
 import pandas as pd
 import pytest
+import yaml
 
 from astraquant.data.market_coordinates import SignalPriceSemantics
 from astraquant.data.source_adapter import SourceDataAdapter
@@ -36,7 +39,12 @@ from astraquant.research.baseline_60d_simulation import (
 )
 from astraquant.research.config_engine import ResearchConfigEngine
 from astraquant.research.exit_engine import ExitCompiler
-from astraquant.research.feature_panel_integration import AvailabilityStatus
+from astraquant.research.feature_panel_integration import (
+    AvailabilityStatus,
+    EligibilityEvidenceScope,
+    FeaturePanelIntegrator,
+    load_feature_panel_integration_config,
+)
 from astraquant.research.signal_engine import SignalContext
 from astraquant.research.strategy_config import ExitConfig, ExitRuleConfig
 from astraquant.research.universe_engine import UniverseContext
@@ -71,18 +79,116 @@ def _baseline_closes(
 
 
 def _panel(sessions: list[date], closes: list[float]) -> pd.DataFrame:
+    dates = pd.to_datetime(sessions)
     return pd.DataFrame(
         {
-            "date": pd.to_datetime(sessions),
+            "date": dates,
             "stock_id": "2330",
             "close": closes,
             "Trading_money": 50_000_000.0,
             "observed_trade": True,
             "valid_ohlc": True,
-            "close_to_ma120": 0.10,
-            "prior20_amount_twd": 30_000_000.0,
+            "__decision_cutoff_at": dates + pd.Timedelta(days=1, hours=8, minutes=45),
         }
     )
+
+
+def _sha256(path: Path) -> str:
+    return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def _hydrate_feature_fixture(
+    tmp_path: Path,
+    *,
+    sessions: list[date],
+    closes: list[float],
+    status: str = "VERIFIED",
+    source_revision: str = "synthetic-baseline-source-v1",
+    formula_version: str = "synthetic-baseline-features-v1",
+    epoch: str = "SYNTHETIC_E2E",
+):
+    dates = pd.to_datetime(sessions)
+    feature = pd.DataFrame(
+        {
+            "date": dates,
+            "stock_id": "2330",
+            "close_to_ma120": 0.10,
+            "prior20_amount_twd": 30_000_000.0,
+            "available_at_date": dates,
+            "source_available_at": dates + pd.Timedelta(hours=18),
+            "bars_seen": list(range(200, 200 + len(dates))),
+        }
+    )
+    artifact_root = tmp_path / "feature-artifact"
+    artifact_root.mkdir(parents=True, exist_ok=True)
+    parquet = artifact_root / "stock_features_2026.parquet"
+    feature.to_parquet(parquet, index=False)
+
+    manifest = {
+        "artifact_name": "synthetic-baseline-feature-artifact",
+        "source_revision": source_revision,
+        "formula_version": formula_version,
+        "epoch": epoch,
+        "period": [str(sessions[0]), str(sessions[-1])],
+        "stock_files": [
+            {
+                "path": "stock_features_2026.parquet",
+                "rows": len(feature),
+                "sha256": _sha256(parquet),
+            }
+        ],
+    }
+    manifest_path = tmp_path / "feature-manifest.json"
+    manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+
+    config = {
+        "schema_version": "1",
+        "name": "synthetic-baseline-feature-hydration",
+        "epoch": epoch,
+        "artifact": {
+            "manifest_path": str(manifest_path),
+            "artifact_name": manifest["artifact_name"],
+            "source_revision": source_revision,
+            "formula_version": formula_version,
+            "epoch": epoch,
+        },
+        "policy": {"strategy_required_status": "VERIFIED"},
+        "availability_groups": {
+            "synthetic_verified": {"status": status},
+        },
+        "requested_features": [
+            {
+                "column": "close_to_ma120",
+                "kind": "RAW",
+                "required": True,
+                "warmup_sessions": 120,
+                "dependencies": ["synthetic_verified"],
+                "expected_status": status,
+            },
+            {
+                "column": "prior20_amount_twd",
+                "kind": "RAW",
+                "required": True,
+                "warmup_sessions": 20,
+                "dependencies": ["synthetic_verified"],
+                "expected_status": status,
+            },
+        ],
+    }
+    config_path = tmp_path / "feature-integration.yaml"
+    config_path.write_text(
+        yaml.safe_dump(config, sort_keys=False),
+        encoding="utf-8",
+    )
+    integrator = FeaturePanelIntegrator(
+        config=load_feature_panel_integration_config(config_path),
+        artifact_root=artifact_root,
+        manifest_path=manifest_path,
+        evidence_scope=EligibilityEvidenceScope.SYNTHETIC_FIXTURE,
+        evidence_source="test_baseline_60d_simulator_integration fixture",
+    )
+    joined = integrator.hydrate(_panel(sessions, closes))
+    return integrator, joined, manifest_path, parquet
 
 
 def _write_configs(root: Path, *, baseline: bool = True) -> Path:
@@ -180,17 +286,23 @@ def _prepare(
 ):
     root = tmp_path / "research"
     run = _write_configs(root, baseline=baseline)
+    integrator, joined, _manifest_path, _parquet = _hydrate_feature_fixture(
+        tmp_path,
+        sessions=sessions,
+        closes=closes,
+    )
     engine = ResearchConfigEngine()
-    prepared = engine.prepare(
+    prepared = engine.prepare_hydrated(
         run_config_path=run,
         root=root,
-        panel=_panel(sessions, closes),
+        feature_integrator=integrator,
+        feature_join_result=joined,
         universe_context=UniverseContext(
             p2_060_excluded_tickers=frozenset(),
             p2_060_exclusion_sha256=P2_SHA,
         ),
         signal_context=SignalContext(
-            source_revision=f"baseline-e2e-{len(closes)}-{closes[62]}"
+            source_revision="synthetic-baseline-source-v1"
         ),
         base_policy=PortfolioPolicyConfig(
             position_fraction=0.20,
