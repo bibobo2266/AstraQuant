@@ -2,11 +2,11 @@
 
 ## 目前狀態
 
-更新時間：2026-10-04T00:44:00Z
-做完：第 5 項真實資料 gate 證據收尾已完成；known_at 時間精度修正、五依賴證據與可處理缺口已入庫
-結果：335 passed；evidence workflow 37165519596 計算成功但回寫失敗且未重算；RAW 3,306,022 rows；官方 CA unmatched candidates 2,172；非股利股數事件 386；正式 E1 artifact 未建
-卡住：RAW／Trading_money 歷史版本同一性、2,172 筆官方 CA 候選的經濟欄位對帳、385 筆非股利事件 known_date 與 209 筆 multiplier 缺口；第 5 項仍 BLOCKED
-下一項：交 Astra 驗收本輪程式與 gate closure；未驗收前不宣告第 5 項通過、不建正式 E1 artifact
+更新時間：2026-10-04T02:44:00Z
+做完：CA 成分／經濟內容雙向對帳工具、守恆分類與 private 持久交付路徑已完成
+結果：public tests 與 CA contract success；最終 private 對帳執行中，工作流 37171913233
+卡住：等待固定 9914525f / fb8b042b 私有逐事件對帳與 scope aggregate 完成；第 5 項仍 BLOCKED
+下一項：完成工作流 37171913233 後交 Astra 驗收 CA 對帳，不展開其他 blocker
 
 狀態：ACTIVE
 
