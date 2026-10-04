@@ -197,6 +197,74 @@ def sha256_file(path: Path) -> str:
     return h.hexdigest()
 
 
+def validate_feature_panel_evidence_files(
+    evidence: FeaturePanelEligibilityEvidence,
+) -> dict[str, object]:
+    """Revalidate manifest/artifact bytes referenced by prior hydration evidence."""
+    evidence.verify_self_digest()
+    manifest_path = Path(evidence.manifest_path)
+    if not manifest_path.exists():
+        raise FeaturePanelIntegrationError(
+            f"feature evidence manifest is unavailable: {manifest_path}"
+        )
+    manifest_digest = sha256_file(manifest_path)
+    if manifest_digest != evidence.manifest_sha256:
+        raise FeaturePanelIntegrationError(
+            "feature evidence manifest checksum changed: "
+            f"actual={manifest_digest} expected={evidence.manifest_sha256}"
+        )
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    identity_checks = {
+        "artifact_name": evidence.artifact_name,
+        "source_revision": evidence.source_revision,
+        "formula_version": evidence.formula_version,
+        "epoch": evidence.epoch,
+    }
+    for key, expected in identity_checks.items():
+        if str(manifest.get(key)) != str(expected):
+            raise FeaturePanelIntegrationError(
+                f"feature evidence {key} changed: "
+                f"actual={manifest.get(key)!r} expected={expected!r}"
+            )
+    period = manifest.get("period")
+    expected_period = [
+        evidence.manifest_period_start,
+        evidence.manifest_period_end,
+    ]
+    if not isinstance(period, list) or [str(x) for x in period] != expected_period:
+        raise FeaturePanelIntegrationError(
+            "feature evidence manifest period changed"
+        )
+
+    manifest_files = {
+        Path(str(item["path"])).name: item
+        for item in manifest.get("stock_files", [])
+    }
+    for artifact in evidence.artifacts:
+        path = Path(artifact.path)
+        if not path.exists():
+            raise FeaturePanelIntegrationError(
+                f"feature evidence artifact is unavailable: {artifact.filename}"
+            )
+        digest = sha256_file(path)
+        if digest != artifact.sha256:
+            raise FeaturePanelIntegrationError(
+                f"feature evidence artifact checksum changed for "
+                f"{artifact.filename}: actual={digest} expected={artifact.sha256}"
+            )
+        entry = manifest_files.get(artifact.filename)
+        if entry is None:
+            raise FeaturePanelIntegrationError(
+                f"feature evidence artifact disappeared from manifest: "
+                f"{artifact.filename}"
+            )
+        if str(entry.get("sha256")) != artifact.sha256:
+            raise FeaturePanelIntegrationError(
+                f"feature evidence manifest SHA changed for {artifact.filename}"
+            )
+    return manifest
+
+
 def combine_availability_status(
     statuses: Iterable[AvailabilityStatus],
 ) -> AvailabilityStatus:
@@ -704,3 +772,99 @@ class FeaturePanelIntegrator:
             manifest=manifest,
             evidence=evidence,
         )
+
+    def validate_join_result(
+        self,
+        result: FeaturePanelJoinResult,
+    ) -> None:
+        """Verify that a hydration result still matches its validated inputs."""
+        evidence = result.evidence
+        current_manifest = validate_feature_panel_evidence_files(evidence)
+
+        if evidence.integration_config_sha256 != stable_object_sha256(self.config):
+            raise FeaturePanelIntegrationError(
+                "feature eligibility evidence integration config mismatch"
+            )
+        if evidence.scope is not self.evidence_scope:
+            raise FeaturePanelIntegrationError(
+                "feature eligibility evidence scope mismatch"
+            )
+        if evidence.evidence_source != self.evidence_source:
+            raise FeaturePanelIntegrationError(
+                "feature eligibility evidence source mismatch"
+            )
+        if stable_object_sha256(result.manifest) != stable_object_sha256(
+            current_manifest
+        ):
+            raise FeaturePanelIntegrationError(
+                "feature eligibility manifest object no longer matches file"
+            )
+        if dataframe_sha256(result.frame) != evidence.hydrated_panel_sha256:
+            raise FeaturePanelIntegrationError(
+                "hydrated panel fingerprint mismatch"
+            )
+        if dataframe_sha256(result.audit) != evidence.audit_sha256:
+            raise FeaturePanelIntegrationError(
+                "feature hydration audit fingerprint mismatch"
+            )
+        if result.frame.empty:
+            raise FeaturePanelIntegrationError(
+                "hydrated panel must not be empty for eligibility evidence"
+            )
+
+        dates = pd.to_datetime(
+            result.frame["date"], errors="coerce"
+        ).dt.normalize()
+        if dates.isna().any():
+            raise FeaturePanelIntegrationError(
+                "hydrated panel evidence contains invalid dates"
+            )
+        panel_start = str(pd.Timestamp(dates.min()).date())
+        panel_end = str(pd.Timestamp(dates.max()).date())
+        if (
+            panel_start != evidence.panel_date_start
+            or panel_end != evidence.panel_date_end
+        ):
+            raise FeaturePanelIntegrationError(
+                "hydrated panel date range does not match evidence"
+            )
+        period_start = pd.Timestamp(evidence.manifest_period_start)
+        period_end = pd.Timestamp(evidence.manifest_period_end)
+        if dates.lt(period_start).any() or dates.gt(period_end).any():
+            raise FeaturePanelIntegrationError(
+                "hydrated panel exceeds evidence manifest period"
+            )
+
+        expected_features = tuple(
+            VerifiedFeatureEvidence(
+                column=request.column,
+                kind=request.kind,
+                required=request.required,
+                warmup_sessions=request.warmup_sessions,
+                dependencies=request.dependencies,
+                status=request.status,
+            )
+            for request in self.config.requested_features
+        )
+        if expected_features != evidence.requested_features:
+            raise FeaturePanelIntegrationError(
+                "feature eligibility requested-feature contract mismatch"
+            )
+        for request in evidence.requested_features:
+            if request.column not in result.frame.columns:
+                raise FeaturePanelIntegrationError(
+                    f"hydrated panel lost evidenced feature: {request.column}"
+                )
+            status_column = f"__feature_availability__{request.column}"
+            if status_column not in result.frame.columns:
+                raise FeaturePanelIntegrationError(
+                    f"hydrated panel lost availability column: {status_column}"
+                )
+            actual_statuses = set(
+                result.frame[status_column].dropna().astype(str).tolist()
+            )
+            if actual_statuses != {request.status.value}:
+                raise FeaturePanelIntegrationError(
+                    f"hydrated panel availability status drift for "
+                    f"{request.column}: {sorted(actual_statuses)}"
+                )
