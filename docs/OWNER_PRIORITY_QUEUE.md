@@ -2,11 +2,11 @@
 
 ## 目前狀態
 
-更新時間：2026-10-04T14:38:00Z
-做完：AQ-COORD-S4-002 歷史資料最小切片取得與驗證決策卡完成；只重用既有 aggregate／private 樣本與產品資料，0 次新外部查詢、0 次重算、0 次購買/聯繫
-結果：第一候選切片＝TPEx eShop 上櫃股票基本資料 2016-09 一個歷史月，STKANOU.TXT + T48；只有確認 original daily as-produced snapshot、first-known interval 與 revision 行為可驗才進第二切片（2017-06+07）
-卡住：第5項仍 BLOCKED；是否取得第一候選小切片需 Owner 後續授權，且帳號／付款／研究保存與再散布授權細節仍 UNKNOWN；其他 RAW／386 非股利／stock unit blockers 不變
-下一項：待Astra驗收 AQ-COORD-S4-002；無新 READY revision 不續作
+更新時間：2026-10-04T15:46:00Z
+做完：AQ-EXP-DATA-001 E1 可實測資料覆蓋率完成；逐股票日資格／原因表保留 private，public 僅放年度、feature 與三態安全聚合，未計算策略報酬
+結果：原 all_liquid 458,315 stock-days／1,394 stocks；四項皆可算 428,102（93.41%）；排除 B/C 後限制性探索可用 272,280（59.41%）；SUPPORTED_UNAFFECTED 0
+卡住：第 5 項仍 BLOCKED；RAW／Trading_money 歷史版本 identity 使全母體仍有 A，B exposure 165,709、C 30,213；本結果不是 PIT VERIFIED、formal artifact 或策略效果授權
+下一項：待Astra驗收 AQ-EXP-DATA-001 覆蓋率與 private eligibility table
 
 狀態：ACTIVE
 
