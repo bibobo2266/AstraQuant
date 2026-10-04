@@ -23,20 +23,22 @@ The existing math-only helpers in `src/astraquant/research/baseline_60d_breakout
 
 `src/astraquant/research/baseline_60d_exit_state.py` now implements the separately authorized state module for:
 
-- one stock-specific valid-observed-OHLC sequence shared by ATR14 and LOW20;
+- one stock-specific bounded valid-observed-OHLC sequence shared by ATR14 and LOW20, retaining only current + prior 20 valid bars;
 - ATR14 = SMA(TR,14), including current valid bar;
 - LOW20 = minimum of the prior 20 valid observed closes, excluding current;
 - explicit UNKNOWN during insufficient warmup or missing/invalid current observation;
 - entry anchor from canonical `Fill.price`, excluding fees;
 - approved simple cash/share technical-coordinate transform `P_post=(P_pre-c)/m` across entry anchor and the retained OHLC history;
 - same-opening cash + share aggregation without per-event rounding;
+- materialized CA batch validation, equal-ID dedupe, conflicting-ID rejection, and split-opening-batch blocking;
 - duplicate-CA idempotency;
 - sticky pending ATR / LOW20 / BOTH intent;
 - next-session-or-later open eligibility only;
-- blocked-open persistence;
+- blocked-open persistence plus report/intent/holding/session/full-liquidation validation;
 - terminal precedence;
-- successor/composite/unknown mapping as `CANONICAL_LIFECYCLE_REQUIRED` without local remapping or position destruction;
-- multi-stock state isolation and period-end pending preservation.
+- ticker-level persistent technical BLOCKED state for successor/composite/unknown or otherwise unresolved CA mapping, including no-position/re-entry cases;
+- multi-stock state isolation and period-end pending preservation;
+- retired rolling-window prices excluded from later CA transform/availability decisions.
 
 The interface and future wiring order are documented in `docs/BASELINE_60D_EXIT_STATE_INTERFACE.md`.
 
@@ -58,13 +60,15 @@ Existing math-preparation tests remain in place. New synthetic acceptance is in 
 - ATR14 SMA/current inclusion and LOW20 prior-window/equality semantics;
 - warmup, suspension, invalid OHLC, retained gap reason/session-span audit;
 - cash dividend, split, and same-opening cash+share coordinate transforms;
-- entry fee separation and duplicate-CA idempotency;
+- entry fee separation, CA batch idempotency/list-generator equivalence/conflicting-ID rejection/split-batch blocking;
 - entry-session close trigger with next-session earliest execution;
 - sticky pending through sell-blocked / missing-open attempts;
+- execution report binding to pending intent + entry identity + legal session + canonical full liquidation; partial, duplicate, and stale reports reject without premature state mutation;
 - BOTH immutability and later secondary-trigger non-rewrite;
 - terminal precedence without duplicate strategy exit;
-- successor and unknown-CA fail-closed behavior;
+- successor and unknown-CA fail-closed behavior with ticker-level persistence across later holdings;
 - multi-stock isolation;
+- bounded 21-bar technical rolling state, including a regression where an old low price has retired before a later cash dividend and cannot spuriously BLOCK the transform;
 - period-end pending preservation.
 
 A formal baseline run config, simulator wiring, real E1 run, and strategy report remain outside this preparation step.
