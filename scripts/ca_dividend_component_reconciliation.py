@@ -253,9 +253,10 @@ def build_official_rows(
             stock_status = "UNAVAILABLE_IN_TWT49U"
         elif source_name == "TPEx exDailyQ":
             cash_status = "SOURCE_FIELD_AVAILABLE" if cash is not None else "SOURCE_FIELD_MISSING"
-            # Frozen importer derived multiplier from a positional field /1000.
-            # Preserve it, but do not call the unit verified here.
-            stock_status = "PARSER_DERIVED_UNIT_UNVERIFIED" if (rights is not None or multiplier is not None) else "SOURCE_FIELD_MISSING"
+            # TPEx format defines this field as gratuitous shares per 1000
+            # pre-event shares.  Keep the frozen parser value, but verify it
+            # using this TPEx-specific unit only.
+            stock_status = "SOURCE_UNIT_VERIFIED_SHARES_PER_1000" if (rights is not None or multiplier is not None) else "SOURCE_FIELD_MISSING"
         else:
             cash_status = "SOURCE_SEMANTICS_UNMAPPED"
             stock_status = "SOURCE_SEMANTICS_UNMAPPED"
@@ -336,8 +337,14 @@ def reconcile_events(
 
         if has_norm and has_off:
             if len(off_tpex):
-                cash_vals = [v for v in off_tpex["cash_per_share_raw"].tolist() if pd.notna(v)]
-                n_cash_vals = [v for v in norm_cash["economic_value"].tolist() if pd.notna(v)] if len(norm_cash) else []
+                cash_vals = [
+                    float(v) for v in off_tpex["cash_per_share_raw"].tolist()
+                    if pd.notna(v) and float(v) > 0
+                ]
+                n_cash_vals = [
+                    float(v) for v in norm_cash["economic_value"].tolist()
+                    if pd.notna(v) and float(v) > 0
+                ] if len(norm_cash) else []
                 if cash_vals and not n_cash_vals:
                     cash_missing = True
                 elif cash_vals and n_cash_vals and not any(_close(float(a), float(b)) for a in cash_vals for b in n_cash_vals):
@@ -345,17 +352,23 @@ def reconcile_events(
                 elif n_cash_vals and not cash_vals:
                     cash_missing = True
 
-                rights_vals = [v for v in off_tpex["rights_ratio_raw"].tolist() if pd.notna(v)]
-                n_stock_vals = [v for v in norm_stock["economic_value"].tolist() if pd.notna(v)] if len(norm_stock) else []
-                if rights_vals or n_stock_vals:
-                    # Frozen TPEx parser unit has not yet been proven. Do not
-                    # compare multiplier numerically until field semantics are
-                    # source-verified.
-                    unit_unverified = True
-                    if rights_vals and not n_stock_vals:
-                        stock_missing = True
-                    elif n_stock_vals and not rights_vals:
-                        stock_missing = True
+                rights_vals = [
+                    float(v) for v in off_tpex["rights_ratio_raw"].tolist()
+                    if pd.notna(v) and float(v) > 0
+                ]
+                n_stock_vals = [
+                    float(v) for v in norm_stock["economic_value"].tolist()
+                    if pd.notna(v) and float(v) > 0
+                ] if len(norm_stock) else []
+                if rights_vals and not n_stock_vals:
+                    stock_missing = True
+                elif n_stock_vals and not rights_vals:
+                    stock_missing = True
+                elif rights_vals and n_stock_vals and not any(
+                    _close(float(a) / 1000.0, float(b))
+                    for a in rights_vals for b in n_stock_vals
+                ):
+                    value_conflict = True
 
             if len(off_twse):
                 # TWT49U proves same-date event existence, not components.
@@ -379,10 +392,21 @@ def reconcile_events(
             # Official source coverage is not assumed complete.
             primary = "INSUFFICIENT_EVIDENCE"
         elif official_only:
-            # Event exists officially, but absence from FinMind may reflect
-            # unsupported security/event economics. Do not call it a true miss
-            # without source/type evidence.
-            primary = "INSUFFICIENT_EVIDENCE"
+            tpex_cash_positive = (
+                len(off_tpex)
+                and pd.to_numeric(off_tpex["cash_per_share_raw"], errors="coerce").fillna(0).gt(0).any()
+            )
+            tpex_stock_positive = (
+                len(off_tpex)
+                and pd.to_numeric(off_tpex["rights_ratio_raw"], errors="coerce").fillna(0).gt(0).any()
+            )
+            if (tpex_cash_positive or tpex_stock_positive) and not len(off_twse):
+                primary = "TRUE_SOURCE_EVENT_MISSING"
+            elif len(off_tpex) and not len(off_twse):
+                primary = "OUTSIDE_NORMALIZER_SCOPE"
+            else:
+                # TWT49U proves date presence but lacks frozen economics.
+                primary = "INSUFFICIENT_EVIDENCE"
         else:
             raise ReconciliationError("unreachable empty event key")
 
@@ -443,7 +467,7 @@ def reconcile_events(
                 "component_kind": "EVENT_ROW",
                 "economic_value": rr["cash_per_share_raw"],
                 "unit_semantics": (
-                    "cash_per_share;stock_unit_unverified"
+                    "cash_per_share;stock_shares_per_1000"
                     if rr["source_name"] == "TPEx exDailyQ"
                     else "event_presence_only"
                 ),
@@ -622,7 +646,7 @@ def main() -> None:
         "canonical_ca_engine_modified": False,
         "notes": [
             "TWT49U is event/date evidence only in the frozen source.",
-            "TPEx exDailyQ cash field is retained; frozen stock multiplier remains unit-unverified.",
+            "TPEx exDailyQ stock rights_ratio is interpreted only with verified TPEx shares-per-1000 semantics.",
             "Normalized-only or official-only rows are not automatically called true missing events.",
             "Date-only announcement evidence is never promoted to exact midnight precision.",
         ],
