@@ -130,9 +130,7 @@ def finmind_source_rows(
                 "source_row_id": stable,
                 "source_row_number": int(source_row),
                 "stock_id": sid,
-                "security_type": "FOUR_DIGIT_COMMON_OR_OTHER"
-                if pd.Series([sid]).str.fullmatch(r"[1-9]\d{3}", na=False).iloc[0]
-                else "OUTSIDE_FOUR_DIGIT_RESEARCH_BASE",
+                "security_type": event_security_type,
                 "source_name": "FinMind TaiwanStockDividend",
                 "source_revision": source_revision,
                 "source_blob_sha": dividend_blob_sha,
@@ -189,10 +187,11 @@ def finmind_components(
             ]
         )
 
+    raw_by_number = raw_rows.set_index("source_row_number", verify_integrity=True)
     result: list[dict[str, object]] = []
     for r in normalized.itertuples(index=False):
         source_row = int(r.source_row)
-        raw = raw_rows.loc[raw_rows["source_row_number"].eq(source_row)].iloc[0]
+        raw = raw_by_number.loc[source_row]
         kind = str(r.event_kind)
         if kind == "CASH_DIVIDEND":
             economic_value = float(r.cash_per_share)
@@ -465,6 +464,11 @@ def reconcile_dividend_components(
             or len(twse) > 1
         )
         historical_revision_unknown = bool(len(cg) or len(og))
+        event_security_type = (
+            "FOUR_DIGIT_COMMON_OR_OTHER"
+            if pd.Series([sid]).str.fullmatch(r"[1-9]\d{3}", na=False).iloc[0]
+            else "OUTSIDE_FOUR_DIGIT_RESEARCH_BASE"
+        )
 
         expected_cash = False
         expected_stock = False
@@ -474,7 +478,7 @@ def reconcile_dividend_components(
         unit_unverified = False
         value_conflict = False
         component_missing = False
-        outside = False
+        outside = event_security_type != "FOUR_DIGIT_COMMON_OR_OTHER"
         genuine_missing = False
         evidence_insufficient = False
 
