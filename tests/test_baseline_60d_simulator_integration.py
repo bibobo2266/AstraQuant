@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from dataclasses import replace
 from datetime import date, datetime
 import hashlib
 import json
@@ -42,6 +43,7 @@ from astraquant.research.exit_engine import ExitCompiler
 from astraquant.research.feature_panel_integration import (
     AvailabilityStatus,
     EligibilityEvidenceScope,
+    FeaturePanelIntegrationError,
     FeaturePanelIntegrator,
     load_feature_panel_integration_config,
 )
@@ -930,6 +932,284 @@ def test_period_end_preserves_pending_without_forced_exit_or_future_read(tmp_pat
     assert result.sessions[-1].baseline_pending_count == 1
 
 
+def test_prepared_run_carries_fixture_evidence_from_real_hydration(tmp_path):
+    sessions = _sessions(64)
+    closes = _baseline_closes(count=64, entry_close=90.0)
+    (
+        engine,
+        prepared,
+        _integrator,
+        _joined,
+        _manifest_path,
+        _parquet,
+        _run,
+        _root,
+    ) = _prepare_with_evidence_parts(
+        tmp_path,
+        closes=closes,
+        sessions=sessions,
+    )
+
+    evidence = prepared.eligibility_evidence
+    assert evidence is not None
+    assert (
+        evidence.feature_evidence.scope
+        is EligibilityEvidenceScope.SYNTHETIC_FIXTURE
+    )
+    assert (
+        evidence.feature_evidence.source_revision
+        == "synthetic-baseline-source-v1"
+    )
+    assert (
+        evidence.feature_evidence.formula_version
+        == "synthetic-baseline-features-v1"
+    )
+    assert evidence.feature_evidence.artifacts[0].filename == (
+        "stock_features_2026.parquet"
+    )
+    assert "source_available_at<decision_cutoff_at" in (
+        evidence.feature_evidence.cutoff_contracts
+    )
+    engine.validate_prepared_eligibility(prepared)
+
+
+def test_missing_prepared_evidence_blocks_synthetic_before_market_read(tmp_path, monkeypatch):
+    sessions = _sessions(64)
+    closes = _baseline_closes(count=64, entry_close=90.0)
+    engine, prepared = _prepare(tmp_path, closes=closes, sessions=sessions)
+    prepared = replace(prepared, eligibility_evidence=None)
+    raw = _default_raw(sessions, closes)
+    source = _write_source(tmp_path, sessions=sessions, raw_rows=raw)
+    simulator, portfolio, _ = _simulator(source, prepared)
+
+    def unexpected_market_read(*args, **kwargs):
+        pytest.fail("missing evidence must fail before canonical market-data read")
+
+    monkeypatch.setattr(
+        simulator.execution.market_data.source,
+        "read_parquet",
+        unexpected_market_read,
+    )
+    with pytest.raises(
+        FeaturePanelIntegrationError,
+        match="has no eligibility evidence",
+    ):
+        engine.simulate_prepared(
+            prepared=prepared,
+            simulator=simulator,
+            sessions=sessions,
+            baseline_context=_synthetic_context(),
+        )
+    assert portfolio.orders.orders == {}
+    assert portfolio.positions.positions == {}
+
+
+@pytest.mark.parametrize("status", ["UNKNOWN", "UNAVAILABLE"])
+def test_unknown_or_unavailable_feature_status_cannot_create_fixture_evidence(
+    tmp_path,
+    status,
+):
+    sessions = _sessions(64)
+    closes = _baseline_closes(count=64, entry_close=90.0)
+    with pytest.raises(
+        FeaturePanelIntegrationError,
+        match=f"close_to_ma120:{status}",
+    ):
+        _hydrate_feature_fixture(
+            tmp_path,
+            sessions=sessions,
+            closes=closes,
+            status=status,
+        )
+
+
+def test_modified_hydrated_panel_invalidates_old_evidence_before_prepare(tmp_path):
+    sessions = _sessions(64)
+    closes = _baseline_closes(count=64, entry_close=90.0)
+    integrator, joined, _manifest, _parquet = _hydrate_feature_fixture(
+        tmp_path,
+        sessions=sessions,
+        closes=closes,
+    )
+    joined.frame.loc[0, "close_to_ma120"] = 999.0
+
+    root = tmp_path / "research"
+    run = _write_configs(root, baseline=True)
+    engine = ResearchConfigEngine()
+    with pytest.raises(
+        FeaturePanelIntegrationError,
+        match="hydrated panel fingerprint mismatch",
+    ):
+        engine.prepare_hydrated(
+            run_config_path=run,
+            root=root,
+            feature_integrator=integrator,
+            feature_join_result=joined,
+            universe_context=UniverseContext(
+                p2_060_excluded_tickers=frozenset(),
+                p2_060_exclusion_sha256=P2_SHA,
+            ),
+            signal_context=SignalContext(
+                source_revision="synthetic-baseline-source-v1"
+            ),
+            base_policy=PortfolioPolicyConfig(
+                position_fraction=0.20,
+                max_positions=1,
+                stop_fraction=0.20,
+                reentry_gap_sessions=0,
+                max_hold_sessions=20,
+                lot_size=1000,
+                random_seed=1,
+            ),
+        )
+
+
+def test_changed_artifact_bytes_invalidate_prepared_evidence_before_trading(
+    tmp_path,
+    monkeypatch,
+):
+    sessions = _sessions(64)
+    closes = _baseline_closes(count=64, entry_close=90.0)
+    (
+        engine,
+        prepared,
+        _integrator,
+        _joined,
+        _manifest,
+        parquet,
+        _run,
+        _root,
+    ) = _prepare_with_evidence_parts(
+        tmp_path,
+        closes=closes,
+        sessions=sessions,
+    )
+    changed = pd.read_parquet(parquet)
+    changed.loc[0, "close_to_ma120"] = 777.0
+    changed.to_parquet(parquet, index=False)
+
+    raw = _default_raw(sessions, closes)
+    source = _write_source(tmp_path, sessions=sessions, raw_rows=raw)
+    simulator, portfolio, _ = _simulator(source, prepared)
+
+    def unexpected_market_read(*args, **kwargs):
+        pytest.fail("stale artifact evidence must fail before execution data read")
+
+    monkeypatch.setattr(
+        simulator.execution.market_data.source,
+        "read_parquet",
+        unexpected_market_read,
+    )
+    with pytest.raises(
+        FeaturePanelIntegrationError,
+        match="artifact checksum changed",
+    ):
+        engine.simulate_prepared(
+            prepared=prepared,
+            simulator=simulator,
+            sessions=sessions,
+            baseline_context=_synthetic_context(),
+        )
+    assert portfolio.orders.orders == {}
+    assert portfolio.positions.positions == {}
+
+
+@pytest.mark.parametrize(
+    "field,value",
+    [
+        ("source_revision", "changed-source-revision"),
+        ("formula_version", "changed-formula-version"),
+        ("epoch", "OTHER_EPOCH"),
+        ("period", ["2026-01-02", "2026-01-15"]),
+    ],
+)
+def test_manifest_dependency_change_invalidates_old_prepared_evidence(
+    tmp_path,
+    field,
+    value,
+):
+    sessions = _sessions(64)
+    closes = _baseline_closes(count=64, entry_close=90.0)
+    (
+        engine,
+        prepared,
+        _integrator,
+        _joined,
+        manifest_path,
+        _parquet,
+        _run,
+        _root,
+    ) = _prepare_with_evidence_parts(
+        tmp_path,
+        closes=closes,
+        sessions=sessions,
+    )
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    manifest[field] = value
+    manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+
+    with pytest.raises(
+        FeaturePanelIntegrationError,
+        match="manifest checksum changed",
+    ):
+        engine.validate_prepared_eligibility(prepared)
+
+
+def test_out_of_evidence_date_range_is_rejected_before_run_preparation(tmp_path):
+    sessions = _sessions(64)
+    closes = _baseline_closes(count=64, entry_close=90.0)
+    integrator, joined, _manifest, _parquet = _hydrate_feature_fixture(
+        tmp_path,
+        sessions=sessions,
+        closes=closes,
+    )
+    joined.frame.loc[0, "date"] = pd.Timestamp("2030-01-02")
+
+    with pytest.raises(FeaturePanelIntegrationError):
+        integrator.validate_join_result(joined)
+
+
+def test_run_a_evidence_cannot_be_reused_for_mismatched_run_b(tmp_path):
+    sessions = _sessions(64)
+    closes = _baseline_closes(count=64, entry_close=90.0)
+    engine_a, prepared_a = _prepare(
+        tmp_path / "a",
+        closes=closes,
+        sessions=sessions,
+        baseline=True,
+    )
+    engine_b, prepared_b = _prepare(
+        tmp_path / "b",
+        closes=closes,
+        sessions=sessions,
+        baseline=False,
+    )
+    mismatched = replace(
+        prepared_b,
+        eligibility_evidence=prepared_a.eligibility_evidence,
+    )
+
+    with pytest.raises(
+        FeaturePanelIntegrationError,
+        match="prepared config fingerprint mismatch",
+    ):
+        engine_b.validate_prepared_eligibility(mismatched)
+
+
+def test_signal_source_revision_change_invalidates_bound_run_evidence(tmp_path):
+    sessions = _sessions(64)
+    closes = _baseline_closes(count=64, entry_close=90.0)
+    engine, prepared = _prepare(tmp_path, closes=closes, sessions=sessions)
+
+    with pytest.raises(
+        FeaturePanelIntegrationError,
+        match="prepared config fingerprint mismatch",
+    ):
+        engine.validate_prepared_eligibility(
+            replace(prepared, signal_source_revision="other-source-revision")
+        )
+
+
 @pytest.mark.parametrize(
     "mode,status",
     [
@@ -973,6 +1253,11 @@ def test_formal_baseline_modes_block_before_market_read_or_portfolio_mutation(
         pit_data_gate_source="existing-layer1-status-for-audit-only",
     )
     assert context.mode is BaselineSimulationMode.FORMAL_RESEARCH
+    assert prepared.eligibility_evidence is not None
+    assert (
+        prepared.eligibility_evidence.feature_evidence.scope
+        is EligibilityEvidenceScope.SYNTHETIC_FIXTURE
+    )
 
     with pytest.raises(RuntimeError, match="BASELINE_FORMAL_DATA_GATE_BLOCKED"):
         engine.simulate_prepared(
@@ -1029,12 +1314,32 @@ def test_baseline_context_normalizes_legal_synthetic_strings():
 def test_legacy_exit_plan_still_uses_existing_stop_and_max_hold_path(tmp_path):
     sessions = _sessions(64)
     closes = _baseline_closes(count=64, entry_close=105.0)
-    engine, prepared = _prepare(
-        tmp_path,
-        closes=closes,
-        sessions=sessions,
-        baseline=False,
+    root = tmp_path / "research"
+    run = _write_configs(root, baseline=False)
+    legacy_panel = _panel(sessions, closes)
+    legacy_panel["close_to_ma120"] = 0.10
+    legacy_panel["prior20_amount_twd"] = 30_000_000.0
+    engine = ResearchConfigEngine()
+    prepared = engine.prepare(
+        run_config_path=run,
+        root=root,
+        panel=legacy_panel,
+        universe_context=UniverseContext(
+            p2_060_excluded_tickers=frozenset(),
+            p2_060_exclusion_sha256=P2_SHA,
+        ),
+        signal_context=SignalContext(source_revision="legacy-no-evidence"),
+        base_policy=PortfolioPolicyConfig(
+            position_fraction=0.20,
+            max_positions=1,
+            stop_fraction=0.20,
+            reentry_gap_sessions=0,
+            max_hold_sessions=20,
+            lot_size=1000,
+            random_seed=1,
+        ),
     )
+    assert prepared.eligibility_evidence is None
     assert prepared.exit_plan.baseline_60d_enabled is False
     assert prepared.portfolio_policy.stop_fraction == pytest.approx(0.12)
     assert prepared.portfolio_policy.max_hold_sessions == 250
