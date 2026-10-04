@@ -31,16 +31,20 @@ The state module consumes objects compatible with existing canonical boundaries:
    - the module does not infer a complete exchange calendar from ticker rows;
    - only observed, valid, finite, positive OHLC with valid geometry enters the rolling sequence.
 
-3. **approved corporate action**
+3. **approved corporate action batch**
    - wraps existing `HistoricalCorporateActionInstruction`;
+   - the iterable is materialized before validation, so list and generator inputs have the same semantics;
    - caller must explicitly set `approved_for_technical_transform=True`;
+   - equal duplicate event IDs are deduplicated; conflicting definitions for the same ID reject the call before any transform;
    - `known_at`, source declaration, effective time, and caller-supplied decision cutoff are checked before use;
-   - same-opening simple cash/share events must be supplied together.
+   - all simple cash/share events for one ticker/opening must be supplied in one complete batch. A later new event for the same finalized opening is BLOCKED as `OPENING_CA_BATCH_ALREADY_FINALIZED`; it is not silently applied as a second coordinate transform.
 
 4. **open execution result**
-   - `BaselineOpenExecutionResult`;
+   - `BaselineOpenExecutionResult` binds `report_id`, pending `intent_id`, entry `fill_id`, session date/index, and the canonical before/after position quantity;
    - SELL_BLOCKED / NO_VALID_OPEN / NOT_EXECUTABLE retain the original pending intent;
-   - only a matching canonical SELL `Fill` with outcome FILLED clears the holding state.
+   - only a matching canonical SELL `Fill` whose quantity equals canonical pre-fill quantity and whose canonical post-fill quantity is zero clears the technical holding;
+   - partial fill/remaining position is unsupported in this module and is rejected without changing pending state or attempt counters;
+   - duplicate and stale execution reports are explicit errors.
 
 5. **terminal/lifecycle result**
    - `BaselineTerminalResult`;
@@ -49,7 +53,7 @@ The state module consumes objects compatible with existing canonical boundaries:
 
 ## Rolling observation contract
 
-ATR14 and LOW20 share one stock-specific valid-observed-bar sequence.
+ATR14 and LOW20 share one stock-specific **bounded** valid-observed-bar sequence. The technical window retains at most 21 valid bars: current + prior 20. This is sufficient for LOW20 and for ATR14 including the predecessor close needed by the retained ATR window.
 
 - suspension/no observation: no bar added;
 - invalid OHLC: no bar added;
@@ -61,11 +65,13 @@ ATR14 and LOW20 share one stock-specific valid-observed-bar sequence.
 - ATR uses `close <= entry_anchor - 3*ATR14`;
 - insufficient observations remain UNKNOWN.
 
-The audit keeps:
+The active-window audit keeps:
 - valid observation count;
 - trusted-session span;
 - skipped-session count inside the rolling window;
 - retained gap reasons.
+
+Bars retired beyond the 21-bar technical window are reduced to a separate count-only audit. Retired prices never participate in later ATR/LOW20 evaluation, CA price transformation, or technical availability decisions.
 
 Therefore “20 observations” is not reported as “20 consecutive trading sessions”.
 
@@ -93,7 +99,17 @@ Fail closed / BLOCKED:
 - non-finite / non-positive transformed technical prices;
 - successor, composite conversion, extinguishment instruction, RIGHTS, MERGER, OTHER, or another non-unique mapping.
 
-Duplicate event IDs are audit-idempotent and are not transformed twice.
+Duplicate event IDs are audit-idempotent and are not transformed twice. The input contract is transactional at each ticker/opening: a conflicting event-ID definition is rejected before mutation, and a simple cash/share transform is planned in full before the retained rolling state or entry anchor is replaced.
+
+## Persistent ticker technical availability
+
+A technical BLOCKED state belongs to the ticker's technical history, not only to the current holding.
+
+- a blocked CA/lifecycle mapping is retained even if no position exists;
+- a later entry inherits the existing technical block;
+- strategy exit, terminal extinguishment, or rebuilding a holding does not automatically clear the block;
+- while blocked, new bars are not appended to the technical rolling window and existing pending intent is preserved;
+- this module defines no recovery/unblock operation. Recovery requires a separately approved canonical resolution contract.
 
 ## Pending exit contract
 
@@ -148,14 +164,17 @@ On successor/composite/unknown mapping:
 - suspension and invalid-OHLC gaps;
 - cash dividend, split, and same-opening cash+share coordinate transforms;
 - entry fee separation;
-- duplicate CA idempotency;
+- duplicate CA idempotency, same-ID conflict rejection, list/generator equivalence, and split-opening-batch blocking;
 - entry-session close trigger / next-session earliest execution;
 - sticky pending through repeated blocked opens;
 - BOTH immutability and later-secondary-trigger immutability;
-- canonical SELL fill as the only strategy-exit clear signal;
+- canonical SELL full-liquidation report as the only strategy-exit clear signal;
+- pending/holding/session binding, partial-fill rejection, duplicate/stale execution-report handling;
 - terminal precedence;
 - successor and unknown-CA BLOCKED states;
 - late-known and non-positive CA failure;
+- ticker-level BLOCKED persistence across no-position/entry/terminal/re-entry;
+- bounded 21-bar rolling state and retirement of old prices before later CA transforms;
 - multi-stock isolation;
 - period-end pending preservation.
 
