@@ -89,10 +89,11 @@ def main() -> None:
 
     events = pd.read_csv(args.events, dtype={"stock_id": str})
     events["event_date"] = pd.to_datetime(events["event_date"], errors="coerce").dt.normalize()
-    if events[["event_id", "stock_id", "event_date", "primary_class"]].isna().any(axis=1).any():
+    required = ["economic_event_id", "stock_id", "event_date", "primary_class"]
+    if events[required].isna().any(axis=1).any():
         raise SystemExit("private event reconciliation has null required keys")
-    if events["event_id"].duplicated().any():
-        raise SystemExit("private event reconciliation has duplicate event_id")
+    if events["economic_event_id"].duplicated().any():
+        raise SystemExit("private event reconciliation has duplicate economic_event_id")
 
     panel = load_panel(Path(args.source_root))
     rt = research_tickers(panel, Path(args.exclusions))
