@@ -1,136 +1,40 @@
-# reconciliation program freeze: c373fae5 + e4be5bf9 + f63ababa\nname: CA dividend component reconciliation
+name: CA dividend reconciliation contract checks
 
 on:
   push:
     branches: [main]
     paths:
       - ".github/workflows/ca_dividend_component_reconciliation.yml"
+      - "src/astraquant/data/dividend_reconciliation.py"
+      - "tests/test_dividend_reconciliation.py"
+      - "scripts/source_dividend_component_reconciliation.py"
+      - "scripts/ca_dividend_component_scope_aggregate.py"
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
-  audit:
+  test:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 15
     steps:
       - name: Checkout AstraQuant
         uses: actions/checkout@v4
-        with:
-          path: AstraQuant
-
-      - name: Checkout fixed private source
-        uses: actions/checkout@v4
-        with:
-          repository: bibobo2266/minervini_picks
-          ref: fb8b042b46dc38838d103544ca17da10286c7bfe
-          token: ${{ secrets.MINERVINI_READ_TOKEN }}
-          path: source_runtime/minervini_picks
-          persist-credentials: false
-
-      - name: Assert and lock source revision
-        working-directory: source_runtime/minervini_picks
-        shell: bash
-        run: |
-          set -euo pipefail
-          test "$(git rev-parse HEAD)" = "fb8b042b46dc38838d103544ca17da10286c7bfe"
-          chmod -R a-w .
 
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
 
-      - name: Install AstraQuant
-        working-directory: AstraQuant
-        run: python -m pip install --quiet -e .
+      - name: Install test dependencies
+        run: python -m pip install --quiet -e . pytest
 
-      - name: Lock reconciliation tests
-        working-directory: AstraQuant
-        run: pytest -q tests/test_dividend_reconciliation.py tests/test_causal_raw_v2.py
+      - name: Run reconciliation contract tests
+        run: python -m pytest -q tests/test_dividend_reconciliation.py tests/test_causal_raw_v2.py
 
-      - name: Reconcile private CA rows
-        working-directory: AstraQuant
+      - name: Assert public workflow is data-free
         shell: bash
         run: |
           set -euo pipefail
-          PRIVATE_DIR="$RUNNER_TEMP/ca_dividend_reconciliation_v1"
-          mkdir -p "$PRIVATE_DIR"
-          python scripts/ca_dividend_component_reconciliation.py             --dividend ../source_runtime/minervini_picks/data/fundamentals/dividend.parquet             --official ../source_runtime/minervini_picks/data/reference/corporate_actions_official.csv             --private-output-dir "$PRIVATE_DIR"             --source-revision fb8b042b46dc38838d103544ca17da10286c7bfe             --source-acquired-at 2026-10-04T01:31:41Z             > "$RUNNER_TEMP/ca_aggregate_stdout.json"
-
-      - name: Aggregate research scope without publishing rows
-        working-directory: AstraQuant
-        shell: bash
-        run: |
-          set -euo pipefail
-          PRIVATE_DIR="$RUNNER_TEMP/ca_dividend_reconciliation_v1"
-          python scripts/ca_dividend_component_scope_aggregate.py             --events "$PRIVATE_DIR/event_reconciliation.csv"             --source-root ../source_runtime/minervini_picks/data             --exclusions docs/SOURCE_CA_PIT_EXCLUSIONS.csv             --output "$RUNNER_TEMP/ca_scope_aggregate.json"             > "$RUNNER_TEMP/ca_scope_stdout.json"
-
-      - name: Build public aggregate only
-        working-directory: AstraQuant
-        shell: bash
-        run: |
-          set -euo pipefail
-          PRIVATE_DIR="$RUNNER_TEMP/ca_dividend_reconciliation_v1"
-          python - <<'PY'
-          import json
-          from pathlib import Path
-          import os
-
-          private_dir = Path(os.environ["RUNNER_TEMP"]) / "ca_dividend_reconciliation_v1"
-          agg = json.loads((private_dir / "aggregates.json").read_text())
-          manifest = json.loads((private_dir / "manifest.json").read_text())
-          scope = json.loads((Path(os.environ["RUNNER_TEMP"]) / "ca_scope_aggregate.json").read_text())
-
-          public = {
-              "version": "ca_dividend_component_reconciliation_v1",
-              "status": "RECONCILIATION_COMPLETE_ITEM5_STILL_BLOCKED_ASTRA_REVIEW_REQUIRED",
-              "fixed_source_revision": manifest["source_revision"],
-              "source_acquired_at": manifest["source_acquired_at"],
-              "period": manifest["period"],
-              "input_fingerprints": manifest["inputs"],
-              "component_reconciliation": agg,
-              "scope_and_window_aggregate": scope,
-              "private_row_tables_published": False,
-              "formal_e1_feature_artifact_built": False,
-              "strategy_effects_computed": False,
-              "gate_unlocked": False,
-          }
-          out = Path("out/ca_dividend_component_reconciliation_v1.json")
-          out.parent.mkdir(parents=True, exist_ok=True)
-          out.write_text(json.dumps(public, ensure_ascii=False, indent=2) + "\n")
-          print(json.dumps({
-              "status": public["status"],
-              "normalized_components": agg["normalized_components"]["rows"],
-              "official_rows": agg["official_rows"]["rows"],
-              "source_all_events": agg["source_all"]["warmup_plus_e1"]["events"],
-              "research_tickers": scope["established_e1_all_liquid_distinct_tickers"],
-          }, ensure_ascii=False))
-          PY
-
-      - name: Verify no row-level file entered public tree
-        working-directory: AstraQuant
-        shell: bash
-        run: |
-          set -euo pipefail
-          test ! -e economic_event_reconciliation.csv
-          test ! -e source_event_component_mapping.csv
-          test ! -e event_reconciliation.csv
-          test ! -e official_source_row_map.csv
-          git status --short
-
-      - name: Commit aggregate only
-        working-directory: AstraQuant
-        shell: bash
-        run: |
-          set -euo pipefail
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add out/ca_dividend_component_reconciliation_v1.json
-          if git diff --cached --quiet; then
-            exit 0
-          fi
-          git commit -m "audit: record aggregate CA component reconciliation [no-effects]"
-          git reset --hard HEAD
-          git pull --rebase origin main
-          git push origin HEAD:main
+          test ! -e private/astraquant/ca_dividend_component_reconciliation
+          echo "CA row-level reconciliation is executed only in the authorized private delivery workflow."
