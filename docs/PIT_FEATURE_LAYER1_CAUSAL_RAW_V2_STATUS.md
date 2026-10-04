@@ -72,13 +72,18 @@ The gate is no longer summarized as a generic lack of receipt timestamps:
 | Trading_money | 0 nulls on stored RAW keys; official/provider publication rules support the same cutoff | same historical-version identity gap as RAW |
 | observed_trade / valid_ohlc | 0 reconstruction mismatches, 0 observed-without-RAW, 0 RAW-marked-unobserved; 11,287 explicit missing rows | availability inherits the unresolved RAW historical-version evidence |
 | buy_blocked / sell_blocked | retained as execution fields | not a prerequisite for the minimal MA120/N60/prior20 feature artifact; no execution gate is relaxed |
-| cash/stock actions | 10,097 normalized components / 1,581 tickers; 0 known_at nulls; exact source AnnouncementTime is preserved when present; 6 components remain unavailable before the first affected cutoff and fail closed | independent official reconciliation has 2,172 unmatched candidates / 601 tickers; source-specific economics must be reconciled rather than inferred |
+| cash/stock actions | 10,097 normalized components; exact AnnouncementDate+AnnouncementTime is retained for all 10,097 frozen components; component-level bidirectional reconciliation is complete at program `9914525f`; private run `37171913233` conserves 11,156 economic event groups | dependency remains UNKNOWN: 142 evidence-backed missing-source events, 5 value/unit conflicts, 6,410 insufficient-evidence groups, source-specific stock-unit/par-value proof and historical revision lineage remain unresolved; the previously identified 6 late-for-first-cutoff components remain fail-closed |
 | non-dividend share events | exact aggregate scope measured: 386 rows / 310 tickers | 385 known_date missing, 209 multiplier missing/invalid; 375 MA120-impact and 364 N60-impact event windows remain unavailable to the certified v2 normalizer |
 
-The independent official reconciliation starts from the official event population,
-not from FinMind rows. That is the mechanism for detecting source omissions.
-The unmatched official rows are blocker candidates rather than automatically
-classified missing cash/share transforms.
+The independent official reconciliation starts from the union of official
+event groups and normalized effective-date groups rather than from FinMind rows
+alone. The completed component-level closure is
+`docs/CA_DIVIDEND_COMPONENT_RECONCILIATION_CLOSURE.md`. The earlier 2,172
+official-only candidates are no longer treated as one missing count: only 142
+currently meet the evidence-backed missing-source class, 5 event groups are
+value/unit conflicts, and 6,410 event groups remain insufficient evidence.
+A private 147-row versioned review candidate file contains the 142 supplement
+candidates plus the 5 conflicts.
 
 The minimal feature route remains independent of TRI, industry, chip, and
 fundamental datasets. No stock/year is silently removed, no multiplier or
@@ -88,6 +93,6 @@ known_at is guessed, and no population scope is changed.
 
 No formal E1 causal RAW v2 feature artifact is produced from real source data in this state. The evidence-only audit is a data-quality/availability audit, not the formal feature artifact and not a strategy backtest.
 
-The next executable source work is: reconcile the 2,172 official event candidates with source-specific economics; obtain historical-version/correction evidence for reconstructed RAW/Trading_money rows; and source known-at plus share-mutation evidence for the 386 non-dividend share-event rows. These are source-evidence tasks, not owner trading-preference decisions.
+The requested CA component/economic reconciliation is complete and now waits for Astra review. RAW/Trading_money historical-version evidence and the 386 non-dividend share-event rows remain separate item-5 blockers and were not expanded in this round.
 
-Astra still must validate the implementation and this gate closure. Until then, item 5 remains IN_PROGRESS and dependent strategy work remains blocked.
+Astra still must validate the CA closure and private candidate set. Until then, item 5 remains IN_PROGRESS and dependent strategy work remains blocked.
