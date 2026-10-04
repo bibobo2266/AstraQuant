@@ -32,6 +32,7 @@ from astraquant.research.feature_panel_integration import (
 from astraquant.research.prepared_run_evidence import (
     PreparedRunEligibilityEvidence,
     build_prepared_run_eligibility_evidence,
+    validate_prepared_execution_binding,
     validate_prepared_run_eligibility_evidence,
 )
 from astraquant.research.rsi_computability import SignalComputabilityContext
@@ -159,6 +160,7 @@ class ResearchConfigEngine:
         signal_context: SignalContext,
         base_policy: PortfolioPolicyConfig,
         signal_computability_context: SignalComputabilityContext | None = None,
+        execution_sessions=None,
     ) -> PreparedResearchRun:
         mask = self.universe_compiler.compile(
             universe_config,
@@ -236,12 +238,14 @@ class ResearchConfigEngine:
             universe_config=prepared.universe_config,
             signal_config=prepared.signal_config,
             exit_config=prepared.exit_config,
+            exit_plan=prepared.exit_plan,
             portfolio_policy=prepared.portfolio_policy,
             universe_mask=prepared.universe_mask,
             signal_frame=prepared.signal_frame,
             candidates=prepared.candidates,
             signal_source_revision=prepared.signal_source_revision,
             signal_availability_policy=prepared.signal_availability_policy,
+            execution_sessions=execution_sessions,
         )
         return replace(prepared, eligibility_evidence=evidence)
 
@@ -256,6 +260,7 @@ class ResearchConfigEngine:
         signal_context: SignalContext,
         base_policy: PortfolioPolicyConfig,
         signal_computability_context: SignalComputabilityContext | None = None,
+        execution_sessions=None,
     ) -> PreparedResearchRun:
         root_path = Path(root).resolve()
         run_cfg = load_run_config(run_config_path)
@@ -279,6 +284,7 @@ class ResearchConfigEngine:
             signal_context=signal_context,
             base_policy=base_policy,
             signal_computability_context=signal_computability_context,
+            execution_sessions=execution_sessions,
         )
 
     def prepare(
@@ -325,6 +331,7 @@ class ResearchConfigEngine:
             universe_config=prepared.universe_config,
             signal_config=prepared.signal_config,
             exit_config=prepared.exit_config,
+            exit_plan=prepared.exit_plan,
             portfolio_policy=prepared.portfolio_policy,
             universe_mask=prepared.universe_mask,
             signal_frame=prepared.signal_frame,
@@ -344,15 +351,36 @@ class ResearchConfigEngine:
     ) -> StrategySimulationResult:
         """Run prepared candidates through the canonical simulator.
 
-        The compiled exit plan is always passed through. Baseline close rules
-        remain inert unless the exact compiled baseline pair and an explicit
-        baseline_context are both present.
+        Baseline execution is determined from the frozen ExitConfig, not from
+        a caller-replaceable CompiledExitPlan. Prepared evidence is validated
+        before the simulator can read execution market data or mutate state.
         """
-        if prepared.exit_plan.baseline_60d_enabled and baseline_context is not None:
-            # Formal mode stops here before any evidence/artifact read.
+        session_list = list(sessions)
+        expected_exit_plan = self.exit_compiler.compile(prepared.exit_config)
+        if prepared.exit_plan != expected_exit_plan:
+            raise FeaturePanelIntegrationError(
+                "prepared exit plan does not match compiled exit config"
+            )
+        baseline_expected = expected_exit_plan.baseline_60d_enabled
+
+        if baseline_expected:
+            if baseline_context is None:
+                raise FeaturePanelIntegrationError(
+                    "baseline prepared run requires baseline_context"
+                )
+            # FORMAL_RESEARCH stops before evidence/artifact revalidation.
             baseline_context.require_runnable()
+
+        if prepared.eligibility_evidence is not None:
             self.validate_prepared_eligibility(prepared)
-            evidence = prepared.eligibility_evidence
+        elif baseline_expected:
+            raise FeaturePanelIntegrationError(
+                "PreparedResearchRun has no eligibility evidence"
+            )
+
+        evidence = prepared.eligibility_evidence
+        if baseline_expected:
+            assert baseline_context is not None
             assert evidence is not None
             if baseline_context.mode is BaselineSimulationMode.SYNTHETIC_FIXTURE:
                 if (
@@ -364,12 +392,25 @@ class ResearchConfigEngine:
                         "SYNTHETIC_FIXTURE eligibility evidence"
                     )
                 evidence.feature_evidence.require_strategy_verified()
+            validate_prepared_execution_binding(
+                evidence=evidence,
+                exit_plan=expected_exit_plan,
+                actual_policy=simulator.policy.config,
+                sessions=session_list,
+                candidates=prepared.candidates,
+            )
+        elif baseline_context is not None:
+            raise FeaturePanelIntegrationError(
+                "baseline_context cannot be used with a non-baseline prepared run"
+            )
+
         return simulator.run(
-            sessions=list(sessions),
+            sessions=session_list,
             candidates=prepared.candidates,
             corporate_actions=corporate_actions,
-            exit_plan=prepared.exit_plan,
+            exit_plan=expected_exit_plan,
             baseline_context=baseline_context,
+            eligibility_evidence=evidence if baseline_expected else None,
         )
 
 
