@@ -1,0 +1,116 @@
+{
+  "version": "ca_dividend_component_reconciliation_public_v1",
+  "status": "RECONCILIATION_COMPLETE_ITEM5_STILL_BLOCKED_ASTRA_REVIEW_REQUIRED",
+  "fixed_inputs": {
+    "source_revision": "fb8b042b46dc38838d103544ca17da10286c7bfe",
+    "program_revision": "9914525fe7db92a69fc08360823fb679518ee0b8",
+    "source_acquired_at": "2026-10-04T02:45:06Z",
+    "period": {
+      "warmup_start": "2015-01-01",
+      "e1_start": "2016-01-04",
+      "e1_end": "2021-12-31"
+    },
+    "input_fingerprints": {
+      "dividend_sha256": "f0fa98a466923b25f15135aa7f67edf0633ff00720c034f79e1bfe3851f1a415",
+      "official_sha256": "78d481ef10a3e3e6691d803ecf2805a8096b1c4bec4f63ac4faf717c8785300c"
+    }
+  },
+  "counting_units": {
+    "primary_event_classification": "unique stock_id + economic effective/event date",
+    "normalized": "cash or stock component",
+    "official": "raw official source row"
+  },
+  "source_all_warmup_plus_e1": {
+    "economic_events": 11156,
+    "distinct_tickers": 1913,
+    "primary_classes": {
+      "COMPONENT_VALUE_CONSISTENT": 2972,
+      "SAME_DATE_COMPONENT_MISSING": 0,
+      "VALUE_OR_UNIT_CONFLICT": 5,
+      "DATE_DIFFERENCE_EXPLAINED": 0,
+      "DUPLICATE_REVISION_CANCEL": 0,
+      "OUTSIDE_NORMALIZER_SCOPE": 1627,
+      "GENUINE_SOURCE_EVENT_MISSING": 142,
+      "INSUFFICIENT_EVIDENCE": 6410
+    },
+    "exact_date_both_sides": 8480,
+    "normalized_only": 504,
+    "official_only": 2172,
+    "historical_revision_cancel_unknown_flags": 11156
+  },
+  "four_digit_research_base_warmup_plus_e1": {
+    "economic_events": 9753,
+    "distinct_tickers": 1722,
+    "primary_classes": {
+      "COMPONENT_VALUE_CONSISTENT": 2972,
+      "SAME_DATE_COMPONENT_MISSING": 0,
+      "VALUE_OR_UNIT_CONFLICT": 5,
+      "DATE_DIFFERENCE_EXPLAINED": 0,
+      "DUPLICATE_REVISION_CANCEL": 0,
+      "OUTSIDE_NORMALIZER_SCOPE": 224,
+      "GENUINE_SOURCE_EVENT_MISSING": 142,
+      "INSUFFICIENT_EVIDENCE": 6410
+    }
+  },
+  "established_e1_all_liquid_ticker_scope": {
+    "distinct_tickers_in_established_set": 1394,
+    "event_groups_on_those_tickers": 7894,
+    "distinct_tickers_with_event_groups": 1329,
+    "classes": {
+      "INSUFFICIENT_EVIDENCE": 5230,
+      "COMPONENT_VALUE_CONSISTENT": 2379,
+      "OUTSIDE_NORMALIZER_SCOPE": 167,
+      "GENUINE_SOURCE_EVENT_MISSING": 115,
+      "VALUE_OR_UNIT_CONFLICT": 3
+    }
+  },
+  "component_and_source_rows": {
+    "normalized_components": 10097,
+    "cash_components": 8794,
+    "stock_components": 1303,
+    "normalized_announcement_precision_exact_timestamp": 10097,
+    "official_rows": 10652,
+    "official_by_source": {
+      "TWSE TWT49U": 5828,
+      "TPEx exDailyQ": 4824
+    },
+    "finmind_source_rows_relevant": 9529,
+    "source_event_component_mapping_rows": 20749
+  },
+  "matched_group_findings": {
+    "twse_exact_date_matched_events": 4981,
+    "twse_component_economics_status": "INSUFFICIENT_IN_FROZEN_TWT49U_INGEST",
+    "tpex_exact_date_matched_events": 3499,
+    "same_date_component_missing_events": 0,
+    "value_or_unit_conflict_events": 5,
+    "stock_unit_unverified_flags_source_all": 1332
+  },
+  "private_review_candidates": {
+    "candidate_version": "ca_dividend_component_reconciliation_candidates_v1",
+    "rows": 147,
+    "evidence_backed_supplement": 142,
+    "economic_value_review": 5,
+    "insufficient_evidence_is_not_auto_promoted": true
+  },
+  "scope_and_impact": {
+    "event_groups_inside_observed_valid_active_span": 9742,
+    "event_groups_outside_or_without_active_span": 1414,
+    "theoretical_ma120_event_groups_overlapping_e1": 10724,
+    "theoretical_n60_event_groups_overlapping_e1": 9862,
+    "theoretical_windows_are_actual_builder_block_counts": false,
+    "actual_builder_rule_changed": false
+  },
+  "source_semantics_status": {
+    "finmind_cash": "SOURCE_FIELDS_AND_EXACT_ANNOUNCEMENT_TIMESTAMP_RETAINED",
+    "finmind_stock_multiplier": "CURRENT_DIVIDE_BY_10_TRANSFORM_NOT_CERTIFIED_WITH_EVENT_PAR_VALUE_EVIDENCE",
+    "twse_twt49u": "EVENT_DATE_AND_CALCULATION_RESULT_EVIDENCE_ONLY_IN_FROZEN_INGEST",
+    "twse_twt48u": "CURRENT_PUBLIC_SCHEMA_HAS_CASH_AND_FREE_ALLOTMENT_FIELDS_BUT_HISTORICAL_QUERY_SNAPSHOT_NOT_ACCEPTED_AS_COMPLETE",
+    "tpex_exdailyq_cash": "SOURCE_SPECIFIC_CASH_ECONOMICS_USABLE_FOR_RECONCILIATION",
+    "tpex_exdailyq_stock": "FROZEN_POSITIONAL_DIVIDE_BY_1000_CONVERSION_NOT_CERTIFIED"
+  },
+  "private_row_level_published_publicly": false,
+  "canonical_ca_engine_modified": false,
+  "formal_e1_feature_artifact_built": false,
+  "strategy_effects_computed": false,
+  "gate_unlocked": false
+}
