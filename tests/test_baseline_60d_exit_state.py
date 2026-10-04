@@ -71,16 +71,18 @@ def _fill(
     fees: float = 0.0,
     side: str = "buy",
     suffix: str = "entry",
+    quantity: float = 1000.0,
+    filled_index: int = 0,
 ) -> Fill:
     return Fill(
         fill_id=f"{suffix}-{ticker}",
         order_id=f"order-{suffix}-{ticker}",
         ticker=ticker,
         side=side,
-        quantity=1000.0,
+        quantity=quantity,
         price=price,
         fees=fees,
-        filled_at=datetime.combine(BASE_DAY, datetime.min.time()),
+        filled_at=datetime.combine(_day(filled_index), datetime.min.time()),
     )
 
 
@@ -181,6 +183,52 @@ def _make_both_pending(
     )
     assert result.pending_exit is not None
     assert result.pending_exit.reason is BaselineExitReason.BOTH
+
+
+def _open_result(
+    state: Baseline60DExitState,
+    *,
+    session_index: int,
+    outcome: BaselineOpenExecutionOutcome,
+    ticker: str = "2330",
+    report_id: str | None = None,
+    fill_quantity: float = 1000.0,
+    canonical_before: float | None = None,
+    canonical_after: float | None = None,
+    pending_intent_id: str | None = None,
+    entry_fill_id: str | None = None,
+) -> BaselineOpenExecutionResult:
+    holding = state.holding_state(ticker)
+    assert holding is not None
+    assert holding.pending_exit is not None
+    pending = holding.pending_exit
+    fill = None
+    if outcome is BaselineOpenExecutionOutcome.FILLED:
+        fill = _fill(
+            ticker=ticker,
+            price=89.0,
+            side="sell",
+            suffix=f"exit-{session_index}",
+            quantity=fill_quantity,
+            filled_index=session_index,
+        )
+        if canonical_before is None:
+            canonical_before = fill_quantity
+        if canonical_after is None:
+            canonical_after = 0.0
+    return BaselineOpenExecutionResult(
+        report_id=report_id or f"report-{ticker}-{session_index}-{outcome.value}",
+        ticker=ticker,
+        session_date=_day(session_index),
+        session_index=session_index,
+        outcome=outcome,
+        reason=outcome.value,
+        pending_intent_id=pending_intent_id or pending.intent_id,
+        entry_fill_id=entry_fill_id or holding.entry_fill_id,
+        canonical_position_quantity_before=canonical_before,
+        canonical_position_quantity_after=canonical_after,
+        fill=fill,
+    )
 
 
 def test_atr14_sma_includes_current_and_low20_excludes_current_with_strict_boundary():
@@ -374,21 +422,16 @@ def test_entry_day_close_can_create_pending_but_same_session_open_cannot_fill():
     assert state.pending_for_open("2330", session_index=20) is None
     assert state.pending_for_open("2330", session_index=21) is close_eval.pending_exit
 
-    with pytest.raises(BaselineExitStateError, match="cannot fill on trigger session"):
+    with pytest.raises(BaselineExitStateError, match="cannot execute on trigger session"):
         state.record_open_execution(
-            BaselineOpenExecutionResult(
-                ticker="2330",
+            _open_result(
+                state,
                 session_index=20,
                 outcome=BaselineOpenExecutionOutcome.FILLED,
-                reason="should fail",
-                fill=_fill(
-                    ticker="2330",
-                    price=91.0,
-                    side="sell",
-                    suffix="exit",
-                ),
+                report_id="same-session-invalid",
             )
         )
+    assert state.holding_state("2330").open_attempts == 0
 
 
 def test_sell_blocked_and_missing_open_keep_original_pending_sticky():
@@ -397,19 +440,19 @@ def test_sell_blocked_and_missing_open_keep_original_pending_sticky():
     original = state.holding_state("2330").pending_exit
 
     state.record_open_execution(
-        BaselineOpenExecutionResult(
-            ticker="2330",
+        _open_result(
+            state,
             session_index=21,
             outcome=BaselineOpenExecutionOutcome.SELL_BLOCKED,
-            reason="SELL_BLOCKED",
+            report_id="blocked-21",
         )
     )
     state.record_open_execution(
-        BaselineOpenExecutionResult(
-            ticker="2330",
+        _open_result(
+            state,
             session_index=22,
             outcome=BaselineOpenExecutionOutcome.NO_VALID_OPEN,
-            reason="RAW_OPEN_MISSING",
+            report_id="missing-open-22",
         )
     )
     rebound = state.observe_bar(
@@ -454,17 +497,14 @@ def test_successful_canonical_sell_fill_is_the_only_open_result_that_clears_hold
     _make_both_pending(state)
 
     state.record_open_execution(
-        BaselineOpenExecutionResult(
-            ticker="2330",
+        _open_result(
+            state,
             session_index=21,
             outcome=BaselineOpenExecutionOutcome.FILLED,
-            reason="canonical fill",
-            fill=_fill(
-                ticker="2330",
-                price=89.0,
-                side="sell",
-                suffix="exit-success",
-            ),
+            report_id="full-exit-21",
+            fill_quantity=1000.0,
+            canonical_before=1000.0,
+            canonical_after=0.0,
         )
     )
     assert state.holding_state("2330") is None
@@ -486,18 +526,26 @@ def test_terminal_extinguishment_supersedes_pending_without_strategy_sell():
     assert audit.superseded_pending is pending
     assert state.holding_state("2330") is None
 
-    with pytest.raises(BaselineExitStateError, match="no pending baseline exit"):
+    with pytest.raises(BaselineExitStateError, match="STALE_OPEN_EXECUTION_REPORT"):
         state.record_open_execution(
             BaselineOpenExecutionResult(
+                report_id="terminal-stale-report",
                 ticker="2330",
+                session_date=_day(21),
                 session_index=21,
                 outcome=BaselineOpenExecutionOutcome.FILLED,
                 reason="must not duplicate terminal",
+                pending_intent_id=pending.intent_id,
+                entry_fill_id="entry-2330",
+                canonical_position_quantity_before=1000.0,
+                canonical_position_quantity_after=0.0,
                 fill=_fill(
                     ticker="2330",
                     price=90.0,
                     side="sell",
                     suffix="duplicate-exit",
+                    quantity=1000.0,
+                    filled_index=21,
                 ),
             )
         )
