@@ -367,10 +367,10 @@ def reconcile_events(
 
         if duplicate_norm or duplicate_off:
             primary = "DUPLICATE_REVISION_OR_CANCEL"
-        elif has_norm and has_off and (value_conflict or unit_unverified):
-            primary = "VALUE_MULTIPLIER_OR_UNIT_CONFLICT"
         elif has_norm and has_off and (cash_missing or stock_missing):
             primary = "DATE_MATCH_COMPONENT_MISSING"
+        elif has_norm and has_off and (value_conflict or unit_unverified):
+            primary = "VALUE_MULTIPLIER_OR_UNIT_CONFLICT"
         elif has_norm and has_off and evidence_insufficient:
             primary = "INSUFFICIENT_EVIDENCE"
         elif has_norm and has_off:
