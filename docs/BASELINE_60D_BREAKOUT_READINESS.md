@@ -1,9 +1,9 @@
 # baseline_60d_breakout_v1 — local readiness after causal RAW v2
 
 Status date: 2026-10-04  
-Status: **EXIT-STATE MODULE COMPLETE / CANONICAL SIMULATOR NOT WIRED / NOT EXECUTABLE / NOT BACKTESTED**
+Status: **CANONICAL SYNTHETIC WIRING COMPLETE / FORMAL DATA GATE BLOCKED / NOT BACKTESTED**
 
-This document records only the owner-authorized engineering preparation for `baseline_60d_breakout_v1`. The exit-state semantics listed below were explicitly authorized for this module, but the module is not registered as an executable strategy exit and is not wired into the canonical simulator. No E1 strategy backtest or E2/E3 effect query is run.
+This document records owner-authorized engineering preparation for `baseline_60d_breakout_v1`. The exact baseline exit pair is now wired into the canonical simulator only through an explicit opt-in context and has synthetic end-to-end acceptance. Formal research remains blocked by the real PIT/data gate, no formal baseline run config is created, and no E1 strategy backtest or E2/E3 effect query is run.
 
 ## Reuse confirmed
 
@@ -12,7 +12,7 @@ This document records only the owner-authorized engineering preparation for `bas
 | 60-session first breakout | `N_SESSION_HIGH lookback=60` | implemented; AstraQuant strict first-cross `>` semantics retained |
 | price at/above MA120 | hydrated `close_to_ma120` + `COLUMN_THRESHOLD min=0.0` | no `PRICE_ABOVE_MA` evaluator is needed |
 | prior-20-session amount >= TWD 20m | causal RAW v2 `prior20_amount_twd` + `COLUMN_THRESHOLD min=20000000` | computation exists; real-data availability gate remains blocked |
-| RAW next-open execution / tradability | canonical execution stack | already implemented; no baseline-specific execution path added |
+| RAW next-open execution / tradability | canonical execution stack | exact baseline pending exits now use canonical EXIT/open execution in opt-in synthetic integration; formal data gate remains blocked |
 | accounting / terminal lifecycle | canonical portfolio stack | unchanged |
 
 The old `configs/drafts/baseline/baseline_livermore_v1.yaml` still contains `PRICE_ABOVE_MA`; it is a historical draft and is **not** promoted or reused as the executable baseline config.
@@ -46,37 +46,38 @@ This is a state/intent module only. It never creates a Fill, never mutates canon
 
 ## Explicitly still blocked / not wired
 
-1. `ATR_FROM_ENTRY_STOP` and `BREAK_N_DAY_LOW` remain **unregistered** in the default `ExitCompiler`; the new state module is not a registry declaration of executable strategy behavior.
-2. `ResearchConfigEngine.simulate_prepared()` still does not pass a baseline close-exit state contract into the canonical simulator.
-3. `CanonicalStrategySimulator` is unchanged and still runs its existing RAW fixed-stop / max-hold lifecycle. The baseline pending-close-exit state is **not wired**.
-4. Opening successor/composite handling remains owned by the canonical lifecycle. The baseline module returns an explicit blocked/lifecycle-required state and performs no successor remapping.
-5. causal RAW v2 real E1 input availability remains blocked by the item-5 gate. Synthetic state tests are not substituted for real-data validation.
-6. No formal baseline run config, E1 baseline run, E2/E3 effect query, or strategy report is created by this change.
+1. The two baseline exit names are compiled only for the exact approved pair and parameters; no generic ATR-from-entry or N-day-low parameter surface is exposed.
+2. CanonicalStrategySimulator consumes the baseline plan only when BaselineSimulationContext is explicitly supplied. Legacy runs remain on the existing stop/max-hold path.
+3. Formal baseline mode requires an explicitly verified PIT/data gate. The current real baseline feature dependency remains blocked, so formal simulation is rejected before transactions.
+4. CA technical approval is per-event evidence input with an explicit source. The simulator does not infer approval from accounting-layer event presence.
+5. Successor/composite/unknown mappings remain technical BLOCKED and owned by canonical lifecycle; no new successor matcher or multi-leg strategy exit logic is added.
+6. No formal baseline run config, real E1 run, E2/E3 query, workflow, scan, or strategy report is created by this integration.
 
 ## Local verification scope
 
-Existing math-preparation tests remain in place. New synthetic acceptance is in `tests/test_baseline_60d_exit_state.py` and covers:
+State-module regressions remain in tests/test_baseline_60d_exit_state.py.
 
-- ATR14 SMA/current inclusion and LOW20 prior-window/equality semantics;
-- warmup, suspension, invalid OHLC, retained gap reason/session-span audit;
-- cash dividend, split, and same-opening cash+share coordinate transforms;
-- entry fee separation, CA batch idempotency/list-generator equivalence/conflicting-ID rejection/split-batch blocking;
-- entry-session close trigger with next-session earliest execution;
-- sticky pending through sell-blocked / missing-open attempts;
-- execution report binding to pending intent + entry identity + legal session + canonical full liquidation; partial, duplicate, and stale reports reject without premature state mutation;
-- BOTH immutability and later secondary-trigger non-rewrite;
-- terminal precedence without duplicate strategy exit;
-- successor and unknown-CA fail-closed behavior with ticker-level persistence across later holdings;
-- multi-stock isolation;
-- bounded 21-bar technical rolling state, including a regression where an old low price has retired before a later cash dividend and cannot spuriously BLOCK the transform;
-- period-end pending preservation.
+Canonical synthetic E2E is in tests/test_baseline_60d_simulator_integration.py and uses temporary synthetic configs plus parquet fixtures while exercising the real package path:
 
-A formal baseline run config, simulator wiring, real E1 run, and strategy report remain outside this preparation step.
+- ResearchConfigEngine prepare -> exact ExitCompiler -> prepared exit plan -> CanonicalStrategySimulator;
+- ATR, LOW20 and BOTH close triggers -> next-open canonical sell;
+- multi-day sell_blocked persistence;
+- cash dividend and split technical-coordinate transforms alongside canonical quantity/cash accounting;
+- opening terminal precedence over old pending strategy exit;
+- successor lifecycle remains traceable BLOCKED;
+- prior-close same-ticker signal cannot sell then re-buy at the same open;
+- SideAwareBpsFeeModel + FixedBpsSlippage applied by the canonical fill factory once per fill;
+- period-end pending/open holding preservation;
+- legacy non-opt-in stop/max-hold path regression;
+- formal baseline mode rejected while PIT/data gate is unverified;
+- exact compiler parameter/mix fail-closed regressions.
+
+These tests are software integration evidence only, not baseline effectiveness evidence.
 
 ## CI verification
 
 - Prior preparation CI remains historical evidence only: GitHub `tests` workflow `37161695576` passed.
-- This branch requires its own `tests` workflow before Astra acceptance; branch CI status is reported in the PR.
+- The dependent integration branch requires its own `tests` workflow before Astra acceptance; the latest branch CI status is reported in Draft PR #4.
 - Existing legacy breakout final-NAV boolean regression workflow `37161695551`: **success**.
 - Strategy-effect publication/sensitivity workflows triggered by the D software commit were **skipped** by the `[no-effects]` guard.
 - No baseline backtest, E2/E3 effect query, VCP Round 2, or other strategy scan was executed by this preparation step.
