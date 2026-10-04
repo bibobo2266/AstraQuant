@@ -51,6 +51,28 @@ def _component_sum(row: pd.Series, primary: str, statutory: str, fallback: str) 
 
 
 def _known_at(row: pd.Series) -> datetime | None:
+    """Return the best source-backed historical announcement timestamp.
+
+    FinMind TaiwanStockDividend exposes AnnouncementDate and AnnouncementTime.
+    The source repository also adds available_date, but for dividends that field
+    is derived from AnnouncementDate and is therefore date-only.  Prefer the
+    original date+time pair when both are present so a calendar date is not
+    silently promoted to midnight precision.  Fall back to existing date fields
+    only when the source did not retain AnnouncementTime.
+    """
+
+    announcement_date = _timestamp(row.get("AnnouncementDate"))
+    announcement_time = row.get("AnnouncementTime")
+    if announcement_date is not None and pd.notna(announcement_time):
+        time_text = str(announcement_time).strip()
+        if time_text:
+            combined = pd.to_datetime(
+                f"{announcement_date.date().isoformat()} {time_text}",
+                errors="coerce",
+            )
+            if pd.notna(combined):
+                return pd.Timestamp(combined).to_pydatetime()
+
     for col in ("available_date", "AnnouncementDate"):
         ts = _timestamp(row.get(col))
         if ts is not None:
