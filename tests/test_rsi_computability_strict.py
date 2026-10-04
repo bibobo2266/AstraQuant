@@ -6,6 +6,7 @@ import pytest
 
 from astraquant.portfolio.calendar import TradingCalendar
 from astraquant.portfolio.policy import PortfolioPolicyConfig
+from astraquant.research.batch_runner import ResearchBatchRunner
 from astraquant.research.config_engine import ResearchConfigEngine
 from astraquant.research.parameter_sweep import ResearchParameterSweepRunner
 from astraquant.research.rsi_computability import (
@@ -597,6 +598,50 @@ ranking:
         )
 
 
+def test_batch_runner_propagates_strict_mask_to_candidate_adapter(tmp_path):
+    _strict_runner_configs(tmp_path)
+    batch = tmp_path / "configs/batches/b.yaml"
+    _write(
+        batch,
+        """
+schema_version: "1"
+name: strict_rsi_batch
+universes:
+  - configs/universes/u.yaml
+signals:
+  - configs/signals/s.yaml
+exits:
+  - configs/exits/e.yaml
+execution_assumptions_id: zero-cost
+max_combinations: 10
+report_trade_stats_first: true
+""",
+    )
+    panel = _runner_panel()
+
+    legacy = ResearchBatchRunner().prepare_matrix(
+        matrix_config_path=batch,
+        root=tmp_path,
+        panel=panel,
+        universe_context=_universe_context(),
+        signal_context=SignalContext(source_revision="batch-legacy"),
+        base_policy=_base_policy(),
+    )
+    strict = ResearchBatchRunner().prepare_matrix(
+        matrix_config_path=batch,
+        root=tmp_path,
+        panel=panel,
+        universe_context=_universe_context(),
+        signal_context=SignalContext(source_revision="batch-strict"),
+        base_policy=_base_policy(),
+        signal_computability_context=_strict_context(panel),
+    )
+
+    assert int(legacy.summary.iloc[0]["signal_candidates"]) == 1
+    assert int(strict.summary.iloc[0]["signal_candidates"]) == 0
+    assert strict.runs[0].candidates.empty
+
+
 def test_expected_sessions_contract_rejects_unordered_or_unproven_input():
     sessions = (
         pd.Timestamp("2026-01-05"),
@@ -610,4 +655,30 @@ def test_expected_sessions_contract_rejects_unordered_or_unproven_input():
     with pytest.raises(ValueError, match="expected_sessions_source"):
         SignalComputabilityContext(
             expected_sessions=(pd.Timestamp("2026-01-02"),),
+        )
+    with pytest.raises(ValueError, match="duplicates"):
+        SignalComputabilityContext(
+            expected_sessions=(
+                pd.Timestamp("2026-01-02"),
+                pd.Timestamp("2026-01-02"),
+            ),
+            expected_sessions_source="duplicate-test",
+        )
+
+    context = SignalComputabilityContext(
+        expected_sessions=(
+            pd.Timestamp("2026-01-02"),
+            pd.Timestamp("2026-01-05"),
+        ),
+        expected_sessions_source="coverage-test",
+    )
+    with pytest.raises(ValueError, match="outside expected_sessions"):
+        context.validate_panel_coverage(
+            pd.DataFrame(
+                {
+                    "date": [pd.Timestamp("2026-01-06")],
+                    "stock_id": ["2330"],
+                    "close": [100.0],
+                }
+            )
         )
