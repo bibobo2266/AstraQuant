@@ -129,6 +129,25 @@ The public repository therefore retains only aggregate scope. Future workflow
 runs keep detailed source-derived scope in runner temporary storage rather than
 publishing private source rows.
 
+## Frozen source acquisition / reconstruction timestamps
+
+These are **repository acquisition/reconstruction timestamps**, not historical
+publication timestamps:
+
+| frozen input | repository evidence |
+| --- | --- |
+| fixed source revision | `fb8b042b46dc38838d103544ca17da10286c7bfe`, committed 2026-09-30T01:07:26Z |
+| RAW/tradability base batch | `c190277d5e43`, 2026-09-26T15:33:24Z |
+| 2016 targeted RAW repair | `9a3a46895a3c`, 2026-09-27T01:22:59Z |
+| historical RAW FinMind gap fill | `034a5775e117`, 2026-09-27T08:59:16Z |
+| later tradability update visible in frozen history | `2185d4e6b77a`, 2026-09-29T05:51:21Z |
+| dividend parquet backfill/rebuild | `83e2212a1f8b`, 2026-09-26T03:59:24Z |
+| official CA / ledger remediation | `4cafa8d33478`, 2026-09-26T13:27:03Z |
+
+These timestamps prove when the frozen research source was assembled. They do
+**not** prove when an E1 market datum was originally public and do not prove that
+a 2026 historical value is identical to its original E1 version.
+
 ## Source timing evidence and revision distinction
 
 Public source rules support the existing T+1 cutoff:
