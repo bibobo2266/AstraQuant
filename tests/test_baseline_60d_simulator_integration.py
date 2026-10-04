@@ -1405,7 +1405,21 @@ def test_actual_simulator_policy_mismatch_fails_before_execution_read(
 ):
     sessions = _sessions(64)
     closes = _baseline_closes(count=64, entry_close=90.0)
-    engine, prepared = _prepare(tmp_path, closes=closes, sessions=sessions)
+    (
+        engine,
+        prepared,
+        _integrator,
+        _joined,
+        _manifest,
+        parquet,
+        _run,
+        _root,
+    ) = _prepare_with_evidence_parts(
+        tmp_path,
+        closes=closes,
+        sessions=sessions,
+    )
+    parquet.unlink()
     raw = _default_raw(sessions, closes)
     source = _write_source(tmp_path, sessions=sessions, raw_rows=raw)
     simulator, portfolio, _ = _simulator(source, prepared)
@@ -1446,7 +1460,21 @@ def test_execution_calendar_mismatch_fails_before_execution_read(
 ):
     sessions = _sessions(64)
     closes = _baseline_closes(count=64, entry_close=90.0)
-    engine, prepared = _prepare(tmp_path, closes=closes, sessions=sessions)
+    (
+        engine,
+        prepared,
+        _integrator,
+        _joined,
+        _manifest,
+        parquet,
+        _run,
+        _root,
+    ) = _prepare_with_evidence_parts(
+        tmp_path,
+        closes=closes,
+        sessions=sessions,
+    )
+    parquet.unlink()
     raw = _default_raw(sessions, closes)
     source = _write_source(tmp_path, sessions=sessions, raw_rows=raw)
     simulator, portfolio, _ = _simulator(source, prepared)
