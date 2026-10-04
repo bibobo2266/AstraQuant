@@ -7,6 +7,8 @@ on:
     paths:
       - ".github/workflows/layer1_causal_raw_v2_gate_evidence.yml"
       - "scripts/layer1_causal_raw_v2_gate_evidence.py"
+      - "src/astraquant/data/corporate_actions.py"
+      - "tests/test_normalized_corporate_actions.py"
 
 permissions:
   contents: write
