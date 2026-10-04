@@ -1,0 +1,76 @@
+{
+  "version": "ca_historical_evidence_path_diagnostic_v1",
+  "status": "PATH_DIAGNOSTIC_COMPLETE_GATE_UNCHANGED",
+  "scope": {
+    "positive_controls": 2,
+    "fixed_samples": 8,
+    "sample_selection_frozen_before_lookup": true,
+    "full_142_requery_performed": false,
+    "mops_security_block_retried": false
+  },
+  "time_evidence_rule": {
+    "exact_timestamp_required": false,
+    "date_only_interval_can_be_sufficient": true,
+    "condition": "latest_possible_publication_time_in_evidence_interval_must_be_strictly_before_cutoff",
+    "event_or_ex_date_is_publication_time": false,
+    "current_query_time_is_publication_time": false
+  },
+  "route_results": {
+    "frozen_private_source": {
+      "positive_controls_traceable": "2/2",
+      "samples_amount_date_traceable": "8/8",
+      "samples_historical_official_known_at_proven": "0/8",
+      "revision_lineage_proven": false
+    },
+    "company_ir_archive": {
+      "positive_controls_complete_pit_evidence": "0/2",
+      "samples_archive_path_located": "1/8",
+      "samples_complete_pit_evidence": "0/8",
+      "note": "annual reports/current archive indexes may support economics but not historical availability unless publication metadata predates cutoff"
+    },
+    "free_tpex_official_tables": {
+      "samples_amount_date_supported": "8/8",
+      "historical_issuer_publication_time_supported": "0/8",
+      "batchable": true,
+      "note": "controls show final official rows can be rounded or pre-revision"
+    },
+    "fixed_id_publication_reposts": {
+      "positive_controls_historical_timing_success": "2/2",
+      "samples_historical_timing_success": "4/8",
+      "samples_full_revision_lineage_success": "0/8",
+      "batchable": "PARTIAL_MANUAL"
+    }
+  },
+  "data_product_option": {
+    "recommended_primary_option": "B",
+    "product_1": {
+      "name": "TPEx eShop 上櫃股票基本資料",
+      "files_of_interest": ["STKANOU.TXT", "T48"],
+      "advertised_starts": {
+        "STKANOU.TXT": "2010-07-19",
+        "T48": "2011-11-30"
+      },
+      "historical_months_orderable": true,
+      "must_verify_before_use": "historical files are original daily as-produced snapshots and preserve fields/revision behavior required for first-appearance evidence"
+    },
+    "product_2": {
+      "name": "TPEx eShop 上櫃股票統計資料",
+      "files_of_interest": ["STKPRERGHT.TXT", "STKRGHTS.TXT"],
+      "advertised_start": "2010-07-16",
+      "historical_months_orderable": true,
+      "limitation": "official preview/calculation state does not by itself prove issuer announcement time"
+    },
+    "purchase_or_account_action_taken": false
+  },
+  "recommendation": {
+    "primary": "B_VALIDATE_SMALL_TPEX_HISTORICAL_SLICE_BEFORE_BULK",
+    "secondary": "A_USE_FIXED_ID_REPOSTS_FOR_RESIDUAL_GAPS_ONLY",
+    "fallback": "C_KEEP_UNPROVEN_CANDIDATES_UNKNOWN_FAIL_CLOSED_IF_VERSIONED_HISTORY_CANNOT_BE_OBTAINED"
+  },
+  "private_evidence_location": "bibobo2266/tradestation/private/astraquant/ca_dividend_component_reconciliation/ca_historical_evidence_path_diagnostic_v1/",
+  "normalizer_modified": false,
+  "formal_gate_changed": false,
+  "formal_e1_feature_artifact_built": false,
+  "strategy_effects_queried": false,
+  "other_item5_blockers_changed": false
+}
