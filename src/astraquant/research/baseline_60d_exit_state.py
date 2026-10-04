@@ -782,9 +782,17 @@ class Baseline60DExitState:
         events = tuple(item.instruction.event for item in group)
 
         if opening_key in self.finalized_opening_batches:
-            raise BaselineExitStateError(
-                "OPENING_CA_BATCH_ALREADY_FINALIZED:"
-                f"{ticker}:{session_start.date().isoformat()}"
+            return _CAPlan(
+                ticker=ticker,
+                opening_key=opening_key,
+                items=group,
+                event_ids=event_ids,
+                status=BaselineCAApplyStatus.BLOCKED,
+                reason="OPENING_CA_BATCH_ALREADY_FINALIZED",
+                cash_per_share=0.0,
+                share_multiplier=1.0,
+                transformed_history=None,
+                transformed_anchor=None,
             )
         if any(
             item.instruction.applied_at > session_start
