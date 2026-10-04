@@ -1,0 +1,50 @@
+{
+  "version": "ca_147_evidence_adjudication_summary_v1",
+  "status": "EVIDENCE_ADJUDICATION_COMPLETE_ASTRA_REVIEW_REQUIRED",
+  "scope": {
+    "candidate_rows": 147,
+    "supplement_candidates": 142,
+    "value_conflict_candidates": 5,
+    "full_reconciliation_rerun": false,
+    "source_repo_modified": false
+  },
+  "supplement_adjudication": {
+    "evidence_sufficient": 0,
+    "amount_sufficient_time_insufficient": 142,
+    "still_unable_to_adjudicate": 0,
+    "candidate_approved": 0
+  },
+  "conflict_adjudication": {
+    "rows": 5,
+    "cutoff_supported_or_time_dependent_revision_relation_adjudicated": 4,
+    "amount_adjudicated_but_exact_historical_cutoff_not_proven": 1,
+    "candidate_approved": 0
+  },
+  "evidence_policy": {
+    "amount_and_historical_availability_judged_separately": true,
+    "ex_date_is_not_known_at": true,
+    "current_lookup_time_is_not_known_at": true,
+    "generic_update_time_is_not_historical_known_at": true,
+    "absence_of_revision_hit_does_not_prove_no_revision": true,
+    "unverified_stock_conversion_used_rows": 0
+  },
+  "remaining_evidence": {
+    "supplements_without_row_specific_historical_cutoff_proof": 142,
+    "conflicts_without_exact_value_historical_cutoff_proof": 1,
+    "next_source_for_supplements": "MOPS historical issuer announcements or issuer IR archives keyed by exact stock/event date and cash amount; do not repeat the bounded Cnyes date search",
+    "revision_lineage": "retain unresolved unless an explicit historical revision/cancellation chain is located"
+  },
+  "governance": {
+    "all_candidates_formally_approved": false,
+    "normalizer_modified": false,
+    "ca_accounting_execution_modified": false,
+    "formal_e1_feature_artifact_built": false,
+    "gate_unlocked": false,
+    "strategy_effects_computed": false
+  },
+  "private_delivery": {
+    "final_private_commit": "1251c9051c947674b8971aad799cc3a3a2079a3d",
+    "private_table": "ca_147_final_adjudication_v1.csv",
+    "private_summary": "ca_147_final_adjudication_summary_v1.json"
+  }
+}
