@@ -1,0 +1,79 @@
+name: Layer1 causal RAW v2 gate evidence
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/layer1_causal_raw_v2_gate_evidence.yml"
+      - "scripts/layer1_causal_raw_v2_gate_evidence.py"
+
+permissions:
+  contents: write
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout AstraQuant
+        uses: actions/checkout@v4
+        with:
+          path: AstraQuant
+
+      - name: Checkout pinned immutable source
+        uses: actions/checkout@v4
+        with:
+          repository: bibobo2266/minervini_picks
+          ref: fb8b042b46dc38838d103544ca17da10286c7bfe
+          token: ${{ secrets.MINERVINI_READ_TOKEN }}
+          path: source_runtime/minervini_picks
+          persist-credentials: false
+
+      - name: Assert and lock source revision
+        working-directory: source_runtime/minervini_picks
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "fb8b042b46dc38838d103544ca17da10286c7bfe"
+          chmod -R a-w .
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install AstraQuant
+        working-directory: AstraQuant
+        run: python -m pip install --quiet -e .
+
+      - name: Run evidence-only audit
+        working-directory: AstraQuant
+        env:
+          SOURCE_ROOT: ../source_runtime/minervini_picks/data
+          SOURCE_REVISION: fb8b042b46dc38838d103544ca17da10286c7bfe
+          REPORT_PATH: docs/PIT_FEATURE_LAYER1_CAUSAL_RAW_V2_GATE_EVIDENCE.md
+          SUMMARY_PATH: out/layer1_causal_raw_v2_gate_evidence.csv
+          NONDIV_PATH: out/layer1_causal_raw_v2_nondividend_scope.csv
+          UNMATCHED_CA_PATH: out/layer1_causal_raw_v2_unmatched_official_ca.csv
+          MANIFEST_PATH: out/layer1_causal_raw_v2_gate_evidence_manifest.json
+        run: python scripts/layer1_causal_raw_v2_gate_evidence.py
+
+      - name: Publish summary
+        working-directory: AstraQuant
+        run: cat docs/PIT_FEATURE_LAYER1_CAUSAL_RAW_V2_GATE_EVIDENCE.md >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Commit evidence to AstraQuant only
+        working-directory: AstraQuant
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add             docs/PIT_FEATURE_LAYER1_CAUSAL_RAW_V2_GATE_EVIDENCE.md             out/layer1_causal_raw_v2_gate_evidence.csv             out/layer1_causal_raw_v2_nondividend_scope.csv             out/layer1_causal_raw_v2_unmatched_official_ca.csv             out/layer1_causal_raw_v2_gate_evidence_manifest.json
+          if git diff --cached --quiet; then
+            echo "No evidence changes to commit."
+            exit 0
+          fi
+          git commit -m "audit: record causal RAW v2 gate evidence [no-effects]"
+          git pull --rebase origin main
+          git push origin HEAD:main
