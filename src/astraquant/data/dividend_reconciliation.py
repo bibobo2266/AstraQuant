@@ -178,7 +178,16 @@ def finmind_components(
     )
     normalized = normalized_actions_frame(build_finmind_normalized_actions(dividend))
     if normalized.empty:
-        return pd.DataFrame()
+        return pd.DataFrame(
+            columns=[
+                "component_id", "source_row_id", "stock_id", "security_type",
+                "component_kind", "effective_date", "cash_per_share",
+                "share_multiplier", "source_distribution_value",
+                "source_unit_semantics", "known_at", "announcement_precision",
+                "source_record_date", "date_difference_explained", "source_name",
+                "source_row_number", "source_revision", "source_blob_sha",
+            ]
+        )
 
     result: list[dict[str, object]] = []
     for r in normalized.itertuples(index=False):
