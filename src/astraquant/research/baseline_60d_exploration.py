@@ -347,6 +347,12 @@ def load_source_manifest(
                 f"source file checksum mismatch: {rel}"
             )
         files.append(SourceFileEvidence(path=rel, sha256=expected))
+    if str(raw["schema_version"]) != "1":
+        raise BaselineExplorationError("unsupported source manifest schema")
+    period_start = pd.Timestamp(str(raw["period_start"]))
+    period_end = pd.Timestamp(str(raw["period_end"]))
+    if period_start > period_end:
+        raise BaselineExplorationError("source manifest period is reversed")
     return SourceManifest(
         schema_version=str(raw["schema_version"]),
         scope=_parse_scope(raw["scope"]),
@@ -1005,13 +1011,23 @@ def run_synthetic_exploration(
         },
         "candidate_cohort": {
             "execution_basis": "PER_TICKER_INDEPENDENT_CANONICAL_SIMULATION",
-            "fixture_policy": asdict(candidate_settings),
+            "fixture_policy": {
+                **asdict(candidate_settings),
+                "capacity_selection_rule": (
+                    candidate_settings.capacity_selection_rule.value
+                ),
+            },
             "fill_count": int(candidate_fill_count),
             "metrics": _metrics(candidate_trades, candidate_open),
         },
         "capital_constrained": {
             "execution_basis": "SINGLE_CANONICAL_PORTFOLIO",
-            "fixture_policy": asdict(capital_settings),
+            "fixture_policy": {
+                **asdict(capital_settings),
+                "capacity_selection_rule": (
+                    capital_settings.capacity_selection_rule.value
+                ),
+            },
             "entries_executed": int(capital_executed.simulation.total_entries),
             "entry_skips": int(capital_executed.simulation.total_entry_skips),
             "capacity_rejections": int(
@@ -1265,13 +1281,13 @@ def build_synthetic_fixture(root: str | Path) -> Path:
         "execution_sessions": [day.isoformat() for day in sessions],
         "candidate_cohort_policy": {
             "opening_cash_twd": 10_000_000.0,
-            "position_fraction": 1.0,
+            "position_fraction": 0.5,
             "max_positions": 1,
             "capacity_selection_rule": "TICKER_ASC",
         },
         "capital_constrained_policy": {
             "opening_cash_twd": 10_000_000.0,
-            "position_fraction": 0.5,
+            "position_fraction": 0.3,
             "max_positions": 2,
             "capacity_selection_rule": "TICKER_ASC",
         },
