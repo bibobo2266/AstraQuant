@@ -16,7 +16,7 @@ from astraquant.data.corporate_actions import (
 
 TRANSFORM_VERSION = "ca_dividend_component_reconciliation_v1"
 FINMIND_UNIT_SEMANTICS = "NTD_PER_PRE_EVENT_SHARE"
-TPEX_STOCK_UNIT_SEMANTICS = "SHARES_PER_1000_PRE_EVENT_SHARES"
+TPEX_STOCK_UNIT_SEMANTICS = "FROZEN_PARSER_DIVIDE_BY_1000_UNIT_UNVERIFIED"
 CASH_UNIT_SEMANTICS = "NTD_PER_PRE_EVENT_SHARE"
 
 
@@ -266,6 +266,15 @@ def official_rows(
     if missing:
         raise ValueError(f"official source missing columns: {missing}")
 
+    output_columns = [
+        "official_row_id", "source_row_number", "stock_id", "security_type",
+        "event_date", "event_type", "cash_per_share", "share_multiplier",
+        "rights_ratio", "market", "source_url", "source_name",
+        "economics_capability", "cash_unit_semantics", "stock_unit_semantics",
+        "stock_unit_verified", "expected_multiplier_from_raw_unit",
+        "known_at_precision", "revision_history_retained",
+        "revision_history_note", "source_revision", "source_blob_sha",
+    ]
     rows: list[dict[str, object]] = []
     for source_row, row in official.reset_index(drop=True).iterrows():
         sid = _text(row.get("stock_id"))
@@ -277,10 +286,15 @@ def official_rows(
         rights_ratio = _num(row.get("rights_ratio"))
         if source_name == "TPEx exDailyQ":
             stock_raw_unit = TPEX_STOCK_UNIT_SEMANTICS
+            # Preserve the frozen importer's numeric candidate, but do not
+            # certify its /1000 unit conversion here.  TPEx public documents
+            # use source-specific ratio labels/units; the exact exDailyQ field
+            # semantics must be independently verified before numeric stock
+            # multiplier comparison.
             expected_multiplier = (
                 None if rights_ratio is None else 1.0 + rights_ratio / 1000.0
             )
-            economics_capability = "CASH_AND_STOCK_COMPONENTS"
+            economics_capability = "CASH_VERIFIED_STOCK_PRESENCE_UNIT_UNVERIFIED"
         elif source_name == "TWSE TWT49U":
             stock_raw_unit = "NOT_PRESENT_IN_FROZEN_TWT49U_INGEST"
             expected_multiplier = None
@@ -320,6 +334,7 @@ def official_rows(
                 if source_name == "TPEx exDailyQ"
                 else "NOT_PRESENT_OR_UNVERIFIED",
                 "stock_unit_semantics": stock_raw_unit,
+                "stock_unit_verified": False,
                 "expected_multiplier_from_raw_unit": expected_multiplier,
                 "known_at_precision": "MISSING_IN_FROZEN_OFFICIAL_INGEST"
                 if not _text(row.get("known_date"))
@@ -330,7 +345,7 @@ def official_rows(
                 "source_blob_sha": official_blob_sha,
             }
         )
-    return pd.DataFrame(rows)
+    return pd.DataFrame(rows, columns=output_columns)
 
 
 def _close(a: object, b: object, *, atol: float = 1e-10) -> bool:
@@ -454,6 +469,7 @@ def reconcile_dividend_components(
         official_cash = np.nan
         official_mult = np.nan
         unit_conflict = False
+        unit_unverified = False
         value_conflict = False
         component_missing = False
         outside = False
@@ -469,15 +485,24 @@ def reconcile_dividend_components(
                 float(r["share_multiplier"]) if pd.notna(r["share_multiplier"]) else np.nan
             )
             expected_cash = bool(pd.notna(official_cash) and official_cash > 0)
-            expected_stock = bool(pd.notna(official_mult) and official_mult > 1.0)
-            if pd.notna(r["expected_multiplier_from_raw_unit"]) and pd.notna(official_mult):
-                unit_conflict = not _close(
-                    r["expected_multiplier_from_raw_unit"], official_mult
-                )
+            # A positive frozen rights_ratio/share_multiplier is evidence that
+            # the official row carries a stock-right component.  Its numeric
+            # conversion is NOT verified by this audit.
+            expected_stock = bool(
+                (pd.notna(r["rights_ratio"]) and float(r["rights_ratio"]) > 0)
+                or (pd.notna(official_mult) and official_mult > 1.0)
+            )
+            unit_unverified = bool(expected_stock and not bool(r["stock_unit_verified"]))
             if not expected_cash and not expected_stock:
                 outside = True
             elif not len(cg):
-                genuine_missing = True
+                # Only a verified official cash component is strong enough to
+                # classify a missing normalized source event.  Stock-only rows
+                # stay insufficient until exDailyQ unit semantics are verified.
+                if expected_cash:
+                    genuine_missing = True
+                else:
+                    evidence_insufficient = True
             else:
                 if expected_cash and not cs["normalized_cash_present"]:
                     component_missing = True
@@ -487,10 +512,8 @@ def reconcile_dividend_components(
                     value_conflict |= not _close(
                         official_cash, cs["normalized_cash_per_share"]
                     )
-                if expected_stock and cs["normalized_stock_present"]:
-                    value_conflict |= not _close(
-                        official_mult, cs["normalized_share_multiplier"]
-                    )
+                if expected_stock and cs["normalized_stock_present"] and unit_unverified:
+                    evidence_insufficient = True
         elif len(twse):
             # Frozen TWT49U ingestion proves a market/date row, not its cash/share
             # economics. Matching a FinMind component on the date cannot certify
@@ -508,13 +531,13 @@ def reconcile_dividend_components(
             primary = PrimaryClass.DUPLICATE_REVISION_CANCEL
         elif outside:
             primary = PrimaryClass.OUTSIDE_NORMALIZER_SCOPE
-        elif unit_conflict or value_conflict:
-            primary = PrimaryClass.VALUE_OR_UNIT_CONFLICT
         elif component_missing:
             primary = PrimaryClass.SAME_DATE_COMPONENT_MISSING
+        elif unit_conflict or value_conflict:
+            primary = PrimaryClass.VALUE_OR_UNIT_CONFLICT
         elif genuine_missing:
             primary = PrimaryClass.GENUINE_SOURCE_EVENT_MISSING
-        elif evidence_insufficient:
+        elif evidence_insufficient or unit_unverified:
             primary = PrimaryClass.INSUFFICIENT_EVIDENCE
         elif cs["date_difference_explained"] and not len(og):
             primary = PrimaryClass.DATE_DIFFERENCE_EXPLAINED
@@ -548,6 +571,7 @@ def reconcile_dividend_components(
                 "flag_component_missing": component_missing,
                 "flag_value_conflict": value_conflict,
                 "flag_unit_conflict": unit_conflict,
+                "flag_stock_unit_unverified": unit_unverified,
                 "flag_current_duplicate": duplicate_current,
                 "flag_historical_revision_cancel_unknown": historical_revision_unknown,
                 "flag_official_economics_insufficient": evidence_insufficient,
