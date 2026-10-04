@@ -1,9 +1,9 @@
 # baseline_60d_breakout_v1 — local readiness after causal RAW v2
 
 Status date: 2026-10-04  
-Status: **PARTIAL LOCAL PREP / NOT EXECUTABLE / NOT BACKTESTED**
+Status: **EXIT-STATE MODULE COMPLETE / CANONICAL SIMULATOR NOT WIRED / NOT EXECUTABLE / NOT BACKTESTED**
 
-This document records only the work allowed by the existing `baseline_60d_breakout_v1` specification and the owner-authorized local-preparation scope. It does not freeze any rule that the baseline spec still marks as pending review, does not run an E1 strategy backtest, and does not query E2/E3 effects.
+This document records only the owner-authorized engineering preparation for `baseline_60d_breakout_v1`. The exit-state semantics listed below were explicitly authorized for this module, but the module is not registered as an executable strategy exit and is not wired into the canonical simulator. No E1 strategy backtest or E2/E3 effect query is run.
 
 ## Reuse confirmed
 
@@ -17,43 +17,62 @@ This document records only the work allowed by the existing `baseline_60d_breako
 
 The old `configs/drafts/baseline/baseline_livermore_v1.yaml` still contains `PRICE_ABOVE_MA`; it is a historical draft and is **not** promoted or reused as the executable baseline config.
 
-## Frozen exit math now isolated
+## Exit-state module now implemented in isolation
 
-`src/astraquant/research/baseline_60d_breakout.py` adds math-only helpers for the pieces whose numerical semantics are already fixed:
+The existing math-only helpers in `src/astraquant/research/baseline_60d_breakout.py` remain unchanged.
 
-- ATR period = 14;
-- ATR smoothing = rolling **SMA**, not Wilder;
-- ATR stop level = `entry_anchor - 3 * ATR14_t`;
-- ATR trigger comparator = `close_t <= stop_level_t`;
-- 20-day-low trigger comparator = strict `close_t < prior_low_reference_t`;
-- missing comparator inputs remain unknown (`pd.NA`), not `False`.
+`src/astraquant/research/baseline_60d_exit_state.py` now implements the separately authorized state module for:
 
-The helper deliberately accepts an already-approved true-range sequence / prior-low reference. It does **not** choose the unresolved corporate-action price transform, valid-observed-bar sequence, pending-exit persistence, or event ordering.
+- one stock-specific valid-observed-OHLC sequence shared by ATR14 and LOW20;
+- ATR14 = SMA(TR,14), including current valid bar;
+- LOW20 = minimum of the prior 20 valid observed closes, excluding current;
+- explicit UNKNOWN during insufficient warmup or missing/invalid current observation;
+- entry anchor from canonical `Fill.price`, excluding fees;
+- approved simple cash/share technical-coordinate transform `P_post=(P_pre-c)/m` across entry anchor and the retained OHLC history;
+- same-opening cash + share aggregation without per-event rounding;
+- duplicate-CA idempotency;
+- sticky pending ATR / LOW20 / BOTH intent;
+- next-session-or-later open eligibility only;
+- blocked-open persistence;
+- terminal precedence;
+- successor/composite/unknown mapping as `CANONICAL_LIFECYCLE_REQUIRED` without local remapping or position destruction;
+- multi-stock state isolation and period-end pending preservation.
+
+The interface and future wiring order are documented in `docs/BASELINE_60D_EXIT_STATE_INTERFACE.md`.
+
+This is a state/intent module only. It never creates a Fill, never mutates canonical accounting, and does not make the baseline executable.
 
 ## Explicitly still blocked / not wired
 
-1. `ATR_FROM_ENTRY_STOP` and `BREAK_N_DAY_LOW` remain **unregistered** in the default `ExitCompiler`; attempting to compile them still raises `UnsupportedComponentError`. This prevents a registry name from being mistaken for runnable behavior.
-2. `ResearchConfigEngine.simulate_prepared()` still passes candidates and corporate actions only; it does not pass `prepared.exit_plan.close_exit_rules` into the canonical simulator.
-3. `CanonicalStrategySimulator` still executes its existing RAW fixed-stop and max-hold lifecycle. No generic close-rule pending-next-open state was added.
-4. The baseline spec still marks the CA-normalized technical state / successor handling and close-exit event ordering as pending review. Those behaviors were not inferred here.
-5. The exact 20D reference observation basis remains pending in the baseline spec. Only the strict comparator is implemented here.
-6. causal RAW v2 real E1 input availability remains blocked by the item-5 gate. Synthetic tests are not substituted for real-data validation.
+1. `ATR_FROM_ENTRY_STOP` and `BREAK_N_DAY_LOW` remain **unregistered** in the default `ExitCompiler`; the new state module is not a registry declaration of executable strategy behavior.
+2. `ResearchConfigEngine.simulate_prepared()` still does not pass a baseline close-exit state contract into the canonical simulator.
+3. `CanonicalStrategySimulator` is unchanged and still runs its existing RAW fixed-stop / max-hold lifecycle. The baseline pending-close-exit state is **not wired**.
+4. Opening successor/composite handling remains owned by the canonical lifecycle. The baseline module returns an explicit blocked/lifecycle-required state and performs no successor remapping.
+5. causal RAW v2 real E1 input availability remains blocked by the item-5 gate. Synthetic state tests are not substituted for real-data validation.
+6. No formal baseline run config, E1 baseline run, E2/E3 effect query, or strategy report is created by this change.
 
 ## Local verification scope
 
-The dedicated tests lock:
+Existing math-preparation tests remain in place. New synthetic acceptance is in `tests/test_baseline_60d_exit_state.py` and covers:
 
-- ATR14 rolling SMA differs from Wilder after the seed;
-- the entry-anchor threshold can move up or down solely because ATR updates and never uses a high-watermark input;
-- `<=` for ATR and strict `<` for prior-low;
-- MA120 and prior20 amount reuse `COLUMN_THRESHOLD` at the frozen thresholds;
-- both not-yet-wired exit component names remain fail-closed in `ExitCompiler`.
+- ATR14 SMA/current inclusion and LOW20 prior-window/equality semantics;
+- warmup, suspension, invalid OHLC, retained gap reason/session-span audit;
+- cash dividend, split, and same-opening cash+share coordinate transforms;
+- entry fee separation and duplicate-CA idempotency;
+- entry-session close trigger with next-session earliest execution;
+- sticky pending through sell-blocked / missing-open attempts;
+- BOTH immutability and later secondary-trigger non-rewrite;
+- terminal precedence without duplicate strategy exit;
+- successor and unknown-CA fail-closed behavior;
+- multi-stock isolation;
+- period-end pending preservation.
 
-A formal baseline run config, simulator close-rule wiring, real E1 run, and strategy report remain outside this preparation step.
+A formal baseline run config, simulator wiring, real E1 run, and strategy report remain outside this preparation step.
 
 ## CI verification
 
-- GitHub `tests` workflow `37161695576`: **334 passed in 6.73s**.
+- Prior preparation CI remains historical evidence only: GitHub `tests` workflow `37161695576` passed.
+- This branch requires its own `tests` workflow before Astra acceptance; branch CI status is reported in the PR.
 - Existing legacy breakout final-NAV boolean regression workflow `37161695551`: **success**.
 - Strategy-effect publication/sensitivity workflows triggered by the D software commit were **skipped** by the `[no-effects]` guard.
 - No baseline backtest, E2/E3 effect query, VCP Round 2, or other strategy scan was executed by this preparation step.
