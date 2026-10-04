@@ -15,7 +15,7 @@ from astraquant.data.corporate_actions import (
 
 
 TRANSFORM_VERSION = "ca_dividend_component_reconciliation_v1"
-FINMIND_UNIT_SEMANTICS = "NTD_PER_PRE_EVENT_SHARE"
+FINMIND_UNIT_SEMANTICS = "NTD_PER_PRE_EVENT_SHARE;MULTIPLIER_REQUIRES_EVENT_PAR_VALUE"
 TPEX_STOCK_UNIT_SEMANTICS = "FROZEN_PARSER_DIVIDE_BY_1000_UNIT_UNVERIFIED"
 CASH_UNIT_SEMANTICS = "NTD_PER_PRE_EVENT_SHARE"
 
@@ -229,6 +229,12 @@ def finmind_components(
                 "share_multiplier": multiplier,
                 "source_distribution_value": raw_distribution_value,
                 "source_unit_semantics": unit,
+                "economic_value_verified": kind == "CASH_DIVIDEND",
+                "conversion_status": (
+                    "SOURCE_AMOUNT_VERIFIED"
+                    if kind == "CASH_DIVIDEND"
+                    else "CURRENT_NORMALIZER_DIVIDE_BY_10_CANDIDATE_PAR_VALUE_NOT_VERIFIED"
+                ),
                 "known_at": pd.Timestamp(r.known_at) if pd.notna(r.known_at) else pd.NaT,
                 "announcement_precision": raw["announcement_precision"],
                 "source_record_date": raw["source_record_date"],
@@ -477,7 +483,13 @@ def reconcile_dividend_components(
         official_cash = np.nan
         official_mult = np.nan
         unit_conflict = False
-        unit_unverified = False
+        unit_unverified = bool(
+            len(cg)
+            and (
+                cg["component_kind"].eq("STOCK_DIVIDEND")
+                & ~cg["economic_value_verified"].fillna(False).astype(bool)
+            ).any()
+        )
         value_conflict = False
         component_missing = False
         outside = event_security_type != "FOUR_DIGIT_COMMON_OR_OTHER"
@@ -500,7 +512,10 @@ def reconcile_dividend_components(
                 (pd.notna(r["rights_ratio"]) and float(r["rights_ratio"]) > 0)
                 or (pd.notna(official_mult) and official_mult > 1.0)
             )
-            unit_unverified = bool(expected_stock and not bool(r["stock_unit_verified"]))
+            unit_unverified = bool(
+                unit_unverified
+                or (expected_stock and not bool(r["stock_unit_verified"]))
+            )
             if not expected_cash and not expected_stock:
                 outside = True
             elif not len(cg):
