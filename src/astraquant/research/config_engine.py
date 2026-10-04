@@ -223,6 +223,8 @@ class ResearchConfigEngine:
         remain inert unless the exact compiled baseline pair and an explicit
         baseline_context are both present.
         """
+        if prepared.exit_plan.baseline_60d_enabled and baseline_context is not None:
+            baseline_context.require_runnable()
         return simulator.run(
             sessions=list(sessions),
             candidates=prepared.candidates,
