@@ -36,6 +36,29 @@ def test_finmind_cash_uses_cash_ex_date_and_statutory_surplus():
     assert a.unit_semantics == "cash_per_pre_event_share"
 
 
+def test_finmind_known_at_prefers_source_announcement_time_over_date_only_available_date():
+    d = pd.DataFrame([{
+        "stock_id": "2330",
+        "CashExDividendTradingDate": "2019-06-24",
+        "StockExDividendTradingDate": None,
+        "available_date": "2019-06-06",
+        "AnnouncementDate": "2019-06-06",
+        "AnnouncementTime": "15:47:30",
+        "CashDividendPaymentDate": "2019-07-18",
+        "CashEarningsDistribution": 8.0,
+        "CashStatutorySurplus": 0.0,
+        "CashDividend": 8.0,
+        "StockEarningsDistribution": 0.0,
+        "StockStatutorySurplus": 0.0,
+        "StockDividend": 0.0,
+    }])
+
+    actions = build_finmind_normalized_actions(d)
+
+    assert len(actions) == 1
+    assert actions[0].known_at.isoformat() == "2019-06-06T15:47:30"
+
+
 def test_finmind_stock_uses_stock_ex_date_and_currency_per_share_formula():
     d = pd.DataFrame([{
         "stock_id": "2330",
