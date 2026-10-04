@@ -2,11 +2,11 @@
 
 ## 目前狀態
 
-更新時間：2026-10-04T06:46:00Z
-做完：private commit f243225 的 CA 裁定 v2 原件已完成交接；兩個誤觸發 effect run 已按接觸清冊補登；source config／observation sweep 的 [no-effects] 防線已核對
-結果：37179099014 在 generic config sweep 內取消、37179099001 在 Bollinger sweep 內取消；兩者 publish／commit 均 skipped、無效果報告寫回；實際取消前逐列資料接觸超出 E1 的範圍無法證明者標 UNKNOWN；防線 commit 04ae2307／c61b1439 的自觸發驗證均 skipped；候選正式核准仍 0
-卡住：第 5 項仍 BLOCKED；MOPS security-block 僅代表查詢管道阻塞，142 筆仍待可用歷史公告管道；既有 CA 證據缺口、RAW／Trading_money 與其他 blocker 均維持
-下一項：待Astra驗收 private v2 裁定原件與誤觸發接觸紀錄；不再重試被擋的 MOPS 管道
+更新時間：2026-10-04T10:37:00Z
+做完：歷史 CA 取證路徑小樣本診斷完成；沿用既有147候選與原裁定，不重跑全量、不重試MOPS security-block；2個positive controls＋預先固定8個樣本的逐路徑證據已保存private
+結果：固定ID公告轉載之歷史時間先後：controls 2/2、樣本4/8；frozen/TPEx官方可核對樣本金額與事件日8/8但歷史issuer known_at 0/8；公司IR完整PIT證據0/8；建議B為主（先驗證TPEx歷史每日檔小切片），A僅作殘餘補證
+卡住：第5項仍BLOCKED；未證revision lineage與歷史first-known者維持UNKNOWN，RAW／Trading_money及386筆非股利事件等既有blocker不變
+下一項：待Astra驗收CA取證路徑；如採B，由Owner決定是否取得TPEx指定歷史資料產品／小切片
 
 狀態：ACTIVE
 
