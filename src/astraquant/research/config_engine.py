@@ -354,15 +354,16 @@ class ResearchConfigEngine:
             self.validate_prepared_eligibility(prepared)
             evidence = prepared.eligibility_evidence
             assert evidence is not None
-            if (
-                baseline_context.mode is BaselineSimulationMode.SYNTHETIC_FIXTURE
-                and evidence.feature_evidence.scope
-                is not EligibilityEvidenceScope.SYNTHETIC_FIXTURE
-            ):
-                raise FeaturePanelIntegrationError(
-                    "synthetic baseline simulation requires "
-                    "SYNTHETIC_FIXTURE eligibility evidence"
-                )
+            if baseline_context.mode is BaselineSimulationMode.SYNTHETIC_FIXTURE:
+                if (
+                    evidence.feature_evidence.scope
+                    is not EligibilityEvidenceScope.SYNTHETIC_FIXTURE
+                ):
+                    raise FeaturePanelIntegrationError(
+                        "synthetic baseline simulation requires "
+                        "SYNTHETIC_FIXTURE eligibility evidence"
+                    )
+                evidence.feature_evidence.require_strategy_verified()
         return simulator.run(
             sessions=list(sessions),
             candidates=prepared.candidates,
