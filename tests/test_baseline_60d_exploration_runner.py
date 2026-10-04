@@ -25,6 +25,18 @@ def _repo_root() -> Path:
     return Path(__file__).resolve().parents[1]
 
 
+def _normalized_json(value):
+    if isinstance(value, dict):
+        return {key: _normalized_json(item) for key, item in value.items()}
+    if isinstance(value, list):
+        return [_normalized_json(item) for item in value]
+    if isinstance(value, float):
+        if pd.isna(value):
+            return None
+        return round(value, 12)
+    return value
+
+
 def test_frozen_method_config_matches_single_approved_baseline():
     loaded = load_frozen_method_config(_repo_root() / METHOD_CONFIG)
     assert loaded == FROZEN_METHOD
@@ -140,6 +152,11 @@ def test_synthetic_exploration_full_entry_report_and_costs(tmp_path):
     assert expected_files == {path.name for path in output.iterdir()}
     stored = json.loads((output / "report.json").read_text(encoding="utf-8"))
     assert stored["candidate_funnel"] == report["candidate_funnel"]
+    expected = json.loads(
+        (_repo_root() / "out/baseline_60d_exploration_synthetic_report.json")
+        .read_text(encoding="utf-8")
+    )
+    assert _normalized_json(stored) == _normalized_json(expected)
 
 
 def test_missing_candidate_eligibility_is_explicit_unknown_not_zero(tmp_path):
