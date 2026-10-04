@@ -10,6 +10,7 @@ from astraquant.execution.service import SignalDeclaration
 from astraquant.portfolio.performance_reporting import TradeReport, build_trade_report
 from astraquant.portfolio.policy import PortfolioPolicyConfig
 from astraquant.portfolio.strategy_simulator import CanonicalStrategySimulator, StrategySimulationResult
+from astraquant.research.baseline_60d_simulation import BaselineSimulationContext
 from astraquant.research.candidates import candidates_from_signal_frame
 from astraquant.research.config_io import (
     load_exit_config,
@@ -214,12 +215,20 @@ class ResearchConfigEngine:
         simulator: CanonicalStrategySimulator,
         sessions,
         corporate_actions=None,
+        baseline_context: BaselineSimulationContext | None = None,
     ) -> StrategySimulationResult:
-        """Run prepared config candidates through the unchanged canonical simulator."""
+        """Run prepared candidates through the canonical simulator.
+
+        The compiled exit plan is always passed through. Baseline close rules
+        remain inert unless the exact compiled baseline pair and an explicit
+        baseline_context are both present.
+        """
         return simulator.run(
             sessions=list(sessions),
             candidates=prepared.candidates,
             corporate_actions=corporate_actions,
+            exit_plan=prepared.exit_plan,
+            baseline_context=baseline_context,
         )
 
 
@@ -230,6 +239,7 @@ class ResearchConfigEngine:
         simulator: CanonicalStrategySimulator,
         sessions,
         corporate_actions=None,
+        baseline_context: BaselineSimulationContext | None = None,
     ) -> ExecutedResearchRun:
         """Execute config candidates and attach CA-aware FIFO trade statistics."""
         simulation = self.simulate_prepared(
@@ -237,6 +247,7 @@ class ResearchConfigEngine:
             simulator=simulator,
             sessions=sessions,
             corporate_actions=corporate_actions,
+            baseline_context=baseline_context,
         )
         return ExecutedResearchRun(
             prepared=prepared,
