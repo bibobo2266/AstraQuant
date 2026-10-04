@@ -209,6 +209,7 @@ class Baseline60DExitState:
     holdings: dict[str, BaselineHoldingExitState] = field(default_factory=dict)
     applied_ca_event_ids: set[str] = field(default_factory=set)
     terminal_audit: list[BaselineTerminalAudit] = field(default_factory=list)
+    skipped_session_reasons: dict[str, list[str]] = field(default_factory=dict)
 
     @staticmethod
     def _finite_positive(value: float | None) -> bool:
@@ -309,8 +310,13 @@ class Baseline60DExitState:
         else:
             gap_sessions = 0
         gap_reason = bar.gap_reason
+        pending_gap_reasons = self.skipped_session_reasons.pop(ticker, [])
         if gap_sessions > 0 and not gap_reason:
-            gap_reason = "MISSING_OR_INVALID_SESSION_OBSERVATION"
+            gap_reason = (
+                "|".join(pending_gap_reasons)
+                if pending_gap_reasons
+                else "MISSING_OR_INVALID_SESSION_OBSERVATION"
+            )
         observed = BaselineObservedBar(
             ticker=ticker,
             session_date=bar.session_date,
@@ -366,6 +372,7 @@ class Baseline60DExitState:
         reason = self._validate_bar(bar)
         holding = self.holdings.get(str(bar.ticker))
         if reason is not None:
+            self.skipped_session_reasons.setdefault(str(bar.ticker), []).append(reason)
             return self._unknown_evaluation(
                 bar=bar,
                 reason=reason,
