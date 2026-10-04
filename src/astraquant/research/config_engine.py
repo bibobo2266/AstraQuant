@@ -310,6 +310,29 @@ class ResearchConfigEngine:
         )
 
 
+    def validate_prepared_eligibility(
+        self,
+        prepared: PreparedResearchRun,
+    ) -> None:
+        evidence = prepared.eligibility_evidence
+        if evidence is None:
+            raise FeaturePanelIntegrationError(
+                "PreparedResearchRun has no eligibility evidence"
+            )
+        validate_prepared_run_eligibility_evidence(
+            evidence=evidence,
+            run_config=prepared.run_config,
+            universe_config=prepared.universe_config,
+            signal_config=prepared.signal_config,
+            exit_config=prepared.exit_config,
+            portfolio_policy=prepared.portfolio_policy,
+            universe_mask=prepared.universe_mask,
+            signal_frame=prepared.signal_frame,
+            candidates=prepared.candidates,
+            signal_source_revision=prepared.signal_source_revision,
+            signal_availability_policy=prepared.signal_availability_policy,
+        )
+
     def simulate_prepared(
         self,
         *,
@@ -328,24 +351,9 @@ class ResearchConfigEngine:
         if prepared.exit_plan.baseline_60d_enabled and baseline_context is not None:
             # Formal mode stops here before any evidence/artifact read.
             baseline_context.require_runnable()
+            self.validate_prepared_eligibility(prepared)
             evidence = prepared.eligibility_evidence
-            if evidence is None:
-                raise FeaturePanelIntegrationError(
-                    "baseline simulation requires PreparedResearchRun eligibility evidence"
-                )
-            validate_prepared_run_eligibility_evidence(
-                evidence=evidence,
-                run_config=prepared.run_config,
-                universe_config=prepared.universe_config,
-                signal_config=prepared.signal_config,
-                exit_config=prepared.exit_config,
-                portfolio_policy=prepared.portfolio_policy,
-                universe_mask=prepared.universe_mask,
-                signal_frame=prepared.signal_frame,
-                candidates=prepared.candidates,
-                signal_source_revision=prepared.signal_source_revision,
-                signal_availability_policy=prepared.signal_availability_policy,
-            )
+            assert evidence is not None
             if (
                 baseline_context.mode is BaselineSimulationMode.SYNTHETIC_FIXTURE
                 and evidence.feature_evidence.scope
