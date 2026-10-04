@@ -125,7 +125,7 @@ def main() -> None:
 
     scopes = {
         "SOURCE_ALL_WARMUP_PLUS_E1": pd.Series(True, index=x.index),
-        "FOUR_DIGIT_RESEARCH_SECURITY_BASE": x["security_scope"].eq("RESEARCH_TICKER_PATTERN"),
+        "FOUR_DIGIT_RESEARCH_SECURITY_BASE": x["security_type"].eq("FOUR_DIGIT_COMMON_OR_OTHER"),
         "ESTABLISHED_E1_ALL_LIQUID_TICKERS": x["in_established_e1_all_liquid_ticker_set"],
         "WARMUP_EVENTS_WITH_MA120_E1_DEPENDENCY": x["warmup_event"] & x["theoretical_ma120_e1_dependency"],
         "WARMUP_EVENTS_WITH_N60_E1_DEPENDENCY": x["warmup_event"] & x["theoretical_n60_e1_dependency"],
