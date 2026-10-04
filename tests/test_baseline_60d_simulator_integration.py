@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import replace
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 import hashlib
 import json
 from pathlib import Path
@@ -1318,6 +1318,276 @@ def test_signal_source_revision_change_invalidates_bound_run_evidence(tmp_path):
         engine.validate_prepared_eligibility(
             replace(prepared, signal_source_revision="other-source-revision")
         )
+
+
+def _guard_no_execution_market_read(monkeypatch, simulator):
+    def unexpected_market_read(*args, **kwargs):
+        pytest.fail(
+            "execution binding must fail before canonical market-data read"
+        )
+
+    monkeypatch.setattr(
+        simulator.execution.market_data.source,
+        "read_parquet",
+        unexpected_market_read,
+    )
+
+
+@pytest.mark.parametrize(
+    "tampered_plan",
+    [
+        CompiledExitPlan(
+            config_name="tampered-disabled",
+            stop_fraction=None,
+            max_hold_sessions=None,
+            close_exit_rules=(),
+        ),
+        None,
+    ],
+    ids=["disabled", "different-baseline-shape"],
+)
+def test_replaced_exit_plan_cannot_bypass_prepared_evidence(
+    tmp_path,
+    monkeypatch,
+    tampered_plan,
+):
+    sessions = _sessions(64)
+    closes = _baseline_closes(count=64, entry_close=90.0)
+    engine, prepared = _prepare(tmp_path, closes=closes, sessions=sessions)
+    if tampered_plan is None:
+        tampered_plan = replace(
+            prepared.exit_plan,
+            config_name="tampered-baseline-name",
+        )
+    tampered = replace(prepared, exit_plan=tampered_plan)
+
+    raw = _default_raw(sessions, closes)
+    source = _write_source(tmp_path, sessions=sessions, raw_rows=raw)
+    simulator, portfolio, _ = _simulator(source, prepared)
+    _guard_no_execution_market_read(monkeypatch, simulator)
+
+    with pytest.raises(
+        FeaturePanelIntegrationError,
+        match="prepared exit plan does not match compiled exit config",
+    ):
+        engine.simulate_prepared(
+            prepared=tampered,
+            simulator=simulator,
+            sessions=sessions,
+            baseline_context=_synthetic_context(),
+        )
+
+    assert portfolio.orders.orders == {}
+    assert portfolio.positions.positions == {}
+
+
+def test_prepared_evidence_itself_binds_compiled_exit_plan(tmp_path):
+    sessions = _sessions(64)
+    closes = _baseline_closes(count=64, entry_close=90.0)
+    engine, prepared = _prepare(tmp_path, closes=closes, sessions=sessions)
+    changed = replace(
+        prepared,
+        exit_plan=replace(
+            prepared.exit_plan,
+            config_name="changed-after-prepare",
+        ),
+    )
+    with pytest.raises(
+        FeaturePanelIntegrationError,
+        match="compiled exit plan fingerprint mismatch",
+    ):
+        engine.validate_prepared_eligibility(changed)
+
+
+def test_actual_simulator_policy_mismatch_fails_before_execution_read(
+    tmp_path,
+    monkeypatch,
+):
+    sessions = _sessions(64)
+    closes = _baseline_closes(count=64, entry_close=90.0)
+    engine, prepared = _prepare(tmp_path, closes=closes, sessions=sessions)
+    raw = _default_raw(sessions, closes)
+    source = _write_source(tmp_path, sessions=sessions, raw_rows=raw)
+    simulator, portfolio, _ = _simulator(source, prepared)
+    simulator.policy.config = replace(
+        simulator.policy.config,
+        position_fraction=0.10,
+    )
+    _guard_no_execution_market_read(monkeypatch, simulator)
+
+    with pytest.raises(
+        FeaturePanelIntegrationError,
+        match="actual simulator policy fingerprint mismatch",
+    ):
+        engine.simulate_prepared(
+            prepared=prepared,
+            simulator=simulator,
+            sessions=sessions,
+            baseline_context=_synthetic_context(),
+        )
+
+    assert portfolio.orders.orders == {}
+    assert portfolio.positions.positions == {}
+
+
+@pytest.mark.parametrize(
+    "session_variant,match",
+    [
+        ("missing_tail", "execution sessions do not match prepared-run evidence"),
+        ("reordered", "strictly increasing and unique"),
+        ("out_of_range", "exceed hydrated panel evidence range"),
+    ],
+)
+def test_execution_calendar_mismatch_fails_before_execution_read(
+    tmp_path,
+    monkeypatch,
+    session_variant,
+    match,
+):
+    sessions = _sessions(64)
+    closes = _baseline_closes(count=64, entry_close=90.0)
+    engine, prepared = _prepare(tmp_path, closes=closes, sessions=sessions)
+    raw = _default_raw(sessions, closes)
+    source = _write_source(tmp_path, sessions=sessions, raw_rows=raw)
+    simulator, portfolio, _ = _simulator(source, prepared)
+    _guard_no_execution_market_read(monkeypatch, simulator)
+
+    if session_variant == "missing_tail":
+        actual_sessions = sessions[:-1]
+    elif session_variant == "reordered":
+        actual_sessions = [
+            sessions[0],
+            sessions[2],
+            sessions[1],
+            *sessions[3:],
+        ]
+    else:
+        actual_sessions = [
+            sessions[0] - timedelta(days=1),
+            *sessions,
+        ]
+
+    with pytest.raises(FeaturePanelIntegrationError, match=match):
+        engine.simulate_prepared(
+            prepared=prepared,
+            simulator=simulator,
+            sessions=actual_sessions,
+            baseline_context=_synthetic_context(),
+        )
+
+    assert portfolio.orders.orders == {}
+    assert portfolio.positions.positions == {}
+
+
+def test_warmup_panel_range_is_separate_from_execution_calendar(tmp_path):
+    hydration_sessions = _sessions(66)
+    closes = _baseline_closes(count=66, entry_close=90.0)
+    execution_sessions = hydration_sessions[2:]
+    root = tmp_path / "research"
+    run = _write_configs(root, baseline=True)
+    integrator, joined, _manifest, _parquet = _hydrate_feature_fixture(
+        tmp_path,
+        sessions=hydration_sessions,
+        closes=closes,
+    )
+    engine = ResearchConfigEngine()
+    prepared = engine.prepare_hydrated(
+        run_config_path=run,
+        root=root,
+        feature_integrator=integrator,
+        feature_join_result=joined,
+        universe_context=UniverseContext(
+            p2_060_excluded_tickers=frozenset(),
+            p2_060_exclusion_sha256=P2_SHA,
+        ),
+        signal_context=SignalContext(
+            source_revision="synthetic-baseline-source-v1"
+        ),
+        base_policy=PortfolioPolicyConfig(
+            position_fraction=0.20,
+            max_positions=1,
+            stop_fraction=0.20,
+            reentry_gap_sessions=0,
+            max_hold_sessions=20,
+            lot_size=1000,
+            random_seed=1,
+        ),
+        execution_sessions=execution_sessions,
+    )
+
+    evidence = prepared.eligibility_evidence
+    assert evidence is not None
+    assert evidence.feature_evidence.panel_date_start == str(
+        hydration_sessions[0]
+    )
+    assert evidence.execution_date_start == str(execution_sessions[0])
+    assert evidence.execution_sessions == tuple(
+        day.isoformat() for day in execution_sessions
+    )
+
+
+def test_direct_baseline_simulator_without_binding_is_rejected_before_read(
+    tmp_path,
+    monkeypatch,
+):
+    sessions = _sessions(64)
+    closes = _baseline_closes(count=64, entry_close=90.0)
+    _engine, prepared = _prepare(
+        tmp_path,
+        closes=closes,
+        sessions=sessions,
+    )
+    raw = _default_raw(sessions, closes)
+    source = _write_source(tmp_path, sessions=sessions, raw_rows=raw)
+    simulator, portfolio, _ = _simulator(source, prepared)
+    _guard_no_execution_market_read(monkeypatch, simulator)
+
+    with pytest.raises(
+        FeaturePanelIntegrationError,
+        match="direct baseline simulator entry requires prepared-run "
+        "eligibility evidence",
+    ):
+        simulator.run(
+            sessions=sessions,
+            candidates=prepared.candidates,
+            exit_plan=prepared.exit_plan,
+            baseline_context=_synthetic_context(),
+        )
+
+    assert portfolio.orders.orders == {}
+    assert portfolio.positions.positions == {}
+
+
+def test_direct_baseline_simulator_valid_binding_uses_same_validation(tmp_path):
+    sessions = _sessions(64)
+    closes = _baseline_closes(count=64, entry_close=90.0)
+    _engine, prepared = _prepare(
+        tmp_path,
+        closes=closes,
+        sessions=sessions,
+    )
+    raw = _default_raw(
+        sessions,
+        closes,
+        overrides={
+            61: (100.0, 111.0, 99.0, 110.0),
+            62: (120.0, 121.0, 89.0, 90.0),
+            63: (100.0, 101.0, 99.0, 100.0),
+        },
+    )
+    source = _write_source(tmp_path, sessions=sessions, raw_rows=raw)
+    simulator, portfolio, _ = _simulator(source, prepared)
+
+    result = simulator.run(
+        sessions=sessions,
+        candidates=prepared.candidates,
+        exit_plan=prepared.exit_plan,
+        baseline_context=_synthetic_context(),
+        eligibility_evidence=prepared.eligibility_evidence,
+    )
+
+    assert result.total_baseline_exit_fills == 1
+    assert portfolio.positions.positions["2330"].quantity == 0
 
 
 @pytest.mark.parametrize(
