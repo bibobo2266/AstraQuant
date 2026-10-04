@@ -36,6 +36,7 @@ from astraquant.research.baseline_60d_simulation import (
 )
 from astraquant.research.config_engine import ResearchConfigEngine
 from astraquant.research.exit_engine import ExitCompiler
+from astraquant.research.feature_panel_integration import AvailabilityStatus
 from astraquant.research.signal_engine import SignalContext
 from astraquant.research.strategy_config import ExitConfig, ExitRuleConfig
 from astraquant.research.universe_engine import UniverseContext
@@ -809,7 +810,10 @@ def test_formal_baseline_entry_remains_blocked_without_verified_data_gate(tmp_pa
             sessions=sessions,
             baseline_context=BaselineSimulationContext(
                 mode=BaselineSimulationMode.FORMAL_RESEARCH,
-                pit_data_gate_verified=False,
+                pit_data_gate_status=AvailabilityStatus.UNAVAILABLE,
+                pit_data_gate_source=(
+                    "layer1 integration: close_to_ma120 strategy availability"
+                ),
             ),
         )
 
