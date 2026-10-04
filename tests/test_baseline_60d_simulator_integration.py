@@ -108,6 +108,10 @@ def _hydrate_feature_fixture(
     source_revision: str = "synthetic-baseline-source-v1",
     formula_version: str = "synthetic-baseline-features-v1",
     epoch: str = "SYNTHETIC_E2E",
+    verified_only: bool = True,
+    evidence_scope: EligibilityEvidenceScope = (
+        EligibilityEvidenceScope.SYNTHETIC_FIXTURE
+    ),
 ):
     dates = pd.to_datetime(sessions)
     feature = pd.DataFrame(
@@ -186,7 +190,8 @@ def _hydrate_feature_fixture(
         config=load_feature_panel_integration_config(config_path),
         artifact_root=artifact_root,
         manifest_path=manifest_path,
-        evidence_scope=EligibilityEvidenceScope.SYNTHETIC_FIXTURE,
+        verified_only=verified_only,
+        evidence_scope=evidence_scope,
         evidence_source="test_baseline_60d_simulator_integration fixture",
     )
     joined = integrator.hydrate(_panel(sessions, closes))
@@ -1021,6 +1026,110 @@ def test_unknown_or_unavailable_feature_status_cannot_create_fixture_evidence(
             closes=closes,
             status=status,
         )
+
+
+def test_diagnostic_hydration_cannot_unlock_synthetic_baseline(tmp_path):
+    sessions = _sessions(64)
+    closes = _baseline_closes(count=64, entry_close=90.0)
+    root = tmp_path / "research"
+    run = _write_configs(root, baseline=True)
+    integrator, joined, _manifest, _parquet = _hydrate_feature_fixture(
+        tmp_path,
+        sessions=sessions,
+        closes=closes,
+        verified_only=False,
+    )
+    engine = ResearchConfigEngine()
+    prepared = engine.prepare_hydrated(
+        run_config_path=run,
+        root=root,
+        feature_integrator=integrator,
+        feature_join_result=joined,
+        universe_context=UniverseContext(
+            p2_060_excluded_tickers=frozenset(),
+            p2_060_exclusion_sha256=P2_SHA,
+        ),
+        signal_context=SignalContext(
+            source_revision="synthetic-baseline-source-v1"
+        ),
+        base_policy=PortfolioPolicyConfig(
+            position_fraction=0.20,
+            max_positions=1,
+            stop_fraction=0.20,
+            reentry_gap_sessions=0,
+            max_hold_sessions=20,
+            lot_size=1000,
+            random_seed=1,
+        ),
+    )
+    raw = _default_raw(sessions, closes)
+    source = _write_source(tmp_path, sessions=sessions, raw_rows=raw)
+    simulator, portfolio, _ = _simulator(source, prepared)
+
+    with pytest.raises(
+        FeaturePanelIntegrationError,
+        match="verified_only=false hydration",
+    ):
+        engine.simulate_prepared(
+            prepared=prepared,
+            simulator=simulator,
+            sessions=sessions,
+            baseline_context=_synthetic_context(),
+        )
+    assert portfolio.orders.orders == {}
+    assert portfolio.positions.positions == {}
+
+
+def test_integrity_only_evidence_scope_cannot_unlock_synthetic_baseline(tmp_path):
+    sessions = _sessions(64)
+    closes = _baseline_closes(count=64, entry_close=90.0)
+    root = tmp_path / "research"
+    run = _write_configs(root, baseline=True)
+    integrator, joined, _manifest, _parquet = _hydrate_feature_fixture(
+        tmp_path,
+        sessions=sessions,
+        closes=closes,
+        evidence_scope=EligibilityEvidenceScope.INTEGRITY_ONLY,
+    )
+    engine = ResearchConfigEngine()
+    prepared = engine.prepare_hydrated(
+        run_config_path=run,
+        root=root,
+        feature_integrator=integrator,
+        feature_join_result=joined,
+        universe_context=UniverseContext(
+            p2_060_excluded_tickers=frozenset(),
+            p2_060_exclusion_sha256=P2_SHA,
+        ),
+        signal_context=SignalContext(
+            source_revision="synthetic-baseline-source-v1"
+        ),
+        base_policy=PortfolioPolicyConfig(
+            position_fraction=0.20,
+            max_positions=1,
+            stop_fraction=0.20,
+            reentry_gap_sessions=0,
+            max_hold_sessions=20,
+            lot_size=1000,
+            random_seed=1,
+        ),
+    )
+    raw = _default_raw(sessions, closes)
+    source = _write_source(tmp_path, sessions=sessions, raw_rows=raw)
+    simulator, portfolio, _ = _simulator(source, prepared)
+
+    with pytest.raises(
+        FeaturePanelIntegrationError,
+        match="SYNTHETIC_FIXTURE eligibility evidence",
+    ):
+        engine.simulate_prepared(
+            prepared=prepared,
+            simulator=simulator,
+            sessions=sessions,
+            baseline_context=_synthetic_context(),
+        )
+    assert portfolio.orders.orders == {}
+    assert portfolio.positions.positions == {}
 
 
 def test_modified_hydrated_panel_invalidates_old_evidence_before_prepare(tmp_path):
