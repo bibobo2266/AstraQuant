@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, replace
+import math
 
 from astraquant.portfolio.policy import PortfolioPolicyConfig
 from astraquant.research.component_registry import ComponentRegistry, UnsupportedComponentError
@@ -153,14 +154,44 @@ def _require_exact_params(
     normalized: dict[str, object] = {}
     for key, expected_value in expected.items():
         raw = params[key]
+
         if isinstance(expected_value, bool):
-            actual = bool(raw)
+            if type(raw) is not bool:
+                raise ValueError(
+                    f"{rule.type} baseline {key} must be a YAML boolean; "
+                    f"got {raw!r}"
+                )
+            actual = raw
         elif isinstance(expected_value, int) and not isinstance(expected_value, bool):
-            actual = int(raw)
+            if type(raw) is not int:
+                raise ValueError(
+                    f"{rule.type} baseline {key} must be an integer; "
+                    f"got {raw!r}"
+                )
+            actual = raw
         elif isinstance(expected_value, float):
+            if type(raw) not in {int, float} or isinstance(raw, bool):
+                raise ValueError(
+                    f"{rule.type} baseline {key} must be a finite number; "
+                    f"got {raw!r}"
+                )
             actual = float(raw)
+            if not math.isfinite(actual):
+                raise ValueError(
+                    f"{rule.type} baseline {key} must be finite; got {raw!r}"
+                )
         else:
-            actual = str(raw).upper()
+            if not isinstance(raw, str):
+                raise ValueError(
+                    f"{rule.type} baseline {key} must be a string; "
+                    f"got {raw!r}"
+                )
+            actual = raw.strip().upper()
+            if not actual:
+                raise ValueError(
+                    f"{rule.type} baseline {key} must not be blank"
+                )
+
         if actual != expected_value:
             raise ValueError(
                 f"{rule.type} only supports baseline {key}={expected_value!r}; "
