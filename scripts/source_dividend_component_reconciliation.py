@@ -108,6 +108,106 @@ def _aggregate_with_period(events: pd.DataFrame) -> pd.DataFrame:
     return pd.concat(blocks, ignore_index=True) if blocks else pd.DataFrame()
 
 
+def _public_safe_summary(
+    events: pd.DataFrame,
+    components: pd.DataFrame,
+    official: pd.DataFrame,
+) -> dict[str, object]:
+    periods = {
+        "WARMUP": (START, E1_START - pd.Timedelta(days=1)),
+        "E1": (E1_START, END),
+        "WARMUP_PLUS_E1": (START, END),
+    }
+    scopes = {
+        "SOURCE_ALL": pd.Series(True, index=events.index),
+        "FOUR_DIGIT_RESEARCH_BASE": events["security_type"].eq("FOUR_DIGIT_COMMON_OR_OTHER"),
+    }
+
+    blocks: dict[str, object] = {}
+    for period_name, (begin, finish) in periods.items():
+        p = events["event_date"].between(begin, finish)
+        blocks[period_name] = {}
+        for scope_name, scope_mask in scopes.items():
+            g = events[p & scope_mask].copy()
+            classes = {
+                cls.value: int(g["primary_class"].eq(cls.value).sum())
+                for cls in PrimaryClass
+            }
+            if sum(classes.values()) != len(g):
+                raise AssertionError(f"conservation failed for {period_name}/{scope_name}")
+            blocks[period_name][scope_name] = {
+                "economic_events": int(len(g)),
+                "distinct_tickers": int(g["stock_id"].nunique()),
+                "primary_classes": classes,
+                "exact_date_both_sides": int(
+                    ((g["official_row_ids"].astype(str) != "") & (g["normalized_component_ids"].astype(str) != "")).sum()
+                ),
+                "normalized_only": int(g["flag_normalized_without_official"].sum()),
+                "official_only": int(g["flag_official_without_normalized"].sum()),
+                "component_missing_flags": int(g["flag_component_missing"].sum()),
+                "value_conflict_flags": int(g["flag_value_conflict"].sum()),
+                "unit_conflict_flags": int(g["flag_unit_conflict"].sum()),
+                "stock_unit_unverified_flags": int(g["flag_stock_unit_unverified"].sum()),
+                "official_economics_insufficient_flags": int(g["flag_official_economics_insufficient"].sum()),
+                "current_duplicate_flags": int(g["flag_current_duplicate"].sum()),
+                "historical_revision_cancel_unknown_flags": int(
+                    g["flag_historical_revision_cancel_unknown"].sum()
+                ),
+            }
+
+    matched = events[
+        (events["official_row_ids"].astype(str) != "")
+        & (events["normalized_component_ids"].astype(str) != "")
+    ].copy()
+    source_breakdown = {}
+    for source in ("TWSE TWT49U", "TPEx exDailyQ"):
+        g = matched[matched["official_sources"].astype(str).str.contains(source, regex=False)]
+        source_breakdown[source] = {
+            "exact_date_matched_events": int(len(g)),
+            "component_missing_flags": int(g["flag_component_missing"].sum()),
+            "value_conflict_flags": int(g["flag_value_conflict"].sum()),
+            "stock_unit_unverified_flags": int(g["flag_stock_unit_unverified"].sum()),
+            "insufficient_evidence_flags": int(g["flag_official_economics_insufficient"].sum()),
+        }
+
+    precision = (
+        components["announcement_precision"].value_counts(dropna=False).to_dict()
+        if len(components) else {}
+    )
+    component_counts = (
+        components["component_kind"].value_counts(dropna=False).to_dict()
+        if len(components) else {}
+    )
+    official_sources = (
+        official["source_name"].value_counts(dropna=False).to_dict()
+        if len(official) else {}
+    )
+
+    return {
+        "counting_unit": "unique_stock_id_plus_effective_event_date",
+        "period_scope_blocks": blocks,
+        "matched_source_breakdown": source_breakdown,
+        "normalized_components": {
+            "total": int(len(components)),
+            "by_kind": {str(k): int(v) for k, v in component_counts.items()},
+            "announcement_precision": {str(k): int(v) for k, v in precision.items()},
+        },
+        "official_rows": {
+            "total": int(len(official)),
+            "by_source": {str(k): int(v) for k, v in official_sources.items()},
+        },
+        "research_scope_note": (
+            "FOUR_DIGIT_RESEARCH_BASE is the fixed security-id base from the approved all_liquid contract; "
+            "daily price/turnover top-25% membership is intentionally not recomputed in this CA-only audit."
+        ),
+        "impact_semantics": {
+            "theoretical_window": "separate dependency estimate only; not actual unblock date",
+            "actual_engine": "effective unavailable event blocks until known_at < decision_cutoff_at; an earlier unresolved event blocks later events",
+            "active_comparable_coverage": "must be evaluated from actual feature state rows; this audit does not substitute calendar-window counts",
+        },
+    }
+
+
 def main() -> None:
     p = argparse.ArgumentParser()
     p.add_argument("--dividend", required=True)
@@ -157,6 +257,7 @@ def main() -> None:
 
     mapping = _event_component_mapping(events, components, official_norm)
     aggregate = _aggregate_with_period(events)
+    public_safe_summary = _public_safe_summary(events, components, official_norm)
 
     finmind_raw.to_csv(out / "finmind_source_rows.csv", index=False, encoding="utf-8-sig")
     components.to_csv(out / "normalized_components.csv", index=False, encoding="utf-8-sig")
@@ -164,6 +265,10 @@ def main() -> None:
     mapping.to_csv(out / "source_event_component_mapping.csv", index=False, encoding="utf-8-sig")
     events.to_csv(out / "event_reconciliation.csv", index=False, encoding="utf-8-sig")
     aggregate.to_csv(out / "aggregate_reconciliation.csv", index=False, encoding="utf-8-sig")
+    (out / "public_safe_summary.json").write_text(
+        json.dumps(public_safe_summary, ensure_ascii=False, indent=2) + "\n",
+        encoding="utf-8",
+    )
 
     primary_counts = {
         cls.value: int(events["primary_class"].eq(cls.value).sum())
@@ -197,6 +302,7 @@ def main() -> None:
             "economic_events_warmup_e1": int(len(events)),
             "source_event_component_mapping": int(len(mapping)),
         },
+        "public_safe_summary": "public_safe_summary.json",
         "primary_class_counts_warmup_e1": primary_counts,
         "formal_e1_feature_artifact_built": False,
         "strategy_effects_computed": False,
