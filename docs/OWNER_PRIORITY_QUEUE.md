@@ -2,11 +2,11 @@
 
 ## 目前狀態
 
-更新時間：2026-10-04T06:22:00Z
-做完：147 筆 CA 候選裁定 v2 與公告查詢 positive control 完成；私有逐筆證據／固定來源快照已更新，未重跑全量 reconciliation、未注入 normalizer
-結果：有證據 2、尚未獨立核實 144、找不到 1；142 筆補事件全部為尚未獨立核實；MOPS positive control 0/4，4 筆皆回安全阻擋頁，故本輪未啟動 142 筆批量查詢；正式核准 0
-卡住：第 5 項仍 BLOCKED；142 筆需先取得可用歷史公告查詢管道，另 2 筆衝突缺可重現的精確發布時間、1 筆衝突仍找不到歷史 cutoff 證據
-下一項：待Astra驗收5筆衝突證據與MOPS正向控制結果；142筆批量查證需先取得可用歷史公告查詢管道
+更新時間：2026-10-04T06:46:00Z
+做完：private commit f243225 的 CA 裁定 v2 原件已完成交接；兩個誤觸發 effect run 已按接觸清冊補登；source config／observation sweep 的 [no-effects] 防線已核對
+結果：37179099014 在 generic config sweep 內取消、37179099001 在 Bollinger sweep 內取消；兩者 publish／commit 均 skipped、無效果報告寫回；實際取消前逐列資料接觸超出 E1 的範圍無法證明者標 UNKNOWN；防線 commit 04ae2307／c61b1439 的自觸發驗證均 skipped；候選正式核准仍 0
+卡住：第 5 項仍 BLOCKED；MOPS security-block 僅代表查詢管道阻塞，142 筆仍待可用歷史公告管道；既有 CA 證據缺口、RAW／Trading_money 與其他 blocker 均維持
+下一項：待Astra驗收 private v2 裁定原件與誤觸發接觸紀錄；不再重試被擋的 MOPS 管道
 
 狀態：ACTIVE
 
