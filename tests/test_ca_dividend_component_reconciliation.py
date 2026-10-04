@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import importlib.util
+import sys
 from pathlib import Path
 
 import pandas as pd
@@ -10,6 +11,7 @@ SCRIPT = Path(__file__).parents[1] / "scripts" / "ca_dividend_component_reconcil
 SPEC = importlib.util.spec_from_file_location("ca_recon", SCRIPT)
 assert SPEC and SPEC.loader
 ca = importlib.util.module_from_spec(SPEC)
+sys.modules[SPEC.name] = ca
 SPEC.loader.exec_module(ca)
 
 
