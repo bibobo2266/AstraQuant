@@ -130,7 +130,9 @@ def finmind_source_rows(
                 "source_row_id": stable,
                 "source_row_number": int(source_row),
                 "stock_id": sid,
-                "security_type": event_security_type,
+                "security_type": "FOUR_DIGIT_COMMON_OR_OTHER"
+                if pd.Series([sid]).str.fullmatch(r"[1-9]\d{3}", na=False).iloc[0]
+                else "OUTSIDE_FOUR_DIGIT_RESEARCH_BASE",
                 "source_name": "FinMind TaiwanStockDividend",
                 "source_revision": source_revision,
                 "source_blob_sha": dividend_blob_sha,
@@ -560,9 +562,7 @@ def reconcile_dividend_components(
                 ),
                 "stock_id": sid,
                 "event_date": day,
-                "security_type": "FOUR_DIGIT_COMMON_OR_OTHER"
-                if pd.Series([sid]).str.fullmatch(r"[1-9]\d{3}", na=False).iloc[0]
-                else "OUTSIDE_FOUR_DIGIT_RESEARCH_BASE",
+                "security_type": event_security_type,
                 "in_research_ticker_scope": (
                     pd.NA if research_set is None else sid in research_set
                 ),
