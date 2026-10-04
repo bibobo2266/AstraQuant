@@ -606,12 +606,28 @@ class CanonicalStrategySimulator:
 
             held_before_open = set(self.policy.managed_positions)
 
-            signal_rows = sorted(entry_signals.get(day, []), key=lambda row: str(row["stock_id"]))
+            signal_rows = sorted(
+                entry_signals.get(day, []),
+                key=lambda row: str(row["stock_id"]),
+            )
             tickers = [str(row["stock_id"]) for row in signal_rows]
             entry_candidates: list[EntryCandidate] = []
             candidate_signal_by_ticker: dict[str, SignalDeclaration] = {}
+            baseline_pre_entry_skips: dict[str, str] = {}
             for row in signal_rows:
                 ticker = str(row["stock_id"])
+                if baseline_exit_state is not None:
+                    if ticker in held_at_prior_close:
+                        baseline_pre_entry_skips[ticker] = (
+                            "BASELINE_SIGNAL_FORMED_WHILE_HELD"
+                        )
+                        continue
+                    if baseline_exit_state.technical_block_reason(ticker) is not None:
+                        baseline_pre_entry_skips[ticker] = (
+                            "BASELINE_TECHNICAL_STATE_BLOCKED"
+                        )
+                        continue
+
                 candidate_signal = declaration_from_candidate(row)
                 candidate_signal_by_ticker[ticker] = candidate_signal
                 sizing = self.execution.sizing_price(
@@ -626,8 +642,16 @@ class CanonicalStrategySimulator:
                         ticker=ticker,
                         sizing_decision=sizing,
                         signal_date=str(pd.Timestamp(row["signal_date"]).date()),
-                        turnover_value=(None if pd.isna(row.get("turnover_value")) else float(row["turnover_value"])),
-                        breakout_excess=(None if pd.isna(row.get("breakout_excess")) else float(row["breakout_excess"])),
+                        turnover_value=(
+                            None
+                            if pd.isna(row.get("turnover_value"))
+                            else float(row["turnover_value"])
+                        ),
+                        breakout_excess=(
+                            None
+                            if pd.isna(row.get("breakout_excess"))
+                            else float(row["breakout_excess"])
+                        ),
                     )
                 )
 
@@ -649,7 +673,7 @@ class CanonicalStrategySimulator:
                 current_nav=opening_nav,
                 available_cash=self.portfolio.cash.available_to_commit_cash,
             )
-            entry_skips = len(skipped)
+            entry_skips = len(skipped) + len(baseline_pre_entry_skips)
             capacity_rejections = sum(
                 reason == "NO_POSITION_SLOT" or reason.startswith("CAPACITY_")
                 for reason in skipped.values()
@@ -696,6 +720,11 @@ class CanonicalStrategySimulator:
                     fill_price=out.fill.price,
                     session_index=idx,
                 )
+                if baseline_exit_state is not None:
+                    baseline_exit_state.register_entry(
+                        out.fill,
+                        session_index=idx,
+                    )
                 entries += 1
             total_entries += entries
             total_entry_skips += entry_skips
