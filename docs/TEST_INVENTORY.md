@@ -67,8 +67,8 @@ L1 六階段完成數：來源資料 **17/17**；PIT **15/17**；元件 **15/17*
 | L1-X03 | RSI 多時間框架 SOP | owner 觀察 | daily direction → completed 60m rhythm → completed 15m strength/pullback + volume；以 available_at 對齊，不得只按 date join。 | 驗證完整多時間框架 RSI SOP。 | src/astraquant/research/technical_components.py::rsi_pullback_reclaim；::rsi_filter（日線代理部分） | tests/test_rsi_kd_observations.py | SOURCE_RSI_DAILY_SWEEP.md | DEFERRED：缺 canonical 60m/15m 來源與 completed-bar PIT；現有報告僅日線代理。 | L1-011 | 無 | 無 | 有 | 無 | 有 | 有 | CANDIDATE | SIMPLIFIED | 無 |
 | L1-X04 | 夜盤＋美股背景疊加 | owner 觀察 | TAIFEX 夜盤 05:00 相對前一 TWSE close 的 basis，加上 TSM ADR/SOX/Nasdaq 同方向票數；所有輸入需在台股決策點前已知。 | 檢查 overnight context 是否改善候選條件。 | src/astraquant/research/technical_components.py::overnight_market_context | tests/test_observation_components.py::test_overnight_context_requires_explicit_premarket_columns | 無 | DEFERRED（owner 暫緩）：缺可驗 known_at 的 canonical 夜盤/海外來源與跨市場時區/假日映射。 | 無 | 無 | 無 | 有 | 有 | 無 | 無 | NONE | FULL | 無 |
 | L1-X05 | O'Neil 長期趨勢結構 | repo 既有 | close>fast SMA、fast>slow、fast/slow 皆較 slope_lookback 前上升，並限制 fast/slow spread。 | 作為長期趨勢結構 filter。 | src/astraquant/research/technical_components.py::long_term_trend_structure | tests/test_technical_components.py | SOURCE_ONEIL_TAIWAN_SWEEP.md | 無獨立 full-trade 結論；現有產物是 candidate-level surface。 | L1-001 | 有 | 有 | 有 | 有 | 有 | 有 | CANDIDATE | NA | 無 |
-| L1-X06 | EMA9 回踩後確認 | USER_PROVIDED_TRANSCRIPT | 原文只登錄「回踩 EMA9 後確認」作為觸發概念；日線版為研究改編，不能反推為影片完整原法。 | 檢查 EMA9 pullback/reclaim 是否可作為獨立進場觸發候選。 | 未實作；_ema_by_ticker 可重用 EMA 計算骨架，但現有 pullback_reclaim 使用 SMA，不能視為 exact evaluator。 | 無 | 無 | 待凍結 touch 定義（low/close、容忍帶）、confirmation 條件、同 bar/次 bar、EMA 初始化/暖機、缺值、available_at 與成交時點；影片 5/15 分鐘版本另走 intraday lineage。 | L2-T09;L1-014 | 有 | 無 | 無 | 無 | 無 | 無 | NONE | SIMPLIFIED | 原文：回踩 EMA9 後確認；機械化選擇：日線改編可獨立定義；未定義：確認規則與 timing。 |
-| L1-X07 | EMA9／EMA20 交叉 | USER_PROVIDED_TRANSCRIPT | 原文登錄 EMA9／EMA20 交叉概念；尚未核定 bullish/bearish 方向、cross 等號邊界、5/15 分鐘或日線的 exact event。 | 檢查短中期 EMA 交叉是否形成候選觸發。 | 未實作；_ema_by_ticker 可重用 EMA 計算骨架；MA_GOLDEN_CROSS 為 SMA，不可代替。 | 無 | 無 | 待凍結 EMA 初始化/暖機、cross 方向與首次穿越定義、缺值、時間框架、available_at/成交時點；日線與 5/15 分鐘不得混為同一版本。 | L1-008;L2-T09 | 有 | 無 | 無 | 無 | 無 | 無 | NONE | SIMPLIFIED | 原文：EMA9/EMA20 交叉；機械化選擇：日線版本另立 lineage；未定義：方向與事件邊界。 |
+| L1-X06 | EMA9 回踩後確認 | USER_PROVIDED_TRANSCRIPT | 原文只登錄「回踩 EMA9 後確認」作為觸發概念；日線版為研究改編，不能反推為影片完整原法。 | 檢查 EMA9 pullback/reclaim 是否可作為獨立進場觸發候選。 | 未實作；_ema_by_ticker 可重用 EMA 計算骨架，但現有 pullback_reclaim 使用 SMA，不能視為 exact evaluator。 | 無 | 無 | 待凍結 touch 定義（low/close、容忍帶）、confirmation 條件、同 bar/次 bar、EMA 初始化/暖機、缺值、available_at 與成交時點；影片 5/15 分鐘版本另走 intraday lineage。EMA 計算與資料契約為共用依賴，不要求先完成 L2-T09。 | 無 | 有 | 無 | 無 | 無 | 無 | 無 | NONE | SIMPLIFIED | 原文：回踩 EMA9 後確認；機械化選擇：日線改編可獨立定義；未定義：確認規則與 timing。L1-014 僅供結構參考，不構成前置依賴。 |
+| L1-X07 | EMA9／EMA20 交叉 | USER_PROVIDED_TRANSCRIPT | 原文登錄 EMA9／EMA20 交叉概念；尚未核定 bullish/bearish 方向、cross 等號邊界、5/15 分鐘或日線的 exact event。 | 檢查短中期 EMA 交叉是否形成候選觸發。 | 未實作；_ema_by_ticker 可重用 EMA 計算骨架；MA_GOLDEN_CROSS 為 SMA，不可代替。 | 無 | 無 | 待凍結 EMA 初始化/暖機、cross 方向與首次穿越定義、缺值、時間框架、available_at/成交時點；日線與 5/15 分鐘不得混為同一版本。EMA 計算與資料契約為共用依賴，不要求先完成 L2-T09。 | 無 | 有 | 無 | 無 | 無 | 無 | 無 | NONE | SIMPLIFIED | 原文：EMA9/EMA20 交叉；機械化選擇：日線版本另立 lineage；未定義：方向與事件邊界。L1-008 僅為 SMA cross 對照，不構成前置依賴。 |
 
 ## 表二：L2 條件過濾
 
@@ -91,8 +91,8 @@ L1 六階段完成數：來源資料 **17/17**；PIT **15/17**；元件 **15/17*
 | L2-T06 | RSI 各週期與差值與斜率 | 本次新提 | 概念拆分=3：RSI level；multi-period difference；RSI slope。 | 把 RSI 狀態拆成可比較 feature。 | src/astraquant/research/technical_components.py::rsi_filter；::rsi_rank；::rsi_relative（部分） | tests/test_rsi_kd_observations.py | SOURCE_RSI_DAILY_SWEEP.md（只覆蓋日線代理） | RSI level 與 fast>slow 已有，但 numeric difference/slope 未實作；整列六階段未完整。 | L1-011;L1-X03 | 有 | 有 | 無 | 有 | 有 | 有 | CANDIDATE | SIMPLIFIED | 無 |
 | L2-T07 | KD 各值與高低檔鈍化天數 | owner 觀察 | 概念拆分=2：K/D values；high/low saturation duration。 | 描述 KD state 與持續性。 | src/astraquant/research/technical_components.py::_stochastic_kd；::kd_saturation_state（部分） | tests/test_rsi_kd_observations.py | 無 | K/D helper 與 boolean sustained-state 有，但未提供可重用 numeric K/D + saturation-days feature bundle；缺正式 sweep/report。 | L1-012 | 有 | 有 | 無 | 有 | 無 | 無 | NONE | FULL | 無 |
 | L2-T08 | MACD 柱與斜率、CCI、威廉指標 | 本次新提 | 概念拆分=3：MACD histogram state；CCI；Williams %R。 | 補足不同動能 oscillator。 | 未實作 | 無 | 無 | 現行 macd_cross_above_zero 實際是 MACD line cross，不能代替 histogram/slope；CCI/Williams 也未實作。 | L1-009 | 有 | 無 | 無 | 無 | 無 | 無 | NONE | NA | 無 |
-| L2-T09 | EMA9 方向狀態（日線研究改編） | USER_PROVIDED_TRANSCRIPT | 概念拆分=1：close > EMA9 且 EMA9 上升。這是日線研究版本；影片文字摘要/逐字稿所述 5/15 分鐘語境另保留 lineage。 | 作為固定進場 A 的附加條件 B，檢查短期趨勢方向是否提供增量資訊。 | 未實作 exact filter；src/astraquant/research/technical_components.py::_ema_by_ticker 僅為計算 helper，generic COLUMN_THRESHOLD 也不負責產生 EMA。 | 無 | 無 | 實驗前需凍結 EMA 初始化/暖機、斜率定義與等號、CA price coordinate、缺值政策、訊號 available_at 與成交時點；完整日線 close 不得假裝盤中提前可知。 | L1-X06;L1-X07 | 有 | 無 | 無 | 無 | 無 | 無 | NONE | SIMPLIFIED | 原文：EMA9 方向概念；機械化選擇：日線 B=close>EMA9 且 EMA9 上升；未定義：EMA 初始化、slope/timing/missing。6/9/12 僅登錄鄰近週期，未核定掃描。 |
-| L2-T10 | EMA9＋session VWAP 同方向（盤中） | USER_PROVIDED_TRANSCRIPT | 概念拆分=1：EMA9 與當日 session VWAP 同方向；必須使用 completed 5/15 分鐘 bar 與當時可知的累積 session VWAP，不得用日線代理。 | 研究盤中短期趨勢與成交量加權價格是否一致。 | 未實作；repo 未見 session VWAP research evaluator。 | 無 | 無 | DEFERRED：KBar source family 存在但 canonical 5/15 分鐘聚合、completed-bar available_at、session VWAP 定義/重置時點與 PIT 契約未完成；禁止以日線 close/amount 冒充。 | L2-T09 | 無 | 無 | 無 | 無 | 無 | 無 | NONE | SIMPLIFIED | 原文：EMA9＋VWAP 同方向；機械化選擇：5/15 分鐘 lineage 分開；未定義：VWAP price/volume 欄位、session 邊界與方向判定。 |
+| L2-T09 | EMA9 方向狀態（日線研究改編） | USER_PROVIDED_TRANSCRIPT | 概念拆分=1：close > EMA9 且 EMA9 上升。這是日線研究版本；影片文字摘要/逐字稿所述 5/15 分鐘語境另保留 lineage。 | 作為固定進場 A 的附加條件 B，檢查短期趨勢方向是否提供增量資訊。 | 未實作 exact filter；src/astraquant/research/technical_components.py::_ema_by_ticker 僅為計算 helper，generic COLUMN_THRESHOLD 也不負責產生 EMA。 | 無 | 無 | 實驗前需凍結 EMA 初始化/暖機、斜率定義與等號、待核定的 CA 一致研究價格、缺值政策、訊號 available_at 與成交時點；完整日線 close 不得假裝盤中提前可知。EMA 計算與資料契約為共用依賴，方向條件可獨立研究，不以回踩或交叉完成為前置。 | 無 | 有 | 無 | 無 | 無 | 無 | 無 | NONE | SIMPLIFIED | 原文：EMA9 方向概念；機械化選擇：日線 B=close>EMA9 且 EMA9 上升；未定義：EMA 初始化、slope/timing/missing。6/9/12 僅登錄鄰近週期，未核定掃描。 |
+| L2-T10 | 價格同側於 EMA9＋session VWAP（盤中） | USER_PROVIDED_TRANSCRIPT | 概念拆分=1：原文條件是價格同時高於 EMA9 與 session VWAP，或價格同時低於 EMA9 與 session VWAP；未指定 EMA9 與 VWAP 斜率同方向。必須使用 completed 5/15 分鐘 bar 與當時可知的累積 session VWAP，不得用日線代理。 | 研究盤中價格相對 EMA9 與成交量加權價格的位置關係。 | 未實作；repo 未見 session VWAP research evaluator。 | 無 | 無 | DEFERRED：KBar source family 存在但 canonical 5/15 分鐘聚合、completed-bar available_at、session VWAP 定義/重置時點與 PIT 契約未完成；禁止以日線 close/amount 冒充。不得自行加入 EMA9/VWAP 斜率條件。 | 無 | 無 | 無 | 無 | 無 | 無 | 無 | NONE | SIMPLIFIED | 原文：價格同時位於 EMA9 與 VWAP 上方／下方；機械化選擇：5/15 分鐘 lineage 分開；未定義：VWAP price/volume 欄位、session 邊界與價格位置比較細節。 |
 | L2-C01 | 外資／投信／自營 5 日與 20 日淨買超、三大法人合計 | 本次新提 | 概念拆分=1：institutional net flow；participant 與 5/20 日為參數版本。 | 衡量法人 flow。 | 未實作 | 無 | 無 | data/inst source family 有，但 available_at/PIT 尚未完成 runtime audit，AstraQuant feature/component/simulator/scan/report 皆缺。 | 無 | 有 | 無 | 無 | 無 | 無 | 無 | NONE | NA | 無 |
 | L2-C02 | 外資持股比例與變化 | 本次新提 | 概念拆分=2：foreign ownership level；change。 | 衡量外資持有狀態。 | 未實作 | 無 | 無 | 尚未確認 canonical source 欄位與 available_at；後續階段皆缺。 | 無 | 無 | 無 | 無 | 無 | 無 | 無 | NONE | NA | 無 |
 | L2-C03 | 融資餘額變化、融券餘額變化、券資比 | 本次新提 | 概念拆分=3：margin change；short balance change；short/margin ratio。 | 衡量融資融券 positioning。 | 未實作 | 無 | 無 | margin source family 有且 FUNDAMENTAL_PIT_AUDIT 驗過 available_date=date，但 feature/component/simulator/scan/report 未建。 | 無 | 有 | 有 | 無 | 無 | 無 | 無 | NONE | NA | 無 |
@@ -140,7 +140,7 @@ L1 六階段完成數：來源資料 **17/17**；PIT **15/17**；元件 **15/17*
 | EX-E02 | 時間／最長持有 | repo 既有 | 持有達 max_hold_sessions 時由 canonical policy 產生 exit。 | 限制持有期限。 | src/astraquant/research/exit_engine.py::_time_exit；src/astraquant/portfolio/policy.py::PortfolioPolicyConfig | tests/test_config_engine.py；tests/test_strategy_simulator.py | SOURCE_PARAMETER_NEIGHBORHOOD.md | 已接 simulator 且曾有 full-trade 歷史 sensitivity；該歷史報告屬已接觸資料，不是獨立 OOS。 | 無 | 有 | 有 | 有 | 有 | 有 | 有 | FULL_TRADE | NA | 無 |
 | EX-E03 | 固定停利 | repo 既有 | 未定義；schema 可帶 target_pct，但目前非 null 會明確 UnsupportedComponentError。 | 測試固定 profit target exit。 | 未實作 | 無 | 無 | exit evaluator/simulator wiring/sweep/report 未實作；不得把 schema 宣告視為可用。 | 無 | 有 | 無 | 無 | 無 | 無 | 無 | FULL_TRADE | NA | 無 |
 | EX-E04 | 跌破 MA | repo 既有 | 未定義 | 測試 MA break exit。 | 未實作 | 無 | 無 | 缺 exit timing/PIT、component、simulator wiring、full-trade scan/report。 | 無 | 有 | 無 | 無 | 無 | 無 | 無 | FULL_TRADE | NA | 無 |
-| EX-E05 | 跌破 EMA（EMA20 來源候選） | repo 既有；USER_PROVIDED_TRANSCRIPT | 既有 inventory 為 generic EMA break；本次來源另登錄「跌破 EMA20」出場候選，但尚未核定以 close、intraday、cross 或 state 何者判斷。 | 測試 EMA break exit；EMA20 為來源指定候選週期。 | 未實作；schema 有 EMA_BREAK 名稱，但 exit registry 無 evaluator，既有 MA_BREAK 僅支援 SMA。 | 無 | 無 | 缺 EMA20 exact trigger/timing/PIT、component、simulator wiring、full-trade scan/report；不得把 SMA MA_BREAK 當 EMA20。 | L2-T09 | 有 | 無 | 無 | 無 | 無 | 無 | FULL_TRADE | SIMPLIFIED | 原文：跌破 EMA20；機械化選擇：尚未核定；未定義：state/cross、決策與成交時點。 |
+| EX-E05 | EMA20 下方停損／跌破版研究改編 | repo 既有；USER_PROVIDED_TRANSCRIPT | 逐字稿原文是「停損放在 EMA20 下方」；這描述 stop placement，不等同「收盤跌破 EMA20 才出場」。收盤跌破 EMA20 僅登錄為可另行核定的研究改編。 | 保留 EMA20 作為停損位置參考的原文語意，並把 close-below-EMA20 與其他機械出場版本分離。 | 未實作；schema 有 EMA_BREAK 名稱，但 exit registry 無 evaluator，既有 MA_BREAK 僅支援 SMA。 | 無 | 無 | 停損距 EMA20 多遠、是否隨 EMA 更新、何種價格觸發、觸發後如何成交、決策與 fill timing 均待定；收盤跌破版若研究須另凍結，不得反寫成逐字稿原法。 | 無 | 有 | 無 | 無 | 無 | 無 | 無 | FULL_TRADE | SIMPLIFIED | 原文：stop placement 在 EMA20 下方；研究改編：close 跌破 EMA20。兩者不得混為同一規則。 |
 | EX-E06 | 跌破布林中線 | repo 既有 | 未定義 | 測試 Bollinger midline break exit。 | 未實作 | 無 | 無 | 缺 exit timing/PIT、component、simulator wiring、full-trade scan/report。 | 無 | 有 | 無 | 無 | 無 | 無 | 無 | FULL_TRADE | NA | 無 |
 | EX-E07 | ATR 移動停利 | repo 既有 | 未定義 | 測試 volatility-scaled trailing exit。 | 未實作 | 無 | 無 | 缺 ATR exit definition/timing、component、simulator wiring、full-trade scan/report。 | 無 | 有 | 無 | 無 | 無 | 無 | 無 | FULL_TRADE | NA | 無 |
 | EX-E08 | 百分比移動停利 | repo 既有 | 未定義 | 測試 percent trailing exit。 | 未實作 | 無 | 無 | 缺 trail update/timing semantics、component、simulator wiring、full-trade scan/report。 | 無 | 有 | 無 | 無 | 無 | 無 | 無 | FULL_TRADE | NA | 無 |
@@ -152,6 +152,8 @@ L1 六階段完成數：來源資料 **17/17**；PIT **15/17**；元件 **15/17*
 
 來源代號 EMA9-SRC-001：USER_PROVIDED_TRANSCRIPT，為 owner 提供的 Kathy Lien 影片文字摘要及逐字稿；目前沒有影片 URL，未核對原片。以下登錄只保存可研究概念，不宣稱為任何人的完整原法，也不宣稱已驗證有效。
 
+共同依賴說明：EMA 計算方法、暖機／缺值與可信資料／時間契約是 L2-T09、L1-X06、L1-X07、L2-T10 的共用基礎，但不構成這些研究項目彼此的前置依賴；方向條件、回踩與交叉可各自獨立定義與研究。
+
 版本 lineage：
 - EMA9-INTRADAY-5M15M-001：影片文字材料的 5／15 分鐘語境；盤中項目必須等待 canonical 分 K、completed-bar available_at 與 session VWAP 契約，不用日線代理。
 - EMA9-DAILY-ADAPT-001：日線研究改編；只繼承 EMA9 概念，不繼承盤中 timing 或效果主張。完整日線 close 資訊只能在其可用時間之後使用。
@@ -162,9 +164,9 @@ L1 六階段完成數：來源資料 **17/17**；PIT **15/17**；元件 **15/17*
 |---|---|---|---|
 | L2-T09 | EMA9 方向；本輪登錄 B=close>EMA9 且 EMA9 上升 | EMA 初始化/暖機、EMA9 上升的 slope interval/equality、日線 available_at/成交對齊 | 缺值/歷史 gap 政策、最終 CA 研究座標核定 |
 | L1-X06 | 回踩 EMA9 後確認 | touch 使用 low 或 close、容忍帶、確認發生在同 bar 或後續 bar | exact confirmation、5/15m 與日線各自 timing |
-| L2-T10 | EMA9 與 session VWAP 同方向 | completed 5/15m bar、VWAP 累積起點與 price/volume 欄位、方向判定 | canonical intraday source/PIT、session 邊界 |
+| L2-T10 | 價格同時高於 EMA9 與 session VWAP，或同時低於兩者；原文未指定兩條線的 slope 同向 | completed 5/15m bar、VWAP 累積起點與 price/volume 欄位、價格位置比較邊界 | canonical intraday source/PIT、session 邊界；不得自行加入 EMA9/VWAP 斜率條件 |
 | L1-X07 | EMA9／EMA20 交叉 | cross 方向、等號邊界、first-cross/state | exact timeframe 與成交 timing |
-| EX-E05 | 跌破 EMA20 | close/state/cross/intraday 的判斷方式 | exact exit decision/fill timing |
+| EX-E05 | 停損放在 EMA20 下方 | 停損距離、是否隨 EMA 更新、觸發價格與成交方式；close 跌破 EMA20 僅可作另行核定的研究改編 | exact stop update/trigger/fill timing |
 | HYP-EMA9-001 | 第二次跌破／站回的敘述 | 若未來研究，需先定義「第二次」的事件計數、reset、break/reclaim 序列與 timeframe | 未機械化；不宣稱高勝率或有效 |
 
 ### 第一個待核定實驗：EXP-EMA9-001
@@ -177,12 +179,12 @@ L1 六階段完成數：來源資料 **17/17**；PIT **15/17**；元件 **15/17*
 
 | research_id | 最小資料依賴 | 可重用部分 | exact 缺口 |
 |---|---|---|---|
-| L2-T09 | 日線 adjusted research close + 可信 session/availability contract | _ema_by_ticker 計算骨架 | EMA9 state filter、slope/missing/available_at 契約 |
-| L1-X06 | 日線或 completed 5/15m OHLC + EMA9 | _ema_by_ticker；L1-014 僅可參考結構 | EMA pullback/reclaim exact evaluator |
-| L1-X07 | 同 timeframe close + EMA9/EMA20 | _ema_by_ticker | EMA cross evaluator；SMA MA_GOLDEN_CROSS 不可代替 |
-| L2-T10 | completed 5/15m OHLCV + session VWAP inputs | 無 exact component | canonical intraday aggregation/PIT + VWAP evaluator |
+| L2-T09 | 待核定的 CA 一致研究價格 + 可信 session/availability contract | _ema_by_ticker 計算骨架 | EMA9 state filter、slope/missing/available_at 契約 |
+| L1-X06 | 待核定的 CA 一致研究價格或 completed 5/15m OHLC + 共用 EMA 計算/資料契約 | _ema_by_ticker；L1-014 僅可參考結構 | EMA pullback/reclaim exact evaluator |
+| L1-X07 | 同 timeframe 的待核定研究價格 + 共用 EMA 計算/資料契約 | _ema_by_ticker | EMA cross evaluator；SMA MA_GOLDEN_CROSS 不可代替 |
+| L2-T10 | completed 5/15m OHLCV + session VWAP inputs + 共用 EMA 計算/資料契約 | 無 exact component | canonical intraday aggregation/PIT + VWAP evaluator |
 | L3-M02 | 已指定的大盤 series + session/availability contract | EMA helper 概念可重用 | market EMA9 context evaluator |
-| EX-E05 | exit decision coordinate + EMA20 + execution timing | exit contract 框架 | EMA_BREAK evaluator/simulator wiring；現有 MA_BREAK 僅 SMA |
+| EX-E05 | 待核定的 EMA20 stop-placement 座標 + execution timing | exit contract 框架 | stop distance/update/trigger/fill 契約；close-break 研究改編若核定再另接 evaluator |
 | EXP-EMA9-001 | 上述 L2-T09 + 已凍結 A/母體/出場/成本 + 時期治理 | 既有 research governance | 尚未 preregister/freeze，不得執行效果 |
 
 正式測試若日後獲准，仍必須遵守既有資料 gate、EPOCH_GOVERNANCE 與多重檢定規格。
