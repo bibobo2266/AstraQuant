@@ -666,6 +666,304 @@ def test_multi_stock_state_and_ca_transforms_are_isolated():
     assert state.history("2317")[-1].close == pytest.approx(50.0)
 
 
+def test_ca_batch_dedupes_identical_ids_and_list_generator_match():
+    item = _ca(
+        event_id="same-id",
+        effective_index=1,
+        event_type=CorporateActionType.CASH_DIVIDEND,
+        cash_per_share=5.0,
+        known_index=0,
+    )
+
+    list_state = Baseline60DExitState()
+    list_state.register_entry(_fill(price=100.0), session_index=0)
+    _seed_flat(list_state, 1)
+    list_result = list_state.apply_opening_corporate_actions(
+        [item, item],
+        session_start=datetime.combine(_day(1), datetime.min.time()),
+        decision_cutoff=datetime.combine(_day(1), datetime.min.time()),
+    )
+
+    generator_state = Baseline60DExitState()
+    generator_state.register_entry(_fill(price=100.0), session_index=0)
+    _seed_flat(generator_state, 1)
+    generator_result = generator_state.apply_opening_corporate_actions(
+        (x for x in [item, item]),
+        session_start=datetime.combine(_day(1), datetime.min.time()),
+        decision_cutoff=datetime.combine(_day(1), datetime.min.time()),
+    )
+
+    assert len(list_result) == 1
+    assert len(generator_result) == 1
+    assert list_result[0].status is BaselineCAApplyStatus.APPLIED
+    assert generator_result[0].status is BaselineCAApplyStatus.APPLIED
+    assert list_state.holding_state("2330").entry_anchor == pytest.approx(95.0)
+    assert generator_state.holding_state("2330").entry_anchor == pytest.approx(95.0)
+    assert list_state.history("2330") == generator_state.history("2330")
+
+
+def test_conflicting_ca_event_id_rejects_atomically_before_any_transform():
+    state = Baseline60DExitState()
+    state.register_entry(_fill(price=100.0), session_index=0)
+    _seed_flat(state, 1)
+
+    first = _ca(
+        event_id="conflict",
+        effective_index=1,
+        event_type=CorporateActionType.CASH_DIVIDEND,
+        cash_per_share=5.0,
+        known_index=0,
+    )
+    conflicting = _ca(
+        event_id="conflict",
+        effective_index=1,
+        event_type=CorporateActionType.CASH_DIVIDEND,
+        cash_per_share=6.0,
+        known_index=0,
+    )
+
+    with pytest.raises(BaselineExitStateError, match="CONFLICTING_CA_EVENT_ID_IN_BATCH"):
+        state.apply_opening_corporate_actions(
+            [first, conflicting],
+            session_start=datetime.combine(_day(1), datetime.min.time()),
+            decision_cutoff=datetime.combine(_day(1), datetime.min.time()),
+        )
+
+    assert state.holding_state("2330").entry_anchor == pytest.approx(100.0)
+    assert state.history("2330")[0].close == pytest.approx(100.0)
+    assert state.processed_ca_inputs == {}
+    assert state.finalized_opening_batches == {}
+
+
+def test_conflicting_redefinition_of_processed_event_is_rejected_without_reapply():
+    state = Baseline60DExitState()
+    state.register_entry(_fill(price=100.0), session_index=0)
+    _seed_flat(state, 1)
+
+    original = _ca(
+        event_id="processed-conflict",
+        effective_index=1,
+        event_type=CorporateActionType.CASH_DIVIDEND,
+        cash_per_share=5.0,
+        known_index=0,
+    )
+    changed = _ca(
+        event_id="processed-conflict",
+        effective_index=1,
+        event_type=CorporateActionType.CASH_DIVIDEND,
+        cash_per_share=6.0,
+        known_index=0,
+    )
+    _apply_ca(state, original, effective_index=1)
+    assert state.holding_state("2330").entry_anchor == pytest.approx(95.0)
+
+    with pytest.raises(
+        BaselineExitStateError,
+        match="CONFLICTING_CA_EVENT_ID_ALREADY_PROCESSED",
+    ):
+        _apply_ca(state, changed, effective_index=1)
+
+    assert state.holding_state("2330").entry_anchor == pytest.approx(95.0)
+    assert state.history("2330")[0].close == pytest.approx(95.0)
+
+
+def test_split_same_open_ca_batch_is_blocked_instead_of_silently_retransforming():
+    state = Baseline60DExitState()
+    state.register_entry(_fill(price=100.0), session_index=0)
+    _seed_flat(state, 1)
+
+    cash = _ca(
+        event_id="split-cash",
+        effective_index=1,
+        event_type=CorporateActionType.CASH_DIVIDEND,
+        cash_per_share=5.0,
+        known_index=0,
+    )
+    share = _ca(
+        event_id="split-share",
+        effective_index=1,
+        event_type=CorporateActionType.SPLIT,
+        share_multiplier=2.0,
+        known_index=0,
+    )
+
+    first = _apply_ca(state, cash, effective_index=1)
+    assert first[0].status is BaselineCAApplyStatus.APPLIED
+    assert state.holding_state("2330").entry_anchor == pytest.approx(95.0)
+
+    second = _apply_ca(state, share, effective_index=1)
+    assert second[0].status is BaselineCAApplyStatus.BLOCKED
+    assert second[0].reason == "OPENING_CA_BATCH_ALREADY_FINALIZED"
+    assert state.holding_state("2330").entry_anchor == pytest.approx(95.0)
+    assert state.technical_block_reason("2330") == "OPENING_CA_BATCH_ALREADY_FINALIZED"
+
+    blocked_bar = state.observe_bar(_bar(1, close=47.5))
+    assert blocked_bar.status is BaselineEvaluationStatus.BLOCKED
+    assert blocked_bar.observation_accepted is False
+
+
+def test_ticker_technical_block_persists_without_holding_and_across_reentry():
+    state = Baseline60DExitState()
+    _seed_flat(state, 1)
+    unknown = _ca(
+        event_id="pre-entry-unknown",
+        effective_index=1,
+        event_type=CorporateActionType.OTHER,
+        cash_per_share=1.0,
+        known_index=0,
+        approved=True,
+    )
+    result = _apply_ca(state, unknown, effective_index=1)
+    assert result[0].status is BaselineCAApplyStatus.BLOCKED
+    assert state.holding_state("2330") is None
+    assert state.technical_block_reason("2330") == "CANONICAL_LIFECYCLE_REQUIRED"
+
+    first_holding = state.register_entry(_fill(price=100.0), session_index=1)
+    assert first_holding.blocked_reason == "CANONICAL_LIFECYCLE_REQUIRED"
+    history_before = state.history("2330")
+    evaluation = state.observe_bar(_bar(1, close=100.0))
+    assert evaluation.status is BaselineEvaluationStatus.BLOCKED
+    assert evaluation.observation_accepted is False
+    assert state.history("2330") == history_before
+
+    state.record_terminal_result(
+        BaselineTerminalResult(
+            ticker="2330",
+            session_date=_day(2),
+            disposition=BaselineTerminalDisposition.EXTINGUISHED,
+            reason="canonical terminal resolution",
+        )
+    )
+    rebuilt = state.register_entry(
+        _fill(price=101.0, suffix="reentry"),
+        session_index=3,
+    )
+    assert rebuilt.blocked_reason == "CANONICAL_LIFECYCLE_REQUIRED"
+
+
+def test_invalid_open_report_identity_and_partial_fill_leave_state_untouched():
+    state = Baseline60DExitState()
+    _make_both_pending(state)
+    holding = state.holding_state("2330")
+    pending = holding.pending_exit
+
+    with pytest.raises(BaselineExitStateError, match="pending intent mismatch"):
+        state.record_open_execution(
+            _open_result(
+                state,
+                session_index=21,
+                outcome=BaselineOpenExecutionOutcome.SELL_BLOCKED,
+                report_id="wrong-intent",
+                pending_intent_id="not-the-pending-intent",
+            )
+        )
+    assert holding.open_attempts == 0
+    assert state.holding_state("2330").pending_exit is pending
+
+    with pytest.raises(BaselineExitStateError, match="PARTIAL_EXIT_NOT_SUPPORTED"):
+        state.record_open_execution(
+            _open_result(
+                state,
+                session_index=21,
+                outcome=BaselineOpenExecutionOutcome.FILLED,
+                report_id="partial-fill",
+                fill_quantity=1.0,
+                canonical_before=1000.0,
+                canonical_after=999.0,
+            )
+        )
+    assert holding.open_attempts == 0
+    assert state.holding_state("2330").pending_exit is pending
+    assert "partial-fill" not in state.processed_open_report_ids
+
+
+def test_duplicate_and_stale_open_reports_are_explicit_and_do_not_mutate_attempts():
+    state = Baseline60DExitState()
+    _make_both_pending(state)
+    blocked = _open_result(
+        state,
+        session_index=21,
+        outcome=BaselineOpenExecutionOutcome.SELL_BLOCKED,
+        report_id="repeat-report",
+    )
+    state.record_open_execution(blocked)
+    assert state.holding_state("2330").open_attempts == 1
+
+    with pytest.raises(BaselineExitStateError, match="DUPLICATE_OPEN_EXECUTION_REPORT"):
+        state.record_open_execution(blocked)
+    assert state.holding_state("2330").open_attempts == 1
+
+    pending = state.holding_state("2330").pending_exit
+    entry_fill_id = state.holding_state("2330").entry_fill_id
+    full = _open_result(
+        state,
+        session_index=22,
+        outcome=BaselineOpenExecutionOutcome.FILLED,
+        report_id="full-report",
+        fill_quantity=1000.0,
+        canonical_before=1000.0,
+        canonical_after=0.0,
+    )
+    state.record_open_execution(full)
+    assert state.holding_state("2330") is None
+
+    with pytest.raises(BaselineExitStateError, match="STALE_OPEN_EXECUTION_REPORT"):
+        state.record_open_execution(
+            BaselineOpenExecutionResult(
+                report_id="stale-after-close",
+                ticker="2330",
+                session_date=_day(23),
+                session_index=23,
+                outcome=BaselineOpenExecutionOutcome.FILLED,
+                reason="stale",
+                pending_intent_id=pending.intent_id,
+                entry_fill_id=entry_fill_id,
+                canonical_position_quantity_before=1000.0,
+                canonical_position_quantity_after=0.0,
+                fill=_fill(
+                    ticker="2330",
+                    price=88.0,
+                    side="sell",
+                    suffix="stale",
+                    quantity=1000.0,
+                    filled_index=23,
+                ),
+            )
+        )
+
+
+def test_rolling_state_is_bounded_and_retired_low_price_does_not_block_later_cash_ca():
+    state = Baseline60DExitState()
+    state.observe_bar(
+        _bar(0, close=10.0, open_=10.0, high=11.0, low=9.0)
+    )
+    for index in range(1, 26):
+        state.observe_bar(_bar(index, close=100.0))
+
+    assert len(state.history("2330")) == 21
+    assert state.retired_observation_count("2330") == 5
+    assert min(bar.close for bar in state.history("2330")) == pytest.approx(100.0)
+
+    state.register_entry(
+        _fill(price=100.0, suffix="late-entry"),
+        session_index=25,
+    )
+    cash = _ca(
+        event_id="late-window-cash",
+        effective_index=26,
+        event_type=CorporateActionType.CASH_DIVIDEND,
+        cash_per_share=20.0,
+        known_index=25,
+    )
+    result = _apply_ca(state, cash, effective_index=26)
+
+    assert result[0].status is BaselineCAApplyStatus.APPLIED
+    assert state.technical_block_reason("2330") is None
+    assert state.holding_state("2330").entry_anchor == pytest.approx(80.0)
+    assert len(state.history("2330")) == 21
+    assert min(bar.close for bar in state.history("2330")) == pytest.approx(80.0)
+
+
 def test_period_end_leaves_pending_open_without_forced_close_or_future_read():
     state = Baseline60DExitState()
     _make_both_pending(state)
