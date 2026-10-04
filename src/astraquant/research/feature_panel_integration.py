@@ -130,6 +130,8 @@ class FeaturePanelEligibilityEvidence:
     evidence_source: str
     integration_name: str
     integration_config_sha256: str
+    verified_only: bool
+    strategy_required_status: AvailabilityStatus
     manifest_path: str
     manifest_sha256: str
     artifact_name: str
@@ -157,6 +159,26 @@ class FeaturePanelEligibilityEvidence:
         if actual != self.evidence_sha256:
             raise FeaturePanelIntegrationError(
                 "feature eligibility evidence digest mismatch"
+            )
+
+    def require_strategy_verified(self) -> None:
+        if not self.verified_only:
+            raise FeaturePanelIntegrationError(
+                "feature eligibility evidence came from verified_only=false hydration"
+            )
+        if self.strategy_required_status is not AvailabilityStatus.VERIFIED:
+            raise FeaturePanelIntegrationError(
+                "feature eligibility strategy-required status is not VERIFIED"
+            )
+        blocked = [
+            f"{item.column}:{item.status.value}"
+            for item in self.requested_features
+            if item.required and item.status is not AvailabilityStatus.VERIFIED
+        ]
+        if blocked:
+            raise FeaturePanelIntegrationError(
+                "feature eligibility required inputs are not VERIFIED: "
+                + ", ".join(blocked)
             )
 
 
@@ -748,6 +770,8 @@ class FeaturePanelIntegrator:
             "evidence_source": self.evidence_source,
             "integration_name": self.config.name,
             "integration_config_sha256": stable_object_sha256(self.config),
+            "verified_only": self.verified_only,
+            "strategy_required_status": self.config.strategy_required_status,
             "manifest_path": str(self.manifest_path.resolve()),
             "manifest_sha256": sha256_file(self.manifest_path),
             "artifact_name": str(manifest["artifact_name"]),
@@ -786,6 +810,14 @@ class FeaturePanelIntegrator:
         if evidence.integration_config_sha256 != stable_object_sha256(self.config):
             raise FeaturePanelIntegrationError(
                 "feature eligibility evidence integration config mismatch"
+            )
+        if evidence.verified_only is not self.verified_only:
+            raise FeaturePanelIntegrationError(
+                "feature eligibility verified_only contract mismatch"
+            )
+        if evidence.strategy_required_status is not self.config.strategy_required_status:
+            raise FeaturePanelIntegrationError(
+                "feature eligibility strategy-required status mismatch"
             )
         if evidence.scope is not self.evidence_scope:
             raise FeaturePanelIntegrationError(
