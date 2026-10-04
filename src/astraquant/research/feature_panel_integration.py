@@ -37,6 +37,8 @@ class FeaturePanelIntegrationError(ValueError):
 
 
 def _canonicalize(value: Any) -> Any:
+    if hasattr(value, "model_dump") and callable(value.model_dump):
+        value = value.model_dump(mode="json")
     if is_dataclass(value):
         value = asdict(value)
     if isinstance(value, Enum):
