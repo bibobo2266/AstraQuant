@@ -419,25 +419,27 @@ def reconcile_dividend_components(
     ].copy()
 
     research_set = None if research_tickers is None else {str(x) for x in research_tickers}
-    event_keys = set()
-    event_keys.update(
-        (str(r.stock_id), pd.Timestamp(r.effective_date).normalize())
-        for r in comp.itertuples(index=False)
-    )
-    event_keys.update(
-        (str(r.stock_id), pd.Timestamp(r.event_date).normalize())
-        for r in off.itertuples(index=False)
-        if pd.notna(r.event_date)
-    )
+    comp_groups = {
+        (str(sid), pd.Timestamp(day).normalize()): group.copy()
+        for (sid, day), group in comp.groupby(
+            ["stock_id", "effective_date"], sort=False, dropna=False
+        )
+    } if not comp.empty else {}
+    off_groups = {
+        (str(sid), pd.Timestamp(day).normalize()): group.copy()
+        for (sid, day), group in off.groupby(
+            ["stock_id", "event_date"], sort=False, dropna=False
+        )
+        if pd.notna(day)
+    } if not off.empty else {}
+    event_keys = set(comp_groups) | set(off_groups)
 
+    empty_comp = comp.iloc[0:0].copy()
+    empty_off = off.iloc[0:0].copy()
     rows: list[dict[str, object]] = []
     for sid, day in sorted(event_keys, key=lambda x: (x[1], x[0])):
-        cg = comp[
-            comp["stock_id"].eq(sid) & comp["effective_date"].eq(day)
-        ].copy()
-        og = off[
-            off["stock_id"].eq(sid) & off["event_date"].eq(day)
-        ].copy()
+        cg = comp_groups.get((sid, day), empty_comp)
+        og = off_groups.get((sid, day), empty_off)
         cs = _component_summary(cg) if len(cg) else {
             "normalized_cash_present": False,
             "normalized_stock_present": False,
