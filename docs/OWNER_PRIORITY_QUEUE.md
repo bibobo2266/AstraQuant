@@ -2,11 +2,11 @@
 
 ## 目前狀態
 
-更新時間：2026-10-04T03:23:00Z
-做完：公司行動成分／經濟內容雙向對帳完成；公開 closure／aggregate 與私有逐事件、逐成分、147 筆審查候選均已版本化
-結果：348 passed；private run 37171913233 SUCCESS；11,156 event groups 守恆；same-date component missing 0、value/unit conflict 5、genuine source missing 142、insufficient evidence 6,410
-卡住：第 5 項仍 BLOCKED；CA 尚有 source-specific stock unit／par-value／revision lineage 與 6,410 筆證據不足，RAW／Trading_money 歷史版本及 386 筆非股利事件阻擋維持
-下一項：交 Astra 驗收本輪 CA closure 與 private 147-row candidate；未驗收前不建正式 E1 artifact、不啟動其他 blocker 或第 6 項
+更新時間：2026-10-04T04:24:00Z
+做完：CA 對帳驗收包與分類追溯已補齊；沿用 run 37171913233，未重算資料，完整私有逐列／事件／成分表、147 筆候選、候選證據追溯、驗收導讀與 SHA256 已打包
+結果：ZIP SHA256 8a4113b76012b395f2a0c413e4de4883e4375ff3455b4fa224b29c735e9139b5；147=142 補事件候選＋5 數值衝突待裁定；11,156 primary classes 守恆；未驗證 stock conversion 產生候選 0
+卡住：第 5 項與 147 筆候選仍未驗收／未核准；6,410 筆證據不足、stock unit／par-value／revision lineage 及既有其他 blocker 維持
+下一項：待Astra驗收私有候選與分類方法
 
 狀態：ACTIVE
 
