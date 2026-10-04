@@ -1,0 +1,17 @@
+schema_version: "1"
+name: baseline_60d_breakout_v1_signal
+trigger:
+  type: N_SESSION_HIGH
+  params:
+    lookback: 60
+filters:
+  - type: COLUMN_THRESHOLD
+    params:
+      column: close_to_ma120
+      min: 0.0
+  - type: COLUMN_THRESHOLD
+    params:
+      column: prior20_amount_twd
+      min: 20000000
+filter_combine: AND
+ranking: []
