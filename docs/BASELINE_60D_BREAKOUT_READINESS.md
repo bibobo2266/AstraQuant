@@ -75,6 +75,32 @@ Canonical synthetic E2E is in tests/test_baseline_60d_simulator_integration.py a
 
 These tests are software integration evidence only, not baseline effectiveness evidence.
 
+## Exploration-runner preparation
+
+AQ-EXP-RUNNER-001 adds a fixed single-method synthetic exploration entry on
+top of the accepted canonical integration.
+
+Implemented:
+
+- exact frozen signal / exit / cost config; no parameter axes or ML;
+- row-level eligibility/reason-table validation with full population
+  denominator retention;
+- separate independent candidate-cohort and capital-constrained report blocks;
+- canonical cost-adjusted trade metrics, open-position disclosure, profit
+  concentration, holding time, and diagnostic-only MFE/MAE;
+- source/eligibility checksum validation;
+- deterministic synthetic fixture builder, executable CLI, package E2E and a
+  committed example report.
+
+Not implemented / not authorized:
+
+- no real Sol 4 eligibility artifact is created or consumed by this branch;
+- real-E1 capital/allocation mechanics remain explicitly UNFROZEN;
+- FORMAL_RESEARCH remains unconditionally blocked;
+- no real E1, E2/E3, VCP Round2, EMA scan, parameter sweep or ML is run.
+
+See `docs/BASELINE_60D_EXPLORATION_RUNNER.md`.
+
 ## CI verification
 
 - Prior preparation CI remains historical evidence only: GitHub `tests` workflow `37161695576` passed.
