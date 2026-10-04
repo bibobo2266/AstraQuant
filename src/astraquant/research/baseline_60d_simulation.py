@@ -3,6 +3,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from enum import Enum
 
+from astraquant.research.feature_panel_integration import AvailabilityStatus
+
 
 class BaselineSimulationMode(str, Enum):
     SYNTHETIC_FIXTURE = "SYNTHETIC_FIXTURE"
@@ -33,7 +35,7 @@ class BaselineSimulationContext:
     """
 
     mode: BaselineSimulationMode
-    pit_data_gate_verified: bool = False
+    pit_data_gate_status: AvailabilityStatus = AvailabilityStatus.UNAVAILABLE
     pit_data_gate_source: str | None = None
     ca_approvals: tuple[BaselineCATechnicalApproval, ...] = ()
 
@@ -48,21 +50,19 @@ class BaselineSimulationContext:
             seen[item.event_id] = item
 
         if self.mode is BaselineSimulationMode.FORMAL_RESEARCH:
-            if not self.pit_data_gate_verified:
-                return
             if not self.pit_data_gate_source or not self.pit_data_gate_source.strip():
                 raise ValueError(
-                    "verified formal baseline data gate requires explicit source"
+                    "formal baseline data-gate status requires explicit source"
                 )
 
     def require_runnable(self) -> None:
         if (
             self.mode is BaselineSimulationMode.FORMAL_RESEARCH
-            and not self.pit_data_gate_verified
+            and self.pit_data_gate_status is not AvailabilityStatus.VERIFIED
         ):
             raise RuntimeError(
-                "BASELINE_FORMAL_DATA_GATE_BLOCKED: causal/PIT-safe formal "
-                "baseline inputs are not verified"
+                "BASELINE_FORMAL_DATA_GATE_BLOCKED: required feature inputs "
+                f"have availability={self.pit_data_gate_status.value}"
             )
 
     def ca_approval(self, event_id: str) -> BaselineCATechnicalApproval:
