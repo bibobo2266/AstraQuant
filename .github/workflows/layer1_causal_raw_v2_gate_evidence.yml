@@ -5,7 +5,6 @@ on:
   push:
     branches: [main]
     paths:
-      - ".github/workflows/layer1_causal_raw_v2_gate_evidence.yml"
       - "scripts/layer1_causal_raw_v2_gate_evidence.py"
       - "src/astraquant/data/corporate_actions.py"
       - "tests/test_normalized_corporate_actions.py"
@@ -55,8 +54,8 @@ jobs:
           SOURCE_REVISION: fb8b042b46dc38838d103544ca17da10286c7bfe
           REPORT_PATH: docs/PIT_FEATURE_LAYER1_CAUSAL_RAW_V2_GATE_EVIDENCE.md
           SUMMARY_PATH: out/layer1_causal_raw_v2_gate_evidence.csv
-          NONDIV_PATH: out/layer1_causal_raw_v2_nondividend_scope.csv
-          UNMATCHED_CA_PATH: out/layer1_causal_raw_v2_unmatched_official_ca.csv
+          NONDIV_PATH: ${{ runner.temp }}/layer1_causal_raw_v2_nondividend_scope.csv
+          UNMATCHED_CA_PATH: ${{ runner.temp }}/layer1_causal_raw_v2_unmatched_official_ca.csv
           MANIFEST_PATH: out/layer1_causal_raw_v2_gate_evidence_manifest.json
         run: python scripts/layer1_causal_raw_v2_gate_evidence.py
 
@@ -71,11 +70,17 @@ jobs:
           set -euo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add             docs/PIT_FEATURE_LAYER1_CAUSAL_RAW_V2_GATE_EVIDENCE.md             out/layer1_causal_raw_v2_gate_evidence.csv             out/layer1_causal_raw_v2_nondividend_scope.csv             out/layer1_causal_raw_v2_unmatched_official_ca.csv             out/layer1_causal_raw_v2_gate_evidence_manifest.json
+          git add \
+            docs/PIT_FEATURE_LAYER1_CAUSAL_RAW_V2_GATE_EVIDENCE.md \
+            out/layer1_causal_raw_v2_gate_evidence.csv \
+            out/layer1_causal_raw_v2_gate_evidence_manifest.json
           if git diff --cached --quiet; then
             echo "No evidence changes to commit."
             exit 0
           fi
           git commit -m "audit: record causal RAW v2 gate evidence [no-effects]"
+          # Editable install may touch tracked metadata; keep the committed evidence
+          # and discard unrelated runner-side changes before rebasing.
+          git reset --hard HEAD
           git pull --rebase origin main
           git push origin HEAD:main
