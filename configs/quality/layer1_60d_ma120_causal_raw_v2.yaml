@@ -114,20 +114,51 @@ availability_gate:
         - StockEarningsDistribution
         - StockStatutorySurplus
       period: "2015 warmup + E1"
-      known_at_timing_evidence: IMPROVED_SOURCE_TIMESTAMP_PRESERVED_WHEN_AVAILABLE
+      known_at_timing_evidence: EXACT_ANNOUNCEMENT_TIMESTAMP_RETAINED_FOR_FROZEN_COMPONENTS
       source_acquisition: SEP_2026_BACKFILL
-      evidence_gap: independent_official_event_reconciliation_has_unmatched_candidates_and_twse_official_economics_need_verified_detail_join
+      component_reconciliation:
+        status: COMPLETE_WITH_EXPLICIT_UNRESOLVED_EVIDENCE
+        program_revision: 9914525fe7db92a69fc08360823fb679518ee0b8
+        private_run_id: 37171913233
+        public_closure: docs/CA_DIVIDEND_COMPONENT_RECONCILIATION_CLOSURE.md
+        public_aggregate: out/ca_dividend_component_reconciliation_v1.json
+        counting_unit: unique_stock_id_plus_economic_effective_event_date
+      evidence_gap: source_specific_stock_unit_and_par_value_proof_twse_historical_economic_detail_and_revision_lineage_remain_unresolved
       observed_scope:
         normalized_components: 10097
-        normalized_distinct_tickers: 1581
+        normalized_cash_components: 8794
+        normalized_stock_components: 1303
+        exact_announcement_timestamp_components: 10097
         normalized_known_at_missing: 0
         not_known_before_first_observation_cutoff: 6
         independent_official_rows: 10652
-        unmatched_official_candidates: 2172
-        unmatched_candidate_tickers: 601
-        unmatched_with_ma120_e1_impact: 2112
-        unmatched_with_n60_e1_impact: 2049
-      minimum_remedy: reconcile_official_candidates_with_source_specific_cash_share_economics_without_inference
+        economic_event_groups: 11156
+        exact_date_both_sides: 8480
+        normalized_only_groups: 504
+        official_only_groups: 2172
+        component_value_consistent_groups: 2972
+        same_date_component_missing_groups: 0
+        value_or_unit_conflict_groups: 5
+        genuine_source_event_missing_groups: 142
+        insufficient_evidence_groups: 6410
+        outside_normalizer_scope_groups: 1627
+        current_duplicate_groups: 0
+        historical_revision_cancel_unknown_groups: 11156
+        established_e1_all_liquid_tickers: 1394
+        established_e1_all_liquid_event_groups: 7894
+        established_e1_all_liquid_genuine_missing_groups: 115
+        established_e1_all_liquid_value_conflict_groups: 3
+        established_e1_all_liquid_insufficient_evidence_groups: 5230
+      private_review_candidates:
+        version: ca_dividend_component_reconciliation_candidates_v1
+        rows: 147
+        evidence_backed_supplement: 142
+        economic_value_review: 5
+        insufficient_evidence_auto_promoted: false
+      impact_semantics:
+        theoretical_windows_are_actual_builder_block_counts: false
+        actual_builder_recovery_rule_changed: false
+      minimum_remedy: astra_review_private_candidates_and_close_source_specific_economic_unit_revision_evidence_without_inference
       affects: [causal_price_coordinate, ma120, n60]
     non_dividend_share_events:
       status: UNAVAILABLE
