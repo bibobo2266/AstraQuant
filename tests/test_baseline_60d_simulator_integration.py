@@ -39,7 +39,7 @@ from astraquant.research.baseline_60d_simulation import (
     BaselineSimulationMode,
 )
 from astraquant.research.config_engine import ResearchConfigEngine
-from astraquant.research.exit_engine import ExitCompiler
+from astraquant.research.exit_engine import CompiledExitPlan, ExitCompiler
 from astraquant.research.feature_panel_integration import (
     AvailabilityStatus,
     EligibilityEvidenceScope,
@@ -326,6 +326,7 @@ def _prepare_with_evidence_parts(
             lot_size=1000,
             random_seed=1,
         ),
+        execution_sessions=sessions,
     )
     return (
         engine,
