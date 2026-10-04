@@ -42,34 +42,71 @@ corporate_actions:
 availability_gate:
   strategy_required_status: VERIFIED
   current_result: BLOCKED
+  evidence_closure: docs/PIT_FEATURE_LAYER1_CAUSAL_RAW_V2_GATE_CLOSURE.md
+  evidence_workflow:
+    run_id: 37165519596
+    calculation: SUCCESS
+    public_writeback: FAILED_AFTER_CALCULATION
+    recomputed_after_writeback_failure: false
   dependencies:
     raw_ohlc_eod:
       status: UNKNOWN
       table: data/raw/prices_raw_YYYY.parquet
       fields: [date, stock_id, open, max, min, close]
       period: "2015 warmup + E1"
-      evidence_gap: historical_receipt_or_publication_time_before_order_intent_cutoff_not_retained
+      publication_timing_evidence: SUPPORTED_BEFORE_T_PLUS_1_CUTOFF
+      frozen_source_acquisition: SEP_2026_RECONSTRUCTION
+      historical_version_identity: UNKNOWN
+      evidence_gap: historical_as_published_version_or_correction_lineage_not_retained_for_mixed_reconstructed_sources
+      observed_scope:
+        rows: 3306022
+        distinct_tickers: 2316
+        duplicate_keys: 0
+        ohlc_null_rows: 57794
+        finmind_gap_fill_ledger_rows: 171925
+        finmind_gap_fill_unrecovered: 0
+        finmind_gap_fill_overwrites: 0
+      minimum_remedy: immutable_as_published_version_evidence_or_documented_correction_lineage_for_reconstructed_rows
       affects: [raw_absolute_eligibility, ma120, n60]
     trading_money_eod:
       status: UNKNOWN
       table: data/raw/prices_raw_YYYY.parquet
       fields: [date, stock_id, Trading_money]
       period: "2015 warmup + E1"
-      evidence_gap: historical_receipt_or_publication_time_before_order_intent_cutoff_not_retained
+      publication_timing_evidence: SUPPORTED_BEFORE_T_PLUS_1_CUTOFF
+      frozen_source_acquisition: SEP_2026_RECONSTRUCTION
+      historical_version_identity: UNKNOWN
+      evidence_gap: same_historical_version_identity_gap_as_raw_ohlc
+      observed_scope:
+        stored_raw_rows: 3306022
+        trading_money_null_rows: 0
+      minimum_remedy: same_source_version_lineage_closure_as_raw_ohlc
       affects: [turnover_cross_section, prior20_amount]
     raw_tradability:
       status: UNKNOWN
       table: data/reference/tradability.parquet
-      fields: [observed_trade, valid_ohlc, buy_blocked, sell_blocked]
+      feature_required_fields: [observed_trade, valid_ohlc]
+      execution_only_fields: [buy_blocked, sell_blocked]
       period: "2015 warmup + E1"
-      evidence_gap: derived_flags_are_reproducible_but_underlying_historical_cutoff_availability_is_unproven
-      affects: [common_session_missingness, universe_eligibility, execution_gate]
+      derivation_evidence: VERIFIED_AGAINST_FROZEN_RAW
+      upstream_availability: INHERITS_RAW_OHLC
+      evidence_gap: feature_flag_derivation_is_verified_but_upstream_raw_historical_version_identity_is_unresolved
+      observed_scope:
+        audited_rows: 3023736
+        valid_ohlc_reconstruction_mismatches: 0
+        observed_trade_true_without_raw_key: 0
+        raw_key_marked_observed_false: 0
+        explicit_derived_missing_rows: 11287
+      minimum_remedy: close_raw_ohlc_version_evidence
+      affects: [common_session_missingness, universe_eligibility]
+      execution_note: buy_blocked_and_sell_blocked_remain_separate_execution_gate_inputs
     normalized_cash_stock_actions:
       status: UNKNOWN
       table: data/fundamentals/dividend.parquet
       fields:
         - available_date
         - AnnouncementDate
+        - AnnouncementTime
         - CashExDividendTradingDate
         - StockExDividendTradingDate
         - CashEarningsDistribution
@@ -77,14 +114,35 @@ availability_gate:
         - StockEarningsDistribution
         - StockStatutorySurplus
       period: "2015 warmup + E1"
-      evidence_gap: complete_historical_known_at_and_event_reconciliation_not_yet_proven_for_every_required_event
+      known_at_timing_evidence: IMPROVED_SOURCE_TIMESTAMP_PRESERVED_WHEN_AVAILABLE
+      source_acquisition: SEP_2026_BACKFILL
+      evidence_gap: independent_official_event_reconciliation_has_unmatched_candidates_and_twse_official_economics_need_verified_detail_join
+      observed_scope:
+        normalized_components: 10097
+        normalized_distinct_tickers: 1581
+        normalized_known_at_missing: 0
+        not_known_before_first_observation_cutoff: 6
+        independent_official_rows: 10652
+        unmatched_official_candidates: 2172
+        unmatched_candidate_tickers: 601
+        unmatched_with_ma120_e1_impact: 2112
+        unmatched_with_n60_e1_impact: 2049
+      minimum_remedy: reconcile_official_candidates_with_source_specific_cash_share_economics_without_inference
       affects: [causal_price_coordinate, ma120, n60]
     non_dividend_share_events:
       status: UNAVAILABLE
       table: data/reference/corporate_actions_ledger.parquet
       fields: [event_date, known_date, event_type, cash_per_share, share_multiplier]
       period: "2015 warmup + E1"
-      evidence_gap: causal_raw_v2_current_normalizer_only_certifies_cash_and_stock_dividend_components
+      evidence_gap: current_certified_normalizer_excludes_non_dividend_share_mutations_and_frozen_ledger_lacks_known_date_or_multiplier_for_most_rows
+      observed_scope:
+        rows: 386
+        distinct_tickers: 310
+        known_date_missing: 385
+        share_multiplier_missing_or_invalid: 209
+        events_with_ma120_e1_impact: 375
+        events_with_n60_e1_impact: 364
+      minimum_remedy: source_specific_official_join_with_known_at_and_interpretable_share_mutation_or_keep_exact_windows_blocked
       affects: [causal_price_coordinate_for_affected_ticker_windows]
 
 artifact_policy:
@@ -92,4 +150,6 @@ artifact_policy:
   persist_prefilter_rows: true
   formal_e1_feature_artifact_allowed_only_when_all_required_dependencies_verified: true
   current_formal_artifact: null
+  evidence_only_audit_run: 37165519596
+  evidence_only_audit_recomputed_after_writeback_failure: false
   no_strategy_effect_metrics: true
