@@ -1,11 +1,11 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass, is_dataclass
 from enum import Enum
 import hashlib
 import json
 from pathlib import Path
-from typing import Iterable
+from typing import Any, Iterable
 
 import pandas as pd
 import pyarrow.parquet as pq
@@ -27,8 +27,135 @@ _STATUS_SEVERITY = {
 }
 
 
+class EligibilityEvidenceScope(str, Enum):
+    INTEGRITY_ONLY = "INTEGRITY_ONLY"
+    SYNTHETIC_FIXTURE = "SYNTHETIC_FIXTURE"
+
+
 class FeaturePanelIntegrationError(ValueError):
     pass
+
+
+def _canonicalize(value: Any) -> Any:
+    if is_dataclass(value):
+        value = asdict(value)
+    if isinstance(value, Enum):
+        return value.value
+    if isinstance(value, Path):
+        return str(value)
+    if isinstance(value, pd.Timestamp):
+        return value.isoformat()
+    if isinstance(value, dict):
+        return {
+            str(key): _canonicalize(item)
+            for key, item in sorted(value.items(), key=lambda pair: str(pair[0]))
+        }
+    if isinstance(value, (list, tuple)):
+        return [_canonicalize(item) for item in value]
+    return value
+
+
+def stable_object_sha256(value: Any) -> str:
+    payload = json.dumps(
+        _canonicalize(value),
+        ensure_ascii=False,
+        sort_keys=True,
+        separators=(",", ":"),
+        default=str,
+    )
+    return hashlib.sha256(payload.encode("utf-8")).hexdigest()
+
+
+def dataframe_sha256(frame: pd.DataFrame) -> str:
+    """Deterministic in-process content identity for research data frames.
+
+    This is an integrity/fingerprint mechanism, not a malicious-tamper security
+    boundary. It avoids Python object identity and binds values, column names,
+    dtypes, and row order.
+    """
+    if frame.columns.duplicated().any():
+        raise FeaturePanelIntegrationError(
+            "cannot fingerprint dataframe with duplicate column names"
+        )
+    columns = sorted(str(column) for column in frame.columns)
+    work = frame.loc[:, columns].copy()
+    digest = hashlib.sha256()
+    metadata = {
+        "columns": columns,
+        "dtypes": [str(work[column].dtype) for column in columns],
+        "rows": len(work),
+    }
+    digest.update(
+        json.dumps(
+            metadata,
+            ensure_ascii=False,
+            sort_keys=True,
+            separators=(",", ":"),
+        ).encode("utf-8")
+    )
+    hashed = pd.util.hash_pandas_object(
+        work,
+        index=False,
+        categorize=False,
+    )
+    digest.update(hashed.to_numpy(dtype="uint64", copy=False).tobytes())
+    return digest.hexdigest()
+
+
+@dataclass(frozen=True)
+class VerifiedArtifactEvidence:
+    year: int
+    path: str
+    filename: str
+    sha256: str
+    rows: int | None
+
+
+@dataclass(frozen=True)
+class VerifiedFeatureEvidence:
+    column: str
+    kind: str
+    required: bool
+    warmup_sessions: int | None
+    dependencies: tuple[str, ...]
+    status: AvailabilityStatus
+
+
+@dataclass(frozen=True)
+class FeaturePanelEligibilityEvidence:
+    schema_version: str
+    scope: EligibilityEvidenceScope
+    evidence_source: str
+    integration_name: str
+    integration_config_sha256: str
+    manifest_path: str
+    manifest_sha256: str
+    artifact_name: str
+    source_revision: str
+    formula_version: str
+    epoch: str
+    manifest_period_start: str
+    manifest_period_end: str
+    panel_date_start: str
+    panel_date_end: str
+    cutoff_contracts: tuple[str, ...]
+    requested_features: tuple[VerifiedFeatureEvidence, ...]
+    artifacts: tuple[VerifiedArtifactEvidence, ...]
+    hydrated_panel_sha256: str
+    audit_sha256: str
+    evidence_sha256: str
+
+    def payload_without_digest(self) -> dict[str, object]:
+        payload = asdict(self)
+        payload.pop("evidence_sha256", None)
+        return payload
+
+    def verify_self_digest(self) -> None:
+        actual = stable_object_sha256(self.payload_without_digest())
+        if actual != self.evidence_sha256:
+            raise FeaturePanelIntegrationError(
+                "feature eligibility evidence digest mismatch"
+            )
 
 
 @dataclass(frozen=True)
@@ -59,6 +186,7 @@ class FeaturePanelJoinResult:
     frame: pd.DataFrame
     audit: pd.DataFrame
     manifest: dict[str, object]
+    evidence: FeaturePanelEligibilityEvidence
 
 
 def sha256_file(path: Path) -> str:
@@ -155,6 +283,10 @@ class FeaturePanelIntegrator:
         artifact_root: str | Path,
         manifest_path: str | Path | None = None,
         verified_only: bool = True,
+        evidence_scope: EligibilityEvidenceScope | str = (
+            EligibilityEvidenceScope.INTEGRITY_ONLY
+        ),
+        evidence_source: str = "FeaturePanelIntegrator",
     ) -> None:
         self.config = config
         self.artifact_root = Path(artifact_root)
@@ -164,6 +296,26 @@ class FeaturePanelIntegrator:
             else config.manifest_path
         )
         self.verified_only = bool(verified_only)
+        if isinstance(evidence_scope, EligibilityEvidenceScope):
+            self.evidence_scope = evidence_scope
+        elif isinstance(evidence_scope, str):
+            try:
+                self.evidence_scope = EligibilityEvidenceScope(
+                    evidence_scope.strip().upper()
+                )
+            except ValueError as exc:
+                raise FeaturePanelIntegrationError(
+                    f"unknown evidence_scope: {evidence_scope!r}"
+                ) from exc
+        else:
+            raise FeaturePanelIntegrationError(
+                "evidence_scope must be EligibilityEvidenceScope or string"
+            )
+        if not isinstance(evidence_source, str) or not evidence_source.strip():
+            raise FeaturePanelIntegrationError(
+                "evidence_source must be a non-empty string"
+            )
+        self.evidence_source = evidence_source.strip()
 
     def _load_manifest(self) -> dict[str, object]:
         manifest = json.loads(self.manifest_path.read_text(encoding="utf-8"))
