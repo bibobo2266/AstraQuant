@@ -2,11 +2,11 @@
 
 ## 目前狀態
 
-更新時間：2026-10-04T02:44:00Z
-做完：CA 成分／經濟內容雙向對帳工具、守恆分類與 private 持久交付路徑已完成
-結果：public tests 與 CA contract success；最終 private 對帳執行中，工作流 37171913233
-卡住：等待固定 9914525f / fb8b042b 私有逐事件對帳與 scope aggregate 完成；第 5 項仍 BLOCKED
-下一項：完成工作流 37171913233 後交 Astra 驗收 CA 對帳，不展開其他 blocker
+更新時間：2026-10-04T03:23:00Z
+做完：公司行動成分／經濟內容雙向對帳完成；公開 closure／aggregate 與私有逐事件、逐成分、147 筆審查候選均已版本化
+結果：348 passed；private run 37171913233 SUCCESS；11,156 event groups 守恆；same-date component missing 0、value/unit conflict 5、genuine source missing 142、insufficient evidence 6,410
+卡住：第 5 項仍 BLOCKED；CA 尚有 source-specific stock unit／par-value／revision lineage 與 6,410 筆證據不足，RAW／Trading_money 歷史版本及 386 筆非股利事件阻擋維持
+下一項：交 Astra 驗收本輪 CA closure 與 private 147-row candidate；未驗收前不建正式 E1 artifact、不啟動其他 blocker 或第 6 項
 
 狀態：ACTIVE
 
