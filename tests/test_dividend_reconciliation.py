@@ -190,6 +190,19 @@ def test_bidirectional_official_only_and_normalized_only_are_not_conflated():
     assert normalized_only.iloc[0]["flag_normalized_without_official"]
 
 
+def test_non_four_digit_official_only_is_outside_normalizer_scope_not_true_missing():
+    official = _official(stock_id="00919")
+    events, _, _ = reconcile_dividend_components(
+        pd.DataFrame(columns=_dividend().columns),
+        official,
+        inputs=INPUTS,
+    )
+    row = events.iloc[0]
+    assert row["security_type"] == "OUTSIDE_FOUR_DIGIT_RESEARCH_BASE"
+    assert row["primary_class"] == PrimaryClass.OUTSIDE_NORMALIZER_SCOPE.value
+    assert row["flag_official_without_normalized"]
+
+
 def test_primary_classes_conserve_event_count_in_each_scope():
     d = pd.concat(
         [
