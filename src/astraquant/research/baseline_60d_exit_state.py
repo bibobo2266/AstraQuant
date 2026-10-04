@@ -242,10 +242,12 @@ class Baseline60DExitState:
                 skipped_sessions=0,
                 gap_reasons=(),
             )
-        skipped = sum(max(0, int(bar.gap_sessions_before)) for bar in bars)
+        skipped = sum(
+            max(0, int(bar.gap_sessions_before)) for bar in bars[1:]
+        )
         reasons = tuple(
             str(bar.gap_reason)
-            for bar in bars
+            for bar in bars[1:]
             if bar.gap_sessions_before > 0 and bar.gap_reason
         )
         return BaselineWindowAudit(
