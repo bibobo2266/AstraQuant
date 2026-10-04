@@ -726,10 +726,29 @@ def _mfe_mae_diagnostics(
     return pd.DataFrame(out)
 
 
+def _json_safe(value):
+    if isinstance(value, dict):
+        return {str(k): _json_safe(v) for k, v in value.items()}
+    if isinstance(value, (list, tuple)):
+        return [_json_safe(v) for v in value]
+    if isinstance(value, Enum):
+        return value.value
+    if isinstance(value, (float, np.floating)) and not math.isfinite(float(value)):
+        return None
+    if isinstance(value, (np.integer,)):
+        return int(value)
+    return value
+
+
 def _write_outputs(artifacts: ExplorationRunArtifacts, output_dir: Path) -> None:
     output_dir.mkdir(parents=True, exist_ok=True)
     (output_dir / "report.json").write_text(
-        json.dumps(artifacts.report, ensure_ascii=False, indent=2, allow_nan=True)
+        json.dumps(
+            _json_safe(artifacts.report),
+            ensure_ascii=False,
+            indent=2,
+            allow_nan=False,
+        )
         + "\n",
         encoding="utf-8",
     )
