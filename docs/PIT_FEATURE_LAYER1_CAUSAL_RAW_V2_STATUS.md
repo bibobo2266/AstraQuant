@@ -2,7 +2,9 @@
 
 Status date: 2026-10-04  
 Implementation commit: `129ef0a2b42f96a784ae703a4aba6d26c6db5804`  
-Review status: **PROGRAM IMPLEMENTED / DATA GATE BLOCKED / ASTRA REVIEW PENDING**
+Known-at precision fix: `a38abad253d8e319e3d034f6b4985b67399846d5`  
+Gate closure: `docs/PIT_FEATURE_LAYER1_CAUSAL_RAW_V2_GATE_CLOSURE.md`  
+Review status: **PROGRAM IMPLEMENTED / DATA GATE BLOCKED WITH ACTIONABLE GAPS / ASTRA REVIEW PENDING**
 
 This status record implements the already approved minimal `layer1_60d_ma120_causal_raw_v2` direction. It does not reopen the data plan, does not unlock OOS, does not promote a strategy, and contains no strategy-effect query.
 
@@ -53,22 +55,39 @@ The local sandbox does not provide `pyarrow`, so Parquet-backed hydration is int
 
 Commit `738e6bdab7a2b9afd954018b46dcd57e88adf7dd` adds a `[no-effects]` push guard to the strategy-effect publication/sensitivity workflows. This keeps explicit `workflow_dispatch` available, while software/data-only maintenance commits carrying the marker skip those effect jobs. The guard was added after commit `129ef0a2` unintentionally triggered the existing broad `src/astraquant/**` push paths. It does not loosen epoch or data gates.
 
-## Data gate — still blocked
+## Data gate — still blocked, now narrowed to specific evidence gaps
 
-Program correctness is not equivalent to real historical availability. The formal E1 feature artifact remains blocked by the following evidence gaps:
+The evidence-only audit in workflow `37165519596` completed its calculation
+successfully against fixed source revision
+`fb8b042b46dc38838d103544ca17da10286c7bfe`. Its final git writeback failed
+after calculation; per owner instruction the successful calculation was not
+rerun. Aggregate evidence was recovered from the job log and recorded in
+`docs/PIT_FEATURE_LAYER1_CAUSAL_RAW_V2_GATE_CLOSURE.md`.
 
-| dependency | source table / fields | required period | current status | evidence gap | affected capability |
-| --- | --- | --- | --- | --- | --- |
-| RAW OHLC | `data/raw/prices_raw_YYYY.parquet`: date, stock_id, open, max, min, close | 2015 warmup + E1 | UNKNOWN | historical receipt/publication evidence before the order-intent cutoff is not retained | RAW eligibility, MA120, N60 |
-| Trading_money | `data/raw/prices_raw_YYYY.parquet`: date, stock_id, Trading_money | 2015 warmup + E1 | UNKNOWN | historical receipt/publication evidence before the order-intent cutoff is not retained | turnover cross-section, prior20 amount |
-| RAW tradability | `data/reference/tradability.parquet`: observed_trade, valid_ohlc, buy_blocked, sell_blocked | 2015 warmup + E1 | UNKNOWN | flags are reproducible, but cutoff availability of their underlying historical inputs is not proven | missing-session semantics, universe eligibility, execution gate |
-| normalized cash/stock actions | `data/fundamentals/dividend.parquet`: available/announcement/ex-date and cash/share component fields | 2015 warmup + E1 | UNKNOWN | complete `known_at` coverage and reconciliation are not proven for every required event | causal price coordinate, MA120, N60 |
-| non-dividend share events | `data/reference/corporate_actions_ledger.parquet`: event_date, known_date, event_type, cash_per_share, share_multiplier | 2015 warmup + E1 | UNAVAILABLE in current v2 normalizer | current certified normalizer covers only cash/stock dividend components; no multiplier/timing is guessed for other events | affected ticker rolling windows |
+The gate is no longer summarized as a generic lack of receipt timestamps:
 
-`raw_history_coverage_by_year.csv` showing row coverage is useful completeness evidence, but it is not historical publication-time evidence and therefore does not clear the availability gate.
+| dependency | evidence now established | remaining blocker |
+| --- | --- | --- |
+| RAW OHLC | 3,306,022 warmup+E1 rows; source mix and null scope measured; TWSE/TPEx/FinMind publication rules support publication before the existing T+1 00:00 cutoff | frozen values are Sep-2026 reconstructions; historical as-published version/correction lineage is not retained |
+| Trading_money | 0 nulls on stored RAW keys; official/provider publication rules support the same cutoff | same historical-version identity gap as RAW |
+| observed_trade / valid_ohlc | 0 reconstruction mismatches, 0 observed-without-RAW, 0 RAW-marked-unobserved; 11,287 explicit missing rows | availability inherits the unresolved RAW historical-version evidence |
+| buy_blocked / sell_blocked | retained as execution fields | not a prerequisite for the minimal MA120/N60/prior20 feature artifact; no execution gate is relaxed |
+| cash/stock actions | 10,097 normalized components / 1,581 tickers; 0 known_at nulls; exact source AnnouncementTime is preserved when present; 6 components remain unavailable before the first affected cutoff and fail closed | independent official reconciliation has 2,172 unmatched candidates / 601 tickers; source-specific economics must be reconciled rather than inferred |
+| non-dividend share events | exact aggregate scope measured: 386 rows / 310 tickers | 385 known_date missing, 209 multiplier missing/invalid; 375 MA120-impact and 364 N60-impact event windows remain unavailable to the certified v2 normalizer |
+
+The independent official reconciliation starts from the official event population,
+not from FinMind rows. That is the mechanism for detecting source omissions.
+The unmatched official rows are blocker candidates rather than automatically
+classified missing cash/share transforms.
+
+The minimal feature route remains independent of TRI, industry, chip, and
+fundamental datasets. No stock/year is silently removed, no multiplier or
+known_at is guessed, and no population scope is changed.
 
 ## Artifact decision
 
-No formal E1 causal RAW v2 feature artifact or quality report is produced from real source data in this state. Doing so would require silently turning UNKNOWN/UNAVAILABLE dependencies into verified inputs. Synthetic fixtures are test evidence only and are not represented as real-data availability.
+No formal E1 causal RAW v2 feature artifact is produced from real source data in this state. The evidence-only audit is a data-quality/availability audit, not the formal feature artifact and not a strategy backtest.
 
-The next reviewable step for item 5 is therefore Astra validation of the implementation plus source-backed closure (or an explicit approved fail-closed treatment) of the data dependencies above. Until then, item 5 remains in progress and dependent strategy work remains blocked.
+The next executable source work is: reconcile the 2,172 official event candidates with source-specific economics; obtain historical-version/correction evidence for reconstructed RAW/Trading_money rows; and source known-at plus share-mutation evidence for the 386 non-dividend share-event rows. These are source-evidence tasks, not owner trading-preference decisions.
+
+Astra still must validate the implementation and this gate closure. Until then, item 5 remains IN_PROGRESS and dependent strategy work remains blocked.
