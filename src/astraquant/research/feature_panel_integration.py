@@ -435,7 +435,7 @@ class FeaturePanelIntegrator:
         self,
         manifest: dict[str, object],
         year: int,
-    ) -> pd.DataFrame:
+    ) -> tuple[pd.DataFrame, VerifiedArtifactEvidence]:
         entry = self._year_entry(manifest, year)
         path = self._resolve_artifact_file(entry)
         digest = sha256_file(path)
@@ -480,7 +480,15 @@ class FeaturePanelIntegrator:
             raise FeaturePanelIntegrationError(
                 f"feature artifact {path.name} has duplicate logical keys"
             )
-        return out
+        rows_raw = entry.get("rows")
+        rows = None if rows_raw is None else int(rows_raw)
+        return out, VerifiedArtifactEvidence(
+            year=int(year),
+            path=str(path.resolve()),
+            filename=path.name,
+            sha256=digest,
+            rows=rows,
+        )
 
     def hydrate(self, panel: pd.DataFrame) -> FeaturePanelJoinResult:
         manifest = self._load_manifest()
@@ -508,9 +516,11 @@ class FeaturePanelIntegrator:
         work = work.copy()
         work["__feature_join_order"] = range(len(work))
         years = sorted(work["date"].dt.year.unique().tolist())
-        feature_parts = [
+        loaded_years = [
             self._load_year(manifest, int(year)) for year in years
         ]
+        feature_parts = [item[0] for item in loaded_years]
+        artifact_evidence = tuple(item[1] for item in loaded_years)
         features = pd.concat(feature_parts, ignore_index=True)
         features = features.merge(
             work[["date", "stock_id"]],
@@ -637,8 +647,60 @@ class FeaturePanelIntegrator:
             )
 
         joined = joined.drop(columns=["__artifact_row_present"])
+        audit = pd.DataFrame(audit_rows)
+
+        period = manifest["period"]
+        panel_start = pd.Timestamp(joined["date"].min()).normalize()
+        panel_end = pd.Timestamp(joined["date"].max()).normalize()
+        cutoff_contracts: list[str] = []
+        if "available_at_date" in joined.columns:
+            cutoff_contracts.append("available_at_date<=logical_date")
+        if (
+            "source_available_at" in joined.columns
+            and "__decision_cutoff_at" in joined.columns
+        ):
+            cutoff_contracts.append("source_available_at<decision_cutoff_at")
+
+        feature_rows = tuple(
+            VerifiedFeatureEvidence(
+                column=request.column,
+                kind=request.kind,
+                required=request.required,
+                warmup_sessions=request.warmup_sessions,
+                dependencies=request.dependencies,
+                status=request.status,
+            )
+            for request in self.config.requested_features
+        )
+        base_payload = {
+            "schema_version": "1",
+            "scope": self.evidence_scope,
+            "evidence_source": self.evidence_source,
+            "integration_name": self.config.name,
+            "integration_config_sha256": stable_object_sha256(self.config),
+            "manifest_path": str(self.manifest_path.resolve()),
+            "manifest_sha256": sha256_file(self.manifest_path),
+            "artifact_name": str(manifest["artifact_name"]),
+            "source_revision": str(manifest["source_revision"]),
+            "formula_version": str(manifest["formula_version"]),
+            "epoch": str(manifest["epoch"]),
+            "manifest_period_start": str(pd.Timestamp(period[0]).date()),
+            "manifest_period_end": str(pd.Timestamp(period[1]).date()),
+            "panel_date_start": str(panel_start.date()),
+            "panel_date_end": str(panel_end.date()),
+            "cutoff_contracts": tuple(cutoff_contracts),
+            "requested_features": feature_rows,
+            "artifacts": artifact_evidence,
+            "hydrated_panel_sha256": dataframe_sha256(joined),
+            "audit_sha256": dataframe_sha256(audit),
+        }
+        evidence = FeaturePanelEligibilityEvidence(
+            **base_payload,
+            evidence_sha256=stable_object_sha256(base_payload),
+        )
         return FeaturePanelJoinResult(
             frame=joined,
-            audit=pd.DataFrame(audit_rows),
+            audit=audit,
             manifest=manifest,
+            evidence=evidence,
         )
