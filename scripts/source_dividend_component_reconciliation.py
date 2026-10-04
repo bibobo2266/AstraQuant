@@ -245,13 +245,15 @@ def main() -> None:
         start=START.date().isoformat(),
         end=END.date().isoformat(),
     )
-    # Preserve every frozen FinMind source row that contributes at least one
-    # in-scope economic component; do not spill unrelated post-E1 source rows
-    # into the private reconciliation deliverable.
-    used_source_rows = set(components["source_row_id"].astype(str)) if len(components) else set()
-    finmind_raw = finmind_raw_all[
-        finmind_raw_all["source_row_id"].astype(str).isin(used_source_rows)
-    ].copy()
+    # Preserve every frozen FinMind source row relevant to the authorized
+    # 2015 warmup + E1 period, including rows that do not produce a positive
+    # cash/stock component.  Row preservation is required for source-row
+    # conservation and must not depend on successful normalization.
+    in_period = pd.Series(False, index=finmind_raw_all.index)
+    for col in ("source_record_date", "cash_effective_date", "stock_effective_date"):
+        values = pd.to_datetime(finmind_raw_all[col], errors="coerce").dt.normalize()
+        in_period |= values.between(START, END)
+    finmind_raw = finmind_raw_all[in_period].copy()
     official_norm = official_rows(
         official_df,
         source_revision=args.source_revision,
@@ -304,7 +306,7 @@ def main() -> None:
             "official_ex_right_dividend_warmup_e1": int(len(official_norm)),
         },
         "output_rows": {
-            "finmind_source_rows_warmup_e1_component_scope": int(len(finmind_raw)),
+            "finmind_source_rows_warmup_e1_relevant": int(len(finmind_raw)),
             "normalized_components_warmup_e1": int(len(components)),
             "economic_events_warmup_e1": int(len(events)),
             "source_event_component_mapping": int(len(mapping)),
