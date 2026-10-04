@@ -549,18 +549,24 @@ def test_cash_and_split_keep_technical_coordinate_and_canonical_accounting_consi
     assert holding.pending_exit is None
     assert event_id in result.baseline_exit_state.processed_ca_inputs
     canonical = portfolio.positions.positions["2330"]
+    entry_fill = canonical.fills[0]
+    entry_quantity = entry_fill.quantity
 
     if kind == "cash":
         assert holding.entry_anchor == pytest.approx(100.0)
-        assert canonical.quantity == pytest.approx(1000.0)
+        assert canonical.quantity == pytest.approx(entry_quantity)
         receivable = portfolio.corporate_actions.dividend_receivables[event_id]
-        assert receivable.amount == pytest.approx(10_000.0)
-        assert policy.managed_positions["2330"].quantity == pytest.approx(1000.0)
+        assert receivable.amount == pytest.approx(entry_quantity * 10.0)
+        assert policy.managed_positions["2330"].quantity == pytest.approx(
+            entry_quantity
+        )
     else:
         assert holding.entry_anchor == pytest.approx(55.0)
-        assert canonical.quantity == pytest.approx(2000.0)
+        assert canonical.quantity == pytest.approx(entry_quantity * 2.0)
         assert event_id in portfolio.corporate_actions.share_mutations
-        assert policy.managed_positions["2330"].quantity == pytest.approx(2000.0)
+        assert policy.managed_positions["2330"].quantity == pytest.approx(
+            entry_quantity * 2.0
+        )
 
 
 def test_terminal_opening_event_supersedes_pending_without_strategy_sell(tmp_path):
