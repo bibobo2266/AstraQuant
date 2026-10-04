@@ -787,7 +787,20 @@ def test_period_end_preserves_pending_without_forced_exit_or_future_read(tmp_pat
     assert result.sessions[-1].baseline_pending_count == 1
 
 
-def test_formal_baseline_entry_remains_blocked_without_verified_data_gate(tmp_path):
+@pytest.mark.parametrize(
+    "mode,status",
+    [
+        (BaselineSimulationMode.FORMAL_RESEARCH, AvailabilityStatus.UNAVAILABLE),
+        ("FORMAL_RESEARCH", "UNKNOWN"),
+        (" formal_research ", AvailabilityStatus.UNKNOWN),
+    ],
+)
+def test_formal_baseline_modes_block_before_market_read_or_portfolio_mutation(
+    tmp_path,
+    monkeypatch,
+    mode,
+    status,
+):
     sessions = _sessions(64)
     closes = _baseline_closes(count=64, entry_close=90.0)
     engine, prepared = _prepare(tmp_path, closes=closes, sessions=sessions)
@@ -803,22 +816,71 @@ def test_formal_baseline_entry_remains_blocked_without_verified_data_gate(tmp_pa
     source = _write_source(tmp_path, sessions=sessions, raw_rows=raw)
     simulator, portfolio, _ = _simulator(source, prepared)
 
+    def unexpected_market_read(*args, **kwargs):
+        pytest.fail("formal gate must stop before canonical market-data read")
+
+    monkeypatch.setattr(
+        simulator.execution.market_data.source,
+        "read_parquet",
+        unexpected_market_read,
+    )
+    context = BaselineSimulationContext(
+        mode=mode,
+        pit_data_gate_status=status,
+        pit_data_gate_source="existing-layer1-status-for-audit-only",
+    )
+    assert context.mode is BaselineSimulationMode.FORMAL_RESEARCH
+
     with pytest.raises(RuntimeError, match="BASELINE_FORMAL_DATA_GATE_BLOCKED"):
         engine.simulate_prepared(
             prepared=prepared,
             simulator=simulator,
             sessions=sessions,
-            baseline_context=BaselineSimulationContext(
-                mode=BaselineSimulationMode.FORMAL_RESEARCH,
-                pit_data_gate_status=AvailabilityStatus.UNAVAILABLE,
-                pit_data_gate_source=(
-                    "layer1 integration: close_to_ma120 strategy availability"
-                ),
-            ),
+            baseline_context=context,
         )
 
     assert portfolio.positions.positions == {}
     assert portfolio.orders.orders == {}
+    assert portfolio.settlements.pending == {}
+
+
+def test_caller_declared_verified_and_arbitrary_source_cannot_unlock_formal():
+    context = BaselineSimulationContext(
+        mode="FORMAL_RESEARCH",
+        pit_data_gate_status="VERIFIED",
+        pit_data_gate_source="caller says verified",
+    )
+    assert context.pit_data_gate_status is AvailabilityStatus.VERIFIED
+    with pytest.raises(
+        RuntimeError,
+        match="no canonical eligibility evidence object",
+    ):
+        context.require_runnable()
+
+
+@pytest.mark.parametrize("mode", [None, "", "production", object()])
+def test_baseline_context_rejects_unknown_or_null_mode(mode):
+    with pytest.raises(ValueError, match="baseline simulation mode"):
+        BaselineSimulationContext(mode=mode)
+
+
+@pytest.mark.parametrize("status", [None, "", "PASS", object()])
+def test_baseline_context_rejects_unknown_or_null_availability(status):
+    with pytest.raises(ValueError, match="baseline availability status"):
+        BaselineSimulationContext(
+            mode="SYNTHETIC_FIXTURE",
+            pit_data_gate_status=status,
+        )
+
+
+def test_baseline_context_normalizes_legal_synthetic_strings():
+    context = BaselineSimulationContext(
+        mode=" synthetic_fixture ",
+        pit_data_gate_status=" unknown ",
+    )
+    assert context.mode is BaselineSimulationMode.SYNTHETIC_FIXTURE
+    assert context.pit_data_gate_status is AvailabilityStatus.UNKNOWN
+    context.require_runnable()
 
 
 def test_legacy_exit_plan_still_uses_existing_stop_and_max_hold_path(tmp_path):
@@ -860,7 +922,11 @@ def test_legacy_exit_plan_still_uses_existing_stop_and_max_hold_path(tmp_path):
 
 def _baseline_exit_config(
     *,
-    multiplier: float = 3.0,
+    period: object = 14,
+    multiplier: object = 3.0,
+    low_window: object = 20,
+    exclude_current: object = True,
+    strict: object = True,
     include_low: bool = True,
     first_trigger_wins: bool = False,
     extra_rules: tuple[ExitRuleConfig, ...] = (),
@@ -869,7 +935,7 @@ def _baseline_exit_config(
         ExitRuleConfig(
             type="ATR_FROM_ENTRY_STOP",
             params={
-                "period": 14,
+                "period": period,
                 "multiplier": multiplier,
                 "smoothing": "SMA",
                 "trigger_field": "CLOSE",
@@ -883,10 +949,10 @@ def _baseline_exit_config(
             ExitRuleConfig(
                 type="BREAK_N_DAY_LOW",
                 params={
-                    "window": 20,
+                    "window": low_window,
                     "field": "CLOSE",
-                    "exclude_current": True,
-                    "strict": True,
+                    "exclude_current": exclude_current,
+                    "strict": strict,
                     "execution": "NEXT_OPEN",
                     "observation_basis": "VALID_OBSERVED_OHLC",
                 },
@@ -927,6 +993,23 @@ def test_exit_compiler_accepts_only_exact_baseline_pair_and_rejects_mixes():
 
     with pytest.raises(ValueError, match="first_trigger_wins=false"):
         compiler.compile(_baseline_exit_config(first_trigger_wins=True))
+
+
+    with pytest.raises(ValueError, match="period must be an integer"):
+        compiler.compile(_baseline_exit_config(period=14.9))
+
+    with pytest.raises(ValueError, match="window must be an integer"):
+        compiler.compile(_baseline_exit_config(low_window=20.9))
+
+    with pytest.raises(ValueError, match="exclude_current must be a YAML boolean"):
+        compiler.compile(_baseline_exit_config(exclude_current="false"))
+
+    with pytest.raises(ValueError, match="strict must be a YAML boolean"):
+        compiler.compile(_baseline_exit_config(strict=1))
+
+    for nonfinite in (float("nan"), float("inf"), float("-inf")):
+        with pytest.raises(ValueError, match="multiplier must be finite"):
+            compiler.compile(_baseline_exit_config(multiplier=nonfinite))
 
 
 def test_ca_technical_approval_requires_explicit_source():
