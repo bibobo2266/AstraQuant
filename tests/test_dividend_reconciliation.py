@@ -101,7 +101,7 @@ def test_finmind_stock_conversion_is_explicitly_source_specific():
     assert stock["source_unit_semantics"] == "NTD_PER_PRE_EVENT_SHARE"
 
 
-def test_tpex_stock_conversion_uses_shares_per_1000_not_finmind_divide_by_10():
+def test_tpex_stock_conversion_candidate_is_preserved_but_not_certified():
     row = official_rows(
         _official(),
         source_revision=INPUTS.source_revision,
@@ -109,15 +109,24 @@ def test_tpex_stock_conversion_uses_shares_per_1000_not_finmind_divide_by_10():
     ).iloc[0]
     assert row["rights_ratio"] == 150.0
     assert row["expected_multiplier_from_raw_unit"] == 1.15
-    assert row["stock_unit_semantics"] == "SHARES_PER_1000_PRE_EVENT_SHARES"
+    assert row["stock_unit_semantics"] == "FROZEN_PARSER_DIVIDE_BY_1000_UNIT_UNVERIFIED"
+    assert not bool(row["stock_unit_verified"])
 
 
-def test_component_and_values_consistent():
-    row = _class(_dividend(), _official())
+def test_cash_only_component_and_value_can_be_consistent():
+    dividend = _dividend(
+        StockExDividendTradingDate=None,
+        StockEarningsDistribution=0.0,
+        StockStatutorySurplus=0.0,
+        StockDividend=0.0,
+    )
+    official = _official(share_multiplier=1.0, rights_ratio=0.0)
+    row = _class(dividend, official)
     assert row["primary_class"] == PrimaryClass.COMPONENT_VALUE_CONSISTENT.value
     assert not row["flag_component_missing"]
     assert not row["flag_value_conflict"]
     assert not row["flag_unit_conflict"]
+    assert not row["flag_stock_unit_unverified"]
 
 
 def test_same_date_component_missing_is_not_hidden_by_stock_date_match():
@@ -141,10 +150,11 @@ def test_same_date_value_conflict_is_separate_from_component_presence():
     assert row["flag_value_conflict"]
 
 
-def test_tpex_unit_conflict_is_flagged_independently():
+def test_tpex_stock_value_stays_insufficient_until_unit_semantics_are_verified():
     row = _class(_dividend(), _official(share_multiplier=1.20, rights_ratio=150.0))
-    assert row["primary_class"] == PrimaryClass.VALUE_OR_UNIT_CONFLICT.value
-    assert row["flag_unit_conflict"]
+    assert row["primary_class"] == PrimaryClass.INSUFFICIENT_EVIDENCE.value
+    assert row["flag_stock_unit_unverified"]
+    assert not row["flag_unit_conflict"]
 
 
 def test_twse_date_match_remains_insufficient_without_frozen_economics():
