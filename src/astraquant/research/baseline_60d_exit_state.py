@@ -969,7 +969,8 @@ class Baseline60DExitState:
             for item in plan.items:
                 event_id = item.instruction.event.event_id
                 self.processed_ca_inputs[event_id] = item
-            self.finalized_opening_batches[plan.opening_key] = plan.event_ids
+            if plan.opening_key not in self.finalized_opening_batches:
+                self.finalized_opening_batches[plan.opening_key] = plan.event_ids
 
             if plan.status is BaselineCAApplyStatus.BLOCKED:
                 self._block_ticker(
