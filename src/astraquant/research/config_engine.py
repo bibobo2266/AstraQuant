@@ -160,7 +160,6 @@ class ResearchConfigEngine:
         signal_context: SignalContext,
         base_policy: PortfolioPolicyConfig,
         signal_computability_context: SignalComputabilityContext | None = None,
-        execution_sessions=None,
     ) -> PreparedResearchRun:
         mask = self.universe_compiler.compile(
             universe_config,
@@ -213,6 +212,7 @@ class ResearchConfigEngine:
         signal_context: SignalContext,
         base_policy: PortfolioPolicyConfig,
         signal_computability_context: SignalComputabilityContext | None = None,
+        execution_sessions=None,
     ) -> PreparedResearchRun:
         """Prepare one run from an already-validated hydration result.
 
