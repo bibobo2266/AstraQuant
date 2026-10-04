@@ -277,19 +277,25 @@ report_trade_stats_first: true
     return run
 
 
-def _prepare(
+def _prepare_with_evidence_parts(
     tmp_path: Path,
     *,
     closes: list[float],
     sessions: list[date],
     baseline: bool = True,
+    status: str = "VERIFIED",
+    source_revision: str = "synthetic-baseline-source-v1",
+    formula_version: str = "synthetic-baseline-features-v1",
 ):
     root = tmp_path / "research"
     run = _write_configs(root, baseline=baseline)
-    integrator, joined, _manifest_path, _parquet = _hydrate_feature_fixture(
+    integrator, joined, manifest_path, parquet = _hydrate_feature_fixture(
         tmp_path,
         sessions=sessions,
         closes=closes,
+        status=status,
+        source_revision=source_revision,
+        formula_version=formula_version,
     )
     engine = ResearchConfigEngine()
     prepared = engine.prepare_hydrated(
@@ -302,7 +308,7 @@ def _prepare(
             p2_060_exclusion_sha256=P2_SHA,
         ),
         signal_context=SignalContext(
-            source_revision="synthetic-baseline-source-v1"
+            source_revision=source_revision
         ),
         base_policy=PortfolioPolicyConfig(
             position_fraction=0.20,
@@ -313,6 +319,31 @@ def _prepare(
             lot_size=1000,
             random_seed=1,
         ),
+    )
+    return (
+        engine,
+        prepared,
+        integrator,
+        joined,
+        manifest_path,
+        parquet,
+        run,
+        root,
+    )
+
+
+def _prepare(
+    tmp_path: Path,
+    *,
+    closes: list[float],
+    sessions: list[date],
+    baseline: bool = True,
+):
+    engine, prepared, *_ = _prepare_with_evidence_parts(
+        tmp_path,
+        closes=closes,
+        sessions=sessions,
+        baseline=baseline,
     )
     return engine, prepared
 
