@@ -25,13 +25,24 @@ The default ExitCompiler now recognizes the two baseline names only under one ex
 - first_trigger_wins must be false so a same-close dual trigger can be classified BOTH;
 - fixed-stop, TIME_EXIT, ATR_TRAILING, MA_BREAK, or another close rule cannot be mixed into this baseline plan.
 
+Exact scalar validation is non-lossy:
+- boolean parameters must be actual YAML/Python booleans; strings such as "false" and integers such as 1 are rejected;
+- integer parameters must be actual integers; floats such as 14.0 or 20.9 are rejected;
+- numeric multiplier values may be integer or float only, must be finite, and must equal the frozen value;
+- string enum-like parameters must be strings and are normalized only by trim + uppercase before exact comparison;
+- NaN/Inf and unsupported values are rejected.
+
 A compiled exact pair causes apply_to_policy() to disable legacy stop_fraction and max_hold_sessions. Non-baseline exit plans retain their existing behavior.
 
 ResearchConfigEngine passes PreparedResearchRun.exit_plan to CanonicalStrategySimulator. The baseline path is activated only when the exact compiled pair is accompanied by an explicit BaselineSimulationContext.
 
 BaselineSimulationContext separates:
-- SYNTHETIC_FIXTURE: software acceptance only;
-- FORMAL_RESEARCH: requires an explicitly verified PIT/data gate and evidence source before any simulator transaction is allowed.
+- SYNTHETIC_FIXTURE: the only executable mode in this revision, for software acceptance only;
+- FORMAL_RESEARCH: unconditionally fail-closed in this revision.
+
+Mode and availability inputs are normalized only from their enum instances or recognized case-insensitive strings. Null, blank, unknown, or non-string/non-enum values are rejected during context construction; they cannot fall through to synthetic behavior.
+
+The existing FeaturePanelIntegrator already validates declared availability, manifest identity, epoch and artifact SHA256 during hydration. However, it does not currently return a canonical simulator-verifiable eligibility object bound to the exact PreparedResearchRun. Therefore caller-supplied VERIFIED plus free-form source text is not accepted as formal evidence. FORMAL_RESEARCH remains blocked until a separately reviewed canonical handoff exists; this integration does not create a parallel gate.
 
 Corporate-action technical transforms also require an event-specific BaselineCATechnicalApproval with an explicit source. Presence of a canonical accounting event never auto-approves the technical transform.
 
