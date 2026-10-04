@@ -628,4 +628,16 @@ def aggregate_reconciliation(events: pd.DataFrame) -> pd.DataFrame:
             )
         if sum(r["count"] for r in rows if r["scope"] == scope) != total:
             raise AssertionError(f"primary-class conservation failed for {scope}")
+    if not rows:
+        return pd.DataFrame(
+            columns=[
+                "official_row_id", "source_row_number", "stock_id",
+                "security_type", "event_date", "event_type", "cash_per_share",
+                "share_multiplier", "rights_ratio", "market", "source_url",
+                "source_name", "economics_capability", "cash_unit_semantics",
+                "stock_unit_semantics", "expected_multiplier_from_raw_unit",
+                "known_at_precision", "revision_history_retained",
+                "revision_history_note", "source_revision", "source_blob_sha",
+            ]
+        )
     return pd.DataFrame(rows)
