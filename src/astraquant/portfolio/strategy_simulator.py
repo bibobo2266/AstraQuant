@@ -181,6 +181,8 @@ class CanonicalStrategySimulator:
         candidates: pd.DataFrame | None = None,
         signals: pd.DataFrame | None = None,
         corporate_actions: list[HistoricalCorporateActionInstruction] | None = None,
+        exit_plan: CompiledExitPlan | None = None,
+        baseline_context: BaselineSimulationContext | None = None,
     ) -> StrategySimulationResult:
         trading_calendar = TradingCalendar(sessions)
         calendar = trading_calendar.sessions
@@ -193,6 +195,32 @@ class CanonicalStrategySimulator:
             else legacy_signals_to_candidates(signals, declaration=self.signal)
         )
         session_index = {day: i for i, day in enumerate(calendar)}
+
+        baseline_enabled = bool(exit_plan is not None and exit_plan.baseline_60d_enabled)
+        if baseline_context is not None and not baseline_enabled:
+            raise ValueError(
+                "baseline_context requires the exact baseline_60d compiled exit plan"
+            )
+        if baseline_enabled:
+            if baseline_context is None:
+                raise ValueError(
+                    "baseline_60d compiled exit plan requires baseline_context"
+                )
+            baseline_context.require_runnable()
+            if (
+                self.policy.config.stop_fraction is not None
+                or self.policy.config.max_hold_sessions is not None
+            ):
+                raise ValueError(
+                    "baseline_60d must run with legacy fixed stop/max-hold disabled"
+                )
+            baseline_exit_state: Baseline60DExitState | None = Baseline60DExitState()
+        else:
+            baseline_exit_state = None
+
+        baseline_tickers = {
+            str(value) for value in normalized_candidates["stock_id"].astype(str).tolist()
+        } if baseline_enabled else set()
 
         entry_signals: dict[date, list[dict[str, object]]] = {}
         for row in normalized_candidates.to_dict("records"):
@@ -236,7 +264,11 @@ class CanonicalStrategySimulator:
         total_blocked_exits = 0
         total_ca = 0
         total_ca_payments = 0
+        total_baseline_exit_fills = 0
+        total_baseline_blocked_exit_attempts = 0
+        total_baseline_terminal_superseded = 0
         latest_ca_session: dict[str, date] = {}
+        held_at_prior_close: set[str] = set()
 
         for idx, day in enumerate(calendar):
             start = self._session_start(day)
