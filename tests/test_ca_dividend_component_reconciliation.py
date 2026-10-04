@@ -108,7 +108,7 @@ def test_same_date_cash_value_conflict_is_not_silently_accepted():
     assert bool(events.loc[0, "value_conflict_flag"])
 
 
-def test_tpex_stock_multiplier_remains_unit_unverified_even_when_both_have_stock():
+def test_tpex_stock_multiplier_uses_verified_shares_per_1000_semantics():
     d = _dividend(
         CashExDividendTradingDate="",
         CashEarningsDistribution=0.0,
@@ -117,8 +117,8 @@ def test_tpex_stock_multiplier_remains_unit_unverified_even_when_both_have_stock
     )
     o = _official(cash_per_share="", rights_ratio="100", share_multiplier="1.1")
     _, _, events, _ = _build(dividend=d, official=o)
-    assert events.loc[0, "primary_class"] == "VALUE_MULTIPLIER_OR_UNIT_CONFLICT"
-    assert bool(events.loc[0, "unit_unverified_flag"])
+    assert events.loc[0, "primary_class"] == "CONSISTENT_COMPONENTS_AND_VALUES"
+    assert not bool(events.loc[0, "unit_unverified_flag"])
 
 
 def test_twse_same_date_presence_is_insufficient_economic_evidence():
@@ -134,7 +134,7 @@ def test_twse_same_date_presence_is_insufficient_economic_evidence():
     assert bool(events.loc[0, "evidence_insufficient_flag"])
 
 
-def test_bidirectional_normalized_only_and_official_only_remain_insufficient_not_true_missing():
+def test_bidirectional_normalized_only_stays_insufficient_but_detailed_tpex_official_only_is_true_missing():
     start = pd.Timestamp("2015-01-01")
     end = pd.Timestamp("2021-12-31")
     comps = ca.build_normalized_components(
@@ -151,7 +151,8 @@ def test_bidirectional_normalized_only_and_official_only_remain_insufficient_not
     )
     events, _ = ca.reconcile_events(comps, offs)
     assert len(events) == 2
-    assert set(events["primary_class"]) == {"INSUFFICIENT_EVIDENCE"}
+    classes = set(events["primary_class"])
+    assert classes == {"INSUFFICIENT_EVIDENCE", "TRUE_SOURCE_EVENT_MISSING"}
     assert int(events["normalized_only"].sum()) == 1
     assert int(events["official_only"].sum()) == 1
 
