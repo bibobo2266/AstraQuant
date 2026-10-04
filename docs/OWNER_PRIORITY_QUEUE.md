@@ -2,11 +2,11 @@
 
 ## 目前狀態
 
-更新時間：2026-10-04T10:37:00Z
-做完：歷史 CA 取證路徑小樣本診斷完成；沿用既有147候選與原裁定，不重跑全量、不重試MOPS security-block；2個positive controls＋預先固定8個樣本的逐路徑證據已保存private
-結果：固定ID公告轉載之歷史時間先後：controls 2/2、樣本4/8；frozen/TPEx官方可核對樣本金額與事件日8/8但歷史issuer known_at 0/8；公司IR完整PIT證據0/8；建議B為主（先驗證TPEx歷史每日檔小切片），A僅作殘餘補證
-卡住：第5項仍BLOCKED；未證revision lineage與歷史first-known者維持UNKNOWN，RAW／Trading_money及386筆非股利事件等既有blocker不變
-下一項：待Astra驗收CA取證路徑；如採B，由Owner決定是否取得TPEx指定歷史資料產品／小切片
+更新時間：2026-10-04T14:38:00Z
+做完：AQ-COORD-S4-002 歷史資料最小切片取得與驗證決策卡完成；只重用既有 aggregate／private 樣本與產品資料，0 次新外部查詢、0 次重算、0 次購買/聯繫
+結果：第一候選切片＝TPEx eShop 上櫃股票基本資料 2016-09 一個歷史月，STKANOU.TXT + T48；只有確認 original daily as-produced snapshot、first-known interval 與 revision 行為可驗才進第二切片（2017-06+07）
+卡住：第5項仍 BLOCKED；是否取得第一候選小切片需 Owner 後續授權，且帳號／付款／研究保存與再散布授權細節仍 UNKNOWN；其他 RAW／386 非股利／stock unit blockers 不變
+下一項：待Astra驗收 AQ-COORD-S4-002；無新 READY revision 不續作
 
 狀態：ACTIVE
 
