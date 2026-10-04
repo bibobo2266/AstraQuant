@@ -230,7 +230,6 @@ def validate_prepared_run_eligibility_evidence(
     signal_availability_policy: str,
 ) -> None:
     evidence.verify_self_digest()
-    validate_feature_panel_evidence_files(evidence.feature_evidence)
 
     expected_config_digest = stable_object_sha256(
         _prepared_config_payload(
@@ -291,6 +290,10 @@ def validate_prepared_run_eligibility_evidence(
             "prepared-run hydrated panel identity drift"
         )
 
+    # Byte-level artifact revalidation is deliberately last so cheap
+    # run/config mismatches fail before any research artifact read.
+    validate_feature_panel_evidence_files(evidence.feature_evidence)
+
 
 def validate_prepared_execution_binding(
     *,
@@ -299,10 +302,10 @@ def validate_prepared_execution_binding(
     actual_policy: PortfolioPolicyConfig,
     sessions: Iterable[date | pd.Timestamp],
     candidates: pd.DataFrame,
+    revalidate_feature_files: bool = True,
 ) -> None:
     """Validate actual simulator inputs against one prepared-run evidence object."""
     evidence.verify_self_digest()
-    validate_feature_panel_evidence_files(evidence.feature_evidence)
     evidence.feature_evidence.require_strategy_verified()
 
     if evidence.execution_sessions is None:
@@ -343,3 +346,8 @@ def validate_prepared_execution_binding(
             raise FeaturePanelIntegrationError(
                 f"execution binding {name} fingerprint mismatch"
             )
+
+    # Direct simulator entry revalidates the referenced artifact bytes only
+    # after the execution-layer identity checks succeed.
+    if revalidate_feature_files:
+        validate_feature_panel_evidence_files(evidence.feature_evidence)
