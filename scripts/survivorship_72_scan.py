@@ -27,6 +27,11 @@ E1_START = pd.Timestamp("2016-01-04")
 # 所以 E1_END 一律從資料推導，只用宣告值當上界檢查。
 MANIFEST_PERIOD_END = pd.Timestamp("2021-12-31")
 RISK_GAP_DAYS = 30        # 退出母體到最後交易日在此天數內＝下市時仍可能持有
+# 曝光窗必須和持有期一樣長才是上界：基準策略是 60 日持有
+# （Baseline60DExitState），下市前第 45 天進場的部位到下市日仍在手上，
+# 30 日窗完全看不到它。30 日窗給的是下界，不是上界。
+RISK_WINDOWS = [30, 60, 90, 120]
+HOLDING_PERIOD_DAYS = 60
 BUCKETS = [(0, 5), (6, 30), (31, 120), (121, 10 ** 9)]
 
 
@@ -59,14 +64,25 @@ def contact(rows_path: str, un: pd.DataFrame):
     live = h[h["in_universe"] & h["ends_in_e1"]]
     risky = live[live["exit_gap_days"] <= RISK_GAP_DAYS]
 
-    # 風險窗內的股票日：最後 RAW 交易日前 RISK_GAP_DAYS 天內，實際在母體裡的天數。
+    # 風險窗內的股票日：最後 RAW 交易日前 W 天內，實際在母體裡的天數。
     # 這跟「這些 ticker 一輩子在母體裡的天數」是兩回事，不可混用。
-    win = 0
-    for sid, lr in zip(risky["stock_id"], risky["last_raw"]):
-        sub = rows[(rows.stock_id == sid)
-                   & (rows.date > lr - pd.Timedelta(days=RISK_GAP_DAYS))
-                   & (rows.date <= lr)]
-        win += len(sub)
+    # 同時對 at-risk 21 檔與全部 74 檔計算：窗拉長之後，只查 21 檔會開始漏。
+    def window_days(sids, w):
+        n = 0
+        for sid, lr in zip(un["stock_id"], un["last_raw"]):
+            if sid not in sids:
+                continue
+            n += int(((rows.stock_id == sid)
+                      & (rows.date > lr - pd.Timedelta(days=w))
+                      & (rows.date <= lr)).sum())
+        return n
+
+    risky_ids = set(risky["stock_id"])
+    all_ids = set(un["stock_id"])
+    windows = {str(w): {"at_risk_21": window_days(risky_ids, w),
+                        "all_74": window_days(all_ids, w)}
+               for w in RISK_WINDOWS}
+    win = windows[str(HOLDING_PERIOD_DAYS)]["at_risk_21"]
 
     res = {
         "universe_rows": int(len(rows)),
@@ -88,13 +104,19 @@ def contact(rows_path: str, un: pd.DataFrame):
         "at_risk_tickers": sorted(risky["stock_id"]),
         # 這 21 檔在母體裡的「全部」股票日，不是風險窗內的天數
         "at_risk_ticker_lifetime_universe_days": int(risky["count"].sum()),
-        "days_within_30d_of_last_raw": int(win),
+        "holding_period_days": HOLDING_PERIOD_DAYS,
+        "days_within_window_of_last_raw": windows,
+        "days_within_holding_period_of_last_raw": int(win),
         "e1_end_observed": e1_end.strftime("%Y-%m-%d"),
         "manifest_period_end": MANIFEST_PERIOD_END.strftime("%Y-%m-%d"),
     }
     res["at_risk_lifetime_share_pct"] = round(
         res["at_risk_ticker_lifetime_universe_days"] / res["universe_rows"] * 100, 3)
-    res["risk_window_share_pct"] = round(win / res["universe_rows"] * 100, 3)
+    res["risk_window_share_pct_at_holding_period"] = round(
+        win / res["universe_rows"] * 100, 3)
+    res["risk_window_share_pct_by_window"] = {
+        w: round(v["at_risk_21"] / res["universe_rows"] * 100, 3)
+        for w, v in windows.items()}
     return res, h
 
 
