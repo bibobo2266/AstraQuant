@@ -2,6 +2,11 @@
 
 狀態：**REVIEW_READY / NOT A DATA-GATE PASS / NO STRATEGY EFFECTS**
 
+Revision 2 核對補充：本頁數字保留為 v1 暫報；producer 的 ATR 暖機與有效 bar 判定
+有正式契約差異，共同日曆完整性及真實受影響筆數尚未核驗。
+見 [revision 2 契約與最小重算範圍](AQ_EXP_DATA_001_REVISION_2.md) 及
+`out/aq_exp_data_001_r2_manifest.json`。272,280 不是完整交易可用樣本。
+
 固定口徑：
 
 - E1：2016-01-04～2021-12-31；暖機自 2015-01-01。
@@ -47,7 +52,7 @@ A 不等於 VERIFIED。B 不等於已證明錯；只有已有正向證據的部�
 
 - **MA120**：current + prior 119 common-session rows；CA event 可影響其後最多 119 個輸出 observations。
 - **N60**：first-cross 需要 current + prior 61 common-session closes；CA event 可影響其後最多 61 個輸出 observations。
-- **ATR14**：SMA14 true range；在 valid-observed-bar sequence 上至少要 15 個 valid bars 才有 14 個 TR，event-day TR 可留在 14 個 ATR outputs。
+- **ATR14（v1 producer 口徑）**：SMA14 true range proxy 要求15個valid bars；revision 2 已確認正式exit-state第一bar TR=high-low，因此14個valid bars即足夠。此處保留原計數口徑，不宣稱與正式契約相同；event-day TR可留在14個ATR outputs。
 - **LOW20**：前 20 個 valid observed closes、不含 current；CA event 可影響後續 20 個 valid-bar outputs。
 
 ATR14 / LOW20 這裡只量化資料依賴覆蓋，不代表其正式 exit evaluator／simulator wiring 已獲批准。
