@@ -1,6 +1,6 @@
 {
  "branches": {
-  "main": "7047537b6006ded8bfcfce68deab7374f611240e",
+  "main": "399ed899cbb5724abd7ecf9eb85c0c212ea6f3aa",
   "sol4/aq-exp-data-001-r2": "25266f8a15ebd8b505a9835e4db7d5ca4fe82ce0",
   "sol-ab-v2-b-20261004": "f56ec5a145d5edab8192229e1fa4ccdb42fc2cc6",
   "solb/baseline-60d-exit-state": "584bf75f5de556f86dcc665def33d65af0843b14",
@@ -8,9 +8,15 @@
   "solb/baseline-60d-simulator-integration": "75a0867ea94299f9bcaea84ea4082d690030ecd5",
   "solb/prepared-run-eligibility-evidence": "c275f81476851f6300e572848ba49349a8d6c18d",
   "solb/register-ema9-research-candidates": "8a57dffaf0ddf2102c33bd771efa1aadf1d19540",
-  "solb/rsi-computability-v1-strict": "5a395ec769612ca6d1f7b021ed332a4daa3b6b8c"
+  "solb/rsi-computability-v1-strict": "5a395ec769612ca6d1f7b021ed332a4daa3b6b8c",
+  "solc/aq-exp-atr-001": "bfbafa3142630cf5fa27500e2c3163adfa25b7d0"
  },
  "prs": {
+  "9": {
+   "sha": "e2c3a2ef06c3935a53c5955e405114c5cc2372db",
+   "draft": true,
+   "title": "AQ-EXP-SURVIVOR-001: 未建模下市股接觸面清點與決策紀錄 [no-effects]"
+  },
   "8": {
    "sha": "25266f8a15ebd8b505a9835e4db7d5ca4fe82ce0",
    "draft": true,
@@ -32,7 +38,7 @@
    "title": "Wire baseline 60D exit-state into canonical simulator [no-effects]"
   }
  },
- "last_comment": 5986602538,
+ "last_comment": 5989869372,
  "flags": [],
- "checked_at": "2026-10-05T01:33:47Z"
+ "checked_at": "2026-10-05T07:38:01Z"
 }
