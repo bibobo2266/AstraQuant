@@ -55,6 +55,10 @@
   "6238",
   "6452"
  ],
- "at_risk_stock_days": 8465,
- "at_risk_share_pct": 1.847
+ "at_risk_ticker_lifetime_universe_days": 8465,
+ "days_within_30d_of_last_raw": 219,
+ "e1_end_observed": "2021-12-30",
+ "manifest_period_end": "2021-12-31",
+ "at_risk_lifetime_share_pct": 1.847,
+ "risk_window_share_pct": 0.048
 }
