@@ -1191,6 +1191,24 @@ def run_synthetic_exploration(
                 ),
             },
             "fill_count": int(candidate_fill_count),
+            # Censoring here is per ticker: one ticker stopping does not stop the
+            # others, because each ticker runs its own canonical portfolio. That
+            # is the opposite of capital_constrained, where a single unreliable
+            # session stops the shared NAV. Both are reported so the asymmetry is
+            # readable without digging into metrics.
+            "censoring_scope": "PER_TICKER_INDEPENDENT_DOES_NOT_STOP_OTHER_TICKERS",
+            "performance_status": (
+                "PARTIAL_DATA_CENSORED" if not candidate_censored.empty else "COMPLETE"
+            ),
+            "censored_ticker_count": (
+                int(candidate_censored["stock_id"].nunique())
+                if not candidate_censored.empty else 0
+            ),
+            "censored_first_date": (
+                min(candidate_censored["censored_at"])
+                if not candidate_censored.empty else None
+            ),
+            "full_period_performance_available": bool(candidate_censored.empty),
             "metrics": _metrics(candidate_trades, candidate_open, candidate_censored),
         },
         "capital_constrained": {
@@ -1228,6 +1246,7 @@ def run_synthetic_exploration(
             "MFE/MAE are diagnostics and are not used for selection or headline claims",
             "positive_return_share is a share of summed positive return rates, not monetary profit concentration",
             "return averages describe resolved closed trades only, never overall strategy expectancy",
+            "candidate-cohort censoring is per ticker; capital-constrained censoring stops the shared portfolio",
             "FORMAL_RESEARCH remains unconditionally blocked",
         ],
     }

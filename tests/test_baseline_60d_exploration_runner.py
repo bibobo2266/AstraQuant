@@ -465,3 +465,42 @@ def test_leaving_universe_with_daily_holding_evidence_does_not_censor(tmp_path):
     result = _run(fixture, tmp_path)
     assert result.report["candidate_cohort"]["metrics"]["n_closed"] == 2
     assert result.censored_positions.empty
+
+
+def test_candidate_cohort_exposes_its_own_censoring_status(tmp_path):
+    """候選族群與資金組合的截尾語意不同，兩邊都要能直接讀到狀態。"""
+    fixture = build_synthetic_fixture(tmp_path / "fixture")
+    clean = _run(fixture, tmp_path / "clean")
+    cohort = clean.report["candidate_cohort"]
+    assert cohort["performance_status"] == "COMPLETE"
+    assert cohort["censored_ticker_count"] == 0
+    assert cohort["censored_first_date"] is None
+    assert cohort["full_period_performance_available"] is True
+    assert cohort["censoring_scope"] == "PER_TICKER_INDEPENDENT_DOES_NOT_STOP_OTHER_TICKERS"
+    assert clean.report["capital_constrained"]["performance_status"] == "COMPLETE"
+
+    table = pd.read_csv(fixture / "eligibility.csv", dtype={"stock_id": str})
+    days = sorted(table["date"].unique())
+    affected = table["stock_id"].eq("2330") & table["date"].eq(days[63])
+    table.loc[affected, ["eligibility_status", "reason_code", "baseline_issue_b_any"]] = [
+        "BLOCKED", "ECONOMIC_CONTENT_UNRESOLVED", True]
+    _save_eligibility(fixture, table)
+    censored_run = _run(fixture, tmp_path / "censored")
+    cohort = censored_run.report["candidate_cohort"]
+
+    # 一檔被截尾，但其他檔照跑完 —— 這正是與資金組合不同的地方。
+    assert cohort["performance_status"] == "PARTIAL_DATA_CENSORED"
+    assert cohort["censored_ticker_count"] == 1
+    assert cohort["censored_first_date"] == days[63]
+    assert cohort["full_period_performance_available"] is False
+    assert cohort["metrics"]["n_closed"] == 1
+    assert cohort["metrics"]["n_data_censored"] == 1
+
+    # 資金組合則是整個組合停住，不是只停一檔。
+    capital = censored_run.report["capital_constrained"]
+    assert capital["performance_status"] == "BLOCKED_DATA_CENSORED"
+    assert capital["blocked_at"] == days[63]
+    assert capital["metrics"]["data_censored_share"] == 1
+
+    note = "candidate-cohort censoring is per ticker; capital-constrained censoring stops the shared portfolio"
+    assert note in censored_run.report["notes"]

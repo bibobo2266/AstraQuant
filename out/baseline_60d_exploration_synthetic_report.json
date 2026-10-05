@@ -73,6 +73,11 @@
       "capacity_selection_rule": "TICKER_ASC"
     },
     "fill_count": 5,
+    "censoring_scope": "PER_TICKER_INDEPENDENT_DOES_NOT_STOP_OTHER_TICKERS",
+    "performance_status": "COMPLETE",
+    "censored_ticker_count": 0,
+    "censored_first_date": null,
+    "full_period_performance_available": true,
     "metrics": {
       "n_closed": 2,
       "n_open": 1,
@@ -155,6 +160,7 @@
     "MFE/MAE are diagnostics and are not used for selection or headline claims",
     "positive_return_share is a share of summed positive return rates, not monetary profit concentration",
     "return averages describe resolved closed trades only, never overall strategy expectancy",
+    "candidate-cohort censoring is per ticker; capital-constrained censoring stops the shared portfolio",
     "FORMAL_RESEARCH remains unconditionally blocked"
   ]
 }

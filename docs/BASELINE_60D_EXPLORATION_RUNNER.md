@@ -277,6 +277,16 @@ independent ticker cohort stops only the affected ticker's simulation, including
 its later entries. Censored counts/shares use closed + normal open + censored
 entries as their denominator. No closed-only mean is overall strategy expectancy.
 
+The candidate cohort reports its own censoring state at the same level rather
+than only inside `metrics`: `censoring_scope`
+(`PER_TICKER_INDEPENDENT_DOES_NOT_STOP_OTHER_TICKERS`), `performance_status`
+(`COMPLETE` or `PARTIAL_DATA_CENSORED`), `censored_ticker_count`,
+`censored_first_date` and `full_period_performance_available`. The two cohorts
+carry deliberately different semantics — per ticker versus one shared portfolio —
+so a reader must not copy the capital block's reading onto the cohort block, or
+the reverse. This is disclosure only; no selection, exit or accounting behaviour
+changes with it.
+
 Leaving all_liquid does not remove a holding. An explicit complete daily holding
 evidence row can support continuation; a missing row cannot. The original
 all_liquid table alone is not complete holding-path coverage.
