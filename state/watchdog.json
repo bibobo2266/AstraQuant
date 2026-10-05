@@ -1,6 +1,6 @@
 {
  "branches": {
-  "main": "399ed899cbb5724abd7ecf9eb85c0c212ea6f3aa",
+  "main": "f783976320244ae6032ced8bbe80bcbf340d21fb",
   "sol4/aq-exp-data-001-r2": "25266f8a15ebd8b505a9835e4db7d5ca4fe82ce0",
   "sol-ab-v2-b-20261004": "f56ec5a145d5edab8192229e1fa4ccdb42fc2cc6",
   "solb/baseline-60d-exit-state": "584bf75f5de556f86dcc665def33d65af0843b14",
@@ -9,11 +9,28 @@
   "solb/prepared-run-eligibility-evidence": "c275f81476851f6300e572848ba49349a8d6c18d",
   "solb/register-ema9-research-candidates": "8a57dffaf0ddf2102c33bd771efa1aadf1d19540",
   "solb/rsi-computability-v1-strict": "5a395ec769612ca6d1f7b021ed332a4daa3b6b8c",
-  "solc/aq-exp-atr-001": "bfbafa3142630cf5fa27500e2c3163adfa25b7d0"
+  "solc/aq-exp-atr-001": "bfbafa3142630cf5fa27500e2c3163adfa25b7d0",
+  "solc/aq-exp-geom-001": "2ccc65ed875cf0ea33aa0b6670bf053dfa7bd660",
+  "solc/aq-exp-merge-prep-001": "8c30ca4a958f529ec0a36597a99eb1008fa941d2"
  },
  "prs": {
+  "12": {
+   "sha": "8c30ca4a958f529ec0a36597a99eb1008fa941d2",
+   "draft": true,
+   "title": "AQ-EXP-MERGE-PREP-001: E1 證據線四個 Draft PR 的合併前準備 [no-effects]"
+  },
+  "11": {
+   "sha": "2ccc65ed875cf0ea33aa0b6670bf053dfa7bd660",
+   "draft": true,
+   "title": "AQ-EXP-GEOM-001: OHLC 幾何違反在原母體內實際為 0 列 [no-effects]"
+  },
+  "10": {
+   "sha": "bfbafa3142630cf5fa27500e2c3163adfa25b7d0",
+   "draft": true,
+   "title": "AQ-EXP-ATR-001: ATR14 暖機差異實際受影響筆數 = 17 [no-effects]"
+  },
   "9": {
-   "sha": "e2c3a2ef06c3935a53c5955e405114c5cc2372db",
+   "sha": "05bfd3785d7b162ba99080342c90c9a376f3e9ee",
    "draft": true,
    "title": "AQ-EXP-SURVIVOR-001: 未建模下市股接觸面清點與決策紀錄 [no-effects]"
   },
@@ -38,7 +55,7 @@
    "title": "Wire baseline 60D exit-state into canonical simulator [no-effects]"
   }
  },
- "last_comment": 5989869372,
+ "last_comment": 5992521657,
  "flags": [],
- "checked_at": "2026-10-05T07:38:01Z"
+ "checked_at": "2026-10-05T16:59:44Z"
 }
