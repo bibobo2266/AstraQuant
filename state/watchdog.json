@@ -1,6 +1,6 @@
 {
  "branches": {
-  "main": "f783976320244ae6032ced8bbe80bcbf340d21fb",
+  "main": "3e911b6a6be88a74b2732e9848aafa54223b580a",
   "sol4/aq-exp-data-001-r2": "25266f8a15ebd8b505a9835e4db7d5ca4fe82ce0",
   "sol-ab-v2-b-20261004": "f56ec5a145d5edab8192229e1fa4ccdb42fc2cc6",
   "solb/baseline-60d-exit-state": "584bf75f5de556f86dcc665def33d65af0843b14",
@@ -55,7 +55,7 @@
    "title": "Wire baseline 60D exit-state into canonical simulator [no-effects]"
   }
  },
- "last_comment": 5992521657,
+ "last_comment": 5999160376,
  "flags": [],
- "checked_at": "2026-10-05T16:59:44Z"
+ "checked_at": "2026-10-05T23:07:45Z"
 }
