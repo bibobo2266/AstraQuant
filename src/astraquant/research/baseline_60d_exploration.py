@@ -5,7 +5,6 @@ from datetime import date
 from enum import Enum
 from pathlib import Path
 from typing import Iterable
-import hashlib
 import json
 import math
 
@@ -13,14 +12,14 @@ import numpy as np
 import pandas as pd
 import yaml
 
-from astraquant.data.market_coordinates import SignalPriceSemantics
+from astraquant.data.market_coordinates import PriceUse, SignalPriceSemantics
 from astraquant.data.source_adapter import SourceDataAdapter
 from astraquant.execution.assumptions import FixedBpsSlippage, SideAwareBpsFeeModel
 from astraquant.execution.fills import ExecutionFillFactory
 from astraquant.execution.market_data import ExecutionMarketData
 from astraquant.execution.service import CanonicalExecutionService, SignalDeclaration
 from astraquant.portfolio.engine import PortfolioEngine
-from astraquant.portfolio.performance_reporting import TradeReport, build_trade_report, portfolio_fills
+from astraquant.portfolio.performance_reporting import TradeReport, portfolio_fills
 from astraquant.portfolio.policy import (
     CapacitySelectionRule,
     PortfolioIntentPolicy,
@@ -51,6 +50,7 @@ class BaselineExplorationError(RuntimeError):
 
 class RowEligibilityStatus(str, Enum):
     ELIGIBLE = "ELIGIBLE"
+    ELIGIBLE_WITH_PIT_EVIDENCE_INCOMPLETE = "ELIGIBLE_WITH_PIT_EVIDENCE_INCOMPLETE"
     EXCLUDED = "EXCLUDED"
     BLOCKED = "BLOCKED"
     UNKNOWN = "UNKNOWN"
@@ -98,7 +98,7 @@ FROZEN_METHOD = {
         "cross_stock_capital_competition": False,
         "force_close_at_period_end": False,
         "mfe_mae_role": "DIAGNOSTIC_ONLY",
-        "profit_concentration_remove_top": [1, 3, 5],
+        "positive_return_share_remove_top": [1, 3, 5],
     },
     "unfrozen_for_real_e1": [
         "candidate_cohort_opening_cash_twd",
@@ -122,6 +122,10 @@ class EligibilityManifest:
     period_end: str
     row_count: int
     table_sha256: str
+    original_row_denominator: int | None = None
+    contract_revision: str | None = None
+    evidence_revision: str | None = None
+    private_delivery_revision: str | None = None
 
 
 @dataclass(frozen=True)
@@ -165,6 +169,7 @@ class ExplorationRunArtifacts:
     eligibility_rows: pd.DataFrame
     candidate_funnel: pd.DataFrame
     mfe_mae: pd.DataFrame
+    censored_positions: pd.DataFrame
 
 
 def _canonical_yaml(path: Path) -> dict[str, object]:
@@ -220,9 +225,12 @@ def load_eligibility_table(
         "row_count",
         "table_sha256",
     }
+    metadata_keys = {"original_row_denominator", "contract_revision", "evidence_revision", "private_delivery_revision"}
+    if str(manifest_raw.get("schema_version")) == "2":
+        expected_keys |= metadata_keys
     if set(manifest_raw) != expected_keys:
         raise BaselineExplorationError(
-            "eligibility manifest keys do not match schema v1"
+            "eligibility manifest keys do not match declared schema"
         )
     manifest = EligibilityManifest(
         schema_version=str(manifest_raw["schema_version"]),
@@ -233,15 +241,52 @@ def load_eligibility_table(
         period_end=str(manifest_raw["period_end"]),
         row_count=int(manifest_raw["row_count"]),
         table_sha256=str(manifest_raw["table_sha256"]),
+        **{key: manifest_raw[key] for key in metadata_keys if key in manifest_raw},
     )
-    if manifest.schema_version != "1":
+    if manifest.schema_version not in {"1", "2"}:
         raise BaselineExplorationError("unsupported eligibility manifest schema")
     if not table_path.exists():
         raise BaselineExplorationError(f"eligibility table missing: {table_path}")
     if sha256_file(table_path) != manifest.table_sha256:
         raise BaselineExplorationError("eligibility table checksum mismatch")
 
-    frame = pd.read_csv(table_path, dtype={"stock_id": str})
+    if manifest.schema_version == "2":
+        if (not isinstance(manifest.original_row_denominator, int)
+                or manifest.original_row_denominator <= 0
+                or any(not isinstance(getattr(manifest, key), str) or not getattr(manifest, key).strip()
+                       for key in metadata_keys - {"original_row_denominator"})):
+            raise BaselineExplorationError("invalid original denominator or evidence revisions")
+    frame = (pd.read_parquet(table_path) if table_path.suffix == ".parquet"
+             else pd.read_csv(table_path, dtype={"stock_id": str}))
+    flag_columns = [col for col in frame if col.startswith("baseline_issue_") or
+                    any(col == f"{feature}_issue_{flag}" for feature in ("ma120", "n60", "atr14", "low20") for flag in ("a", "b", "c"))]
+    for col in flag_columns:
+        parsed = frame[col].map(lambda value: {"true": True, "false": False, "1": True, "0": False}.get(str(value).lower()))
+        if parsed.isna().any():
+            raise BaselineExplorationError(f"invalid evidence flag: {col}")
+        frame[col] = parsed.astype(bool)
+    if "limited_exploration_label" in frame:
+        required_mapping = {"baseline_issue_a_any", "baseline_issue_b_any", "baseline_issue_c_any",
+                            "baseline_evidence_state", "raw_version_evidence_reason"}
+        if manifest.schema_version != "2" or not required_mapping.issubset(frame):
+            raise BaselineExplorationError("Sol 4 mapping requires evidence columns and manifest v2")
+        label = frame["limited_exploration_label"]
+        if not label.isin(["ELIGIBLE_WITH_PIT_EVIDENCE_INCOMPLETE", "NOT_ELIGIBLE"]).all():
+            raise BaselineExplorationError("unknown limited_exploration_label")
+        mapped = label.where(label.ne("NOT_ELIGIBLE"), "UNKNOWN")
+        mapped = mapped.mask(label.eq("NOT_ELIGIBLE") & frame["baseline_issue_b_any"], "BLOCKED")
+        mapped = mapped.mask(label.eq("NOT_ELIGIBLE") & frame["baseline_issue_c_any"], "UNAVAILABLE")
+        if "eligibility_status" in frame and not frame["eligibility_status"].eq(mapped).all():
+            raise BaselineExplorationError("eligibility status contradicts original label")
+        frame["eligibility_status"] = mapped
+        if "reason_code" not in frame:
+            frame["reason_code"] = "PIT_EVIDENCE_INCOMPLETE"
+            frame.loc[label.eq("NOT_ELIGIBLE"), "reason_code"] = "ELIGIBILITY_UNRESOLVED"
+            frame.loc[frame["baseline_issue_b_any"], "reason_code"] = "B_EXPOSURE"
+            frame.loc[frame["baseline_issue_c_any"], "reason_code"] = "C_UNAVAILABLE"
+        if "reason_detail" not in frame:
+            frame["reason_detail"] = "Original per-feature evidence/reasons retained in audit columns"
+
     required = {
         "date",
         "stock_id",
@@ -254,8 +299,11 @@ def load_eligibility_table(
         raise BaselineExplorationError(
             f"eligibility table missing columns: {sorted(missing)}"
         )
-    frame = frame[list(required)].copy()
+    # Preserve all evidence columns, including independent A/B/C and revisions.
+    frame = frame.copy()
     frame["date"] = pd.to_datetime(frame["date"], errors="coerce").dt.normalize()
+    if frame["stock_id"].isna().any():
+        raise BaselineExplorationError("eligibility table has null logical keys")
     frame["stock_id"] = frame["stock_id"].astype(str)
     if frame[["date", "stock_id"]].isna().any(axis=1).any():
         raise BaselineExplorationError("eligibility table has null logical keys")
@@ -279,6 +327,19 @@ def load_eligibility_table(
                 f"unknown eligibility_status: {raw!r}"
             ) from exc
     frame["eligibility_status"] = normalized_status
+    limited = frame["eligibility_status"].eq("ELIGIBLE_WITH_PIT_EVIDENCE_INCOMPLETE")
+    if limited.any():
+        needed = {"baseline_issue_a_any", "baseline_issue_b_any", "baseline_issue_c_any", "baseline_evidence_state"}
+        if not needed.issubset(frame):
+            raise BaselineExplorationError("PIT incomplete rows require A/B/C evidence")
+        if (not frame.loc[limited, "baseline_issue_a_any"].all()
+                or frame.loc[limited, ["baseline_issue_b_any", "baseline_issue_c_any"]].any().any()
+                or not frame.loc[limited, "baseline_evidence_state"].eq("INDETERMINATE").all()):
+            raise BaselineExplorationError("PIT incomplete label contradicts A/B/C evidence")
+    plain = frame["eligibility_status"].eq("ELIGIBLE")
+    for col in ("baseline_issue_a_any", "baseline_issue_b_any", "baseline_issue_c_any"):
+        if col in frame and frame.loc[plain, col].any():
+            raise BaselineExplorationError("ELIGIBLE cannot erase A/B/C evidence")
     frame["reason_code"] = frame["reason_code"].astype("string")
     frame["reason_detail"] = frame["reason_detail"].astype("string")
     if frame["reason_code"].isna().any() or frame["reason_code"].str.strip().eq("").any():
@@ -393,6 +454,86 @@ def qualify_candidates(
     return merged.drop(columns=["_merge"])
 
 
+EXECUTABLE_STATUSES = {"ELIGIBLE", "ELIGIBLE_WITH_PIT_EVIDENCE_INCOMPLETE"}
+
+
+def _row_problem(row: pd.Series) -> str | None:
+    if row["eligibility_status"] not in EXECUTABLE_STATUSES:
+        return str(row["reason_code"])
+    for flag in ("B", "C"):
+        if bool(row.get(f"baseline_issue_{flag.lower()}_any", False)):
+            return f"{flag}_EXPOSURE"
+    if row.get("ca_path_status") != "NO_CA":
+        return "CA_PATH_UNAVAILABLE"
+    return None
+
+
+class _HoldingDataGuard:
+    """Daily conservative evidence contract; never filters entries using future rows.
+
+    A failed holding stops this canonical portfolio permanently. In the candidate
+    cohort each ticker has its own portfolio; in the capital run all live lots
+    become unresolved because future cash/capacity/NAV cannot be continued.
+    """
+
+    def __init__(self, eligibility, market, portfolio):
+        self.rows = eligibility.frame.set_index(["date", "stock_id"])
+        self.market = market
+        self.portfolio = portfolio
+        self.stopped_at = None
+        self.reasons = {}
+        self.phase = None
+        self.last_reliable_close = {}
+
+    def __call__(self, day, phase):
+        held = {str(t): p for t, p in self.portfolio.positions.positions.items() if p.quantity}
+        problems = {}
+        for ticker in sorted(held):
+            key = (pd.Timestamp(day), ticker)
+            if key not in self.rows.index:
+                problems[ticker] = "MISSING_HOLDING_ELIGIBILITY_ROW"
+                continue
+            problem = _row_problem(self.rows.loc[key])
+            if problem:
+                problems[ticker] = problem
+                continue
+            # No stale-mark fallback: every held session must have a valid bar
+            # and observed tradability. No accounting/normalizer changes.
+            decision = self.market.resolve(ticker=ticker, session_date=day,
+                                           side="sell", use=PriceUse.MARK, field="close")
+            if (decision.bar is None or decision.tradability is None
+                    or not decision.tradability.observed_trade
+                    or not decision.tradability.valid_ohlc):
+                problems[ticker] = "UNRELIABLE_HOLDING_RAW_SESSION"
+        if not problems:
+            if phase == "BEFORE_CLOSE":
+                self.last_reliable_close.update({ticker: day.isoformat() for ticker in held})
+            return True
+        self.stopped_at, self.phase = day, phase
+        self.reasons = {ticker: problems.get(ticker, "PORTFOLIO_STATE_UNRESOLVED") for ticker in held}
+        return False
+
+
+def _partition_open(open_frame, guard):
+    if guard.stopped_at is None:
+        return open_frame, pd.DataFrame(columns=["run_label", "source_fill_id", "stock_id",
+                                               "entry_at", "status", "resolution_status",
+                                               "censored_at", "reason_code", "phase"])
+    censored = open_frame.copy()
+    censored = censored.drop(columns=["held_days_at_period_end", "held_sessions_at_period_end"])
+    censored["status"] = "DATA_CENSORED"
+    censored["resolution_status"] = "UNRESOLVED"
+    censored["censored_at"] = guard.stopped_at.isoformat()
+    censored["reason_code"] = censored["stock_id"].map(guard.reasons)
+    censored["phase"] = guard.phase
+    censored["last_reliable_date"] = censored["stock_id"].map(guard.last_reliable_close).astype("object")
+    new_entry = censored["last_reliable_date"].isna()
+    censored.loc[new_entry, "last_reliable_date"] = censored.loc[new_entry, "entry_at"].str[:10]
+    censored["last_reliable_boundary"] = "SESSION_CLOSE"
+    censored.loc[new_entry, "last_reliable_boundary"] = "ENTRY_OPEN"
+    return open_frame.iloc[:0].copy(), censored
+
+
 def _policy_from_fixture(raw: dict[str, object]) -> tuple[SyntheticPolicySettings, PortfolioPolicyConfig]:
     required = {
         "opening_cash_twd",
@@ -464,6 +605,7 @@ def _build_simulator(
     prepared: PreparedResearchRun,
     opening_cash_twd: float,
     costs: dict[str, object],
+    eligibility: EligibilityTable,
 ) -> tuple[CanonicalStrategySimulator, PortfolioEngine]:
     portfolio = PortfolioEngine(opening_cash=float(opening_cash_twd))
     execution = CanonicalExecutionService(
@@ -487,6 +629,7 @@ def _build_simulator(
             source=f"CONFIG:{prepared.signal_config.name}",
             price_semantics=SignalPriceSemantics.SCALE_SENSITIVE,
         ),
+        baseline_data_guard=_HoldingDataGuard(eligibility, execution.market_data, portfolio),
         config=StrategySimulationConfig(
             settlement_lag_sessions=int(costs["settlement_lag_sessions"])
         ),
@@ -609,7 +752,7 @@ def _open_frame(
     return pd.DataFrame(rows)
 
 
-def _metrics(trades: pd.DataFrame, open_positions: pd.DataFrame) -> dict[str, object]:
+def _metrics(trades: pd.DataFrame, open_positions: pd.DataFrame, censored: pd.DataFrame) -> dict[str, object]:
     if trades.empty:
         returns = np.asarray([], dtype=float)
     else:
@@ -626,6 +769,12 @@ def _metrics(trades: pd.DataFrame, open_positions: pd.DataFrame) -> dict[str, ob
     result: dict[str, object] = {
         "n_closed": int(len(returns)),
         "n_open": int(len(open_positions)),
+        "n_data_censored": int(len(censored)),
+        "data_censored_reason_counts": {str(k): int(v) for k, v in censored["reason_code"].value_counts().items()} if not censored.empty else {},
+        "entered_trade_denominator": int(len(trades) + len(open_positions) + len(censored)),
+        "data_censored_share": (len(censored) / (len(trades) + len(open_positions) + len(censored))
+                                if len(trades) + len(open_positions) + len(censored) else None),
+        "return_statistics_scope": "RESOLVED_CLOSED_TRADES_ONLY_NOT_OVERALL_EXPECTANCY",
         "win_rate": float((returns > 0).mean()) if len(returns) else math.nan,
         "average_win": avg_win,
         "average_loss_abs": avg_loss_abs,
@@ -654,7 +803,7 @@ def _metrics(trades: pd.DataFrame, open_positions: pd.DataFrame) -> dict[str, ob
             else math.nan
         )
         remaining = ordered[n:]
-        result[f"expectancy_ex_top{n}"] = (
+        result[f"average_net_return_ex_top{n}"] = (
             float(remaining.mean()) if len(remaining) else math.nan
         )
         result[f"n_closed_ex_top{n}"] = int(len(remaining))
@@ -662,68 +811,67 @@ def _metrics(trades: pd.DataFrame, open_positions: pd.DataFrame) -> dict[str, ob
 
 
 def _mfe_mae_diagnostics(
-    *,
-    source_root: Path,
-    trades: pd.DataFrame,
-    sessions: tuple[date, ...],
+    *, source_root: Path, trades: pd.DataFrame, sessions: tuple[date, ...],
+    eligibility: EligibilityTable,
 ) -> pd.DataFrame:
+    """Holding-path diagnostic, not fixed-window candidate MFE/MAE.
+
+    RAW ratios are allowed only with explicit NO_CA evidence on every held
+    session. CA and multi-leg paths remain unavailable in this revision.
+    The exit session contributes its open only, never its later high/low.
+    """
+    columns = ["run_label", "source_fill_id", "stock_id", "status", "reason_code", "mfe", "mae"]
     if trades.empty:
-        return pd.DataFrame(
-            columns=[
-                "run_label",
-                "source_fill_id",
-                "stock_id",
-                "status",
-                "mfe",
-                "mae",
-            ]
-        )
-    adapter = SourceDataAdapter(source_root)
-    years = sorted({pd.Timestamp(day).year for day in sessions})
+        return pd.DataFrame(columns=columns)
     parts = []
-    for year in years:
-        rel = f"raw/prices_raw_{year}.parquet"
-        if adapter.exists(rel):
-            part = adapter.read_parquet(
-                rel,
-                columns=["date", "stock_id", "max", "min"],
-            )
-            part["date"] = pd.to_datetime(part["date"], errors="coerce").dt.normalize()
-            part["stock_id"] = part["stock_id"].astype(str)
-            parts.append(part)
-    raw = (
-        pd.concat(parts, ignore_index=True)
-        if parts
-        else pd.DataFrame(columns=["date", "stock_id", "max", "min"])
-    )
-    out: list[dict[str, object]] = []
+    for year in sorted({day.year for day in sessions}):
+        path = source_root / f"raw/prices_raw_{year}.parquet"
+        if path.exists():
+            parts.append(pd.read_parquet(path))
+    raw = pd.concat(parts, ignore_index=True) if parts else pd.DataFrame(columns=["date", "stock_id"])
+    raw["date"] = pd.to_datetime(raw["date"]).dt.normalize()
+    raw["stock_id"] = raw["stock_id"].astype(str)
+    evidence = eligibility.frame.set_index(["date", "stock_id"])
+    out = []
     for row in trades.to_dict("records"):
-        entry = pd.Timestamp(row["entry_at"]).normalize()
-        exit_ = pd.Timestamp(row["exit_at"]).normalize()
-        path = raw[
-            raw["stock_id"].eq(str(row["stock_id"]))
-            & raw["date"].between(entry, exit_, inclusive="both")
-        ].copy()
-        high = pd.to_numeric(path["max"], errors="coerce")
-        low = pd.to_numeric(path["min"], errors="coerce")
+        entry, exit_ = pd.Timestamp(row["entry_at"]).date(), pd.Timestamp(row["exit_at"]).date()
+        expected = [pd.Timestamp(d) for d in sessions if entry <= d <= exit_]
+        ticker = str(row["stock_id"])
+        path = raw[raw["stock_id"].eq(ticker) & raw["date"].isin(expected)].copy()
+        reason = None
+        if entry not in sessions or exit_ not in sessions or entry >= exit_:
+            reason = "UNSUPPORTED_HOLDING_INTERVAL"
+        elif row["exit_reason"] == "TERMINAL":
+            reason = "CA_PATH_UNAVAILABLE"
+        elif len(path) != len(expected) or path["date"].duplicated().any() or set(path["date"]) != set(expected):
+            reason = "MISSING_OR_DUPLICATE_RAW_SESSION"
+        else:
+            for day in expected:
+                if (day, ticker) not in evidence.index:
+                    reason = "MISSING_HOLDING_ELIGIBILITY_ROW"
+                    break
+                reason = _row_problem(evidence.loc[(day, ticker)])
+                if reason:
+                    break
+        highs, lows = [], []
+        if reason is None:
+            for bar in path.to_dict("records"):
+                fields = ["open"] if bar["date"].date() == exit_ else ["max", "min"]
+                values = [float(pd.to_numeric(bar.get(field), errors="coerce")) for field in fields]
+                if not all(math.isfinite(v) and v > 0 for v in values):
+                    reason = "INVALID_RAW_PATH"
+                    break
+                highs.append(max(values)); lows.append(min(values))
         ref = float(row["entry_fill_price"])
-        valid = (
-            len(path) > 0
-            and high.notna().all()
-            and low.notna().all()
-            and ref > 0
-        )
-        out.append(
-            {
-                "run_label": row["run_label"],
-                "source_fill_id": row["source_fill_id"],
-                "stock_id": row["stock_id"],
-                "status": "OK" if valid else "UNAVAILABLE_RAW_PATH",
-                "mfe": float((high / ref - 1.0).max()) if valid else math.nan,
-                "mae": float((low / ref - 1.0).min()) if valid else math.nan,
-            }
-        )
-    return pd.DataFrame(out)
+        if not math.isfinite(ref) or ref <= 0:
+            reason = "INVALID_ENTRY_REFERENCE"
+        valid = reason is None
+        out.append({"run_label": row["run_label"], "source_fill_id": row["source_fill_id"],
+                    "stock_id": ticker, "status": "OK" if valid else "UNAVAILABLE",
+                    "reason_code": "NO_CA_HOLDING_PATH" if valid else reason,
+                    "mfe": max(v / ref - 1 for v in highs) if valid else math.nan,
+                    "mae": min(v / ref - 1 for v in lows) if valid else math.nan})
+    return pd.DataFrame(out, columns=columns)
 
 
 def _json_safe(value):
@@ -758,6 +906,7 @@ def _write_outputs(artifacts: ExplorationRunArtifacts, output_dir: Path) -> None
     artifacts.eligibility_rows.to_csv(output_dir / "eligibility_audit.csv", index=False)
     artifacts.candidate_funnel.to_csv(output_dir / "candidate_funnel.csv", index=False)
     artifacts.mfe_mae.to_csv(output_dir / "mfe_mae_diagnostics.csv", index=False)
+    artifacts.censored_positions.to_csv(output_dir / "data_censored_positions.csv", index=False)
 
 
 def run_synthetic_exploration(
@@ -873,7 +1022,7 @@ def run_synthetic_exploration(
 
     qualified = qualify_candidates(prepared_candidate.candidates, eligibility)
     executable = qualified[
-        qualified["eligibility_status"].eq(RowEligibilityStatus.ELIGIBLE.value)
+        qualified["eligibility_status"].isin(EXECUTABLE_STATUSES)
     ].copy()
     candidate_columns = list(prepared_candidate.candidates.columns)
     executable_candidates = executable[candidate_columns].copy()
@@ -885,6 +1034,7 @@ def run_synthetic_exploration(
 
     candidate_trade_parts: list[pd.DataFrame] = []
     candidate_open_parts: list[pd.DataFrame] = []
+    candidate_censored_parts = []
     candidate_fill_count = 0
     for ticker in sorted(executable_candidates["stock_id"].astype(str).unique()):
         subset = executable_candidates[
@@ -901,6 +1051,7 @@ def run_synthetic_exploration(
             prepared=prepared_one,
             opening_cash_twd=candidate_settings.opening_cash_twd,
             costs=costs,
+            eligibility=eligibility,
         )
         executed = engine.execute_prepared(
             prepared=prepared_one,
@@ -925,6 +1076,9 @@ def run_synthetic_exploration(
                 run_label="CANDIDATE_COHORT",
             )
         )
+        normal_open, censored = _partition_open(candidate_open_parts.pop(), simulator.baseline_data_guard)
+        candidate_open_parts.append(normal_open)
+        candidate_censored_parts.append(censored)
         candidate_fill_count += len(portfolio_fills(portfolio))
 
     candidate_trades = (
@@ -938,6 +1092,8 @@ def run_synthetic_exploration(
         else pd.DataFrame()
     )
 
+    candidate_censored = pd.concat(candidate_censored_parts, ignore_index=True) if candidate_censored_parts else pd.DataFrame()
+
     prepared_capital_filtered = _subset_prepared(
         prepared=prepared_capital,
         candidates=executable_candidates,
@@ -949,6 +1105,7 @@ def run_synthetic_exploration(
         prepared=prepared_capital_filtered,
         opening_cash_twd=capital_settings.opening_cash_twd,
         costs=costs,
+        eligibility=eligibility,
     )
     capital_executed = engine.execute_prepared(
         prepared=prepared_capital_filtered,
@@ -969,20 +1126,14 @@ def run_synthetic_exploration(
         period_end=sessions[-1],
         run_label="CAPITAL_CONSTRAINED",
     )
+    capital_open, capital_censored = _partition_open(capital_open, capital_simulator.baseline_data_guard)
+    censored_positions = pd.concat([candidate_censored, capital_censored], ignore_index=True)
     open_positions = pd.concat(
         [candidate_open, capital_open],
         ignore_index=True,
     )
 
-    funnel = qualified[
-        [
-            "signal_date",
-            "stock_id",
-            "eligibility_status",
-            "reason_code",
-            "reason_detail",
-        ]
-    ].copy()
+    funnel = qualified.copy()
     candidate_status_counts = {
         str(k): int(v)
         for k, v in funnel["eligibility_status"].value_counts(dropna=False).items()
@@ -999,10 +1150,11 @@ def run_synthetic_exploration(
             ignore_index=True,
         ),
         sessions=sessions,
+        eligibility=eligibility,
     )
 
     report = {
-        "schema_version": "1",
+        "schema_version": "2",
         "report_type": "baseline_60d_exploration_synthetic",
         "strategy_version": method["strategy_version"],
         "mode": "SYNTHETIC_FIXTURE",
@@ -1017,7 +1169,9 @@ def run_synthetic_exploration(
         "costs": costs,
         "unfrozen_for_real_e1": list(method["unfrozen_for_real_e1"]),
         "population": {
-            "row_denominator": int(len(eligibility.frame)),
+            "row_denominator": eligibility.manifest.original_row_denominator or int(len(eligibility.frame)),
+            "provided_row_count": int(len(eligibility.frame)),
+            "evidence_manifest": asdict(eligibility.manifest),
             "unique_tickers": int(eligibility.frame["stock_id"].nunique()),
             "status_counts": eligibility.counts_by_status,
             "reason_counts": eligibility.counts_by_reason,
@@ -1037,7 +1191,7 @@ def run_synthetic_exploration(
                 ),
             },
             "fill_count": int(candidate_fill_count),
-            "metrics": _metrics(candidate_trades, candidate_open),
+            "metrics": _metrics(candidate_trades, candidate_open, candidate_censored),
         },
         "capital_constrained": {
             "execution_basis": "SINGLE_CANONICAL_PORTFOLIO",
@@ -1052,10 +1206,15 @@ def run_synthetic_exploration(
             "capacity_rejections": int(
                 capital_executed.simulation.total_capacity_rejections
             ),
-            "metrics": _metrics(capital_trades, capital_open),
+            "performance_status": "BLOCKED_DATA_CENSORED" if capital_simulator.baseline_data_guard.stopped_at else "COMPLETE",
+            "blocked_at": capital_simulator.baseline_data_guard.stopped_at.isoformat() if capital_simulator.baseline_data_guard.stopped_at else None,
+            "full_period_performance_available": capital_simulator.baseline_data_guard.stopped_at is None,
+            "last_complete_session": capital_executed.simulation.sessions[-1].session_date.isoformat() if capital_executed.simulation.sessions else None,
+            "metrics": _metrics(capital_trades, capital_open, capital_censored),
         },
         "mfe_mae": {
             "role": "DIAGNOSTIC_ONLY",
+            "scope": "TRADE_HOLDING_PATH_THROUGH_EXIT_OPEN",
             "row_count": int(len(diagnostics)),
             "status_counts": {
                 str(k): int(v)
@@ -1067,6 +1226,8 @@ def run_synthetic_exploration(
             "candidate cohort and capital-constrained portfolio are reported separately",
             "eligibility denominator is retained; non-eligible rows are not zero-filled",
             "MFE/MAE are diagnostics and are not used for selection or headline claims",
+            "positive_return_share is a share of summed positive return rates, not monetary profit concentration",
+            "return averages describe resolved closed trades only, never overall strategy expectancy",
             "FORMAL_RESEARCH remains unconditionally blocked",
         ],
     }
@@ -1078,6 +1239,7 @@ def run_synthetic_exploration(
         eligibility_rows=eligibility.frame.copy(),
         candidate_funnel=funnel,
         mfe_mae=diagnostics,
+        censored_positions=censored_positions,
     )
     _write_outputs(artifacts, output_dir)
     return artifacts
@@ -1185,6 +1347,10 @@ def build_synthetic_fixture(root: str | Path) -> Path:
                     "eligibility_status": status,
                     "reason_code": reason,
                     "reason_detail": detail,
+                    "baseline_issue_a_any": False,
+                    "baseline_issue_b_any": ticker == "2317",
+                    "baseline_issue_c_any": False,
+                    "ca_path_status": "NO_CA",
                 }
             )
 

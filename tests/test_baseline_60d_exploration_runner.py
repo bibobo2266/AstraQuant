@@ -148,6 +148,7 @@ def test_synthetic_exploration_full_entry_report_and_costs(tmp_path):
         "eligibility_audit.csv",
         "candidate_funnel.csv",
         "mfe_mae_diagnostics.csv",
+        "data_censored_positions.csv",
     }
     assert expected_files == {path.name for path in output.iterdir()}
     stored = json.loads((output / "report.json").read_text(encoding="utf-8"))
@@ -239,3 +240,228 @@ def test_synthetic_runner_rejects_non_fixture_scope(tmp_path, manifest_name):
             output_dir=tmp_path / "output",
             method_config_path=METHOD_CONFIG,
         )
+
+
+def _save_eligibility(fixture, table, **metadata):
+    path = fixture / "eligibility.csv"
+    table.to_csv(path, index=False)
+    manifest_path = fixture / "eligibility_manifest.json"
+    manifest = json.loads(manifest_path.read_text())
+    manifest.update(row_count=len(table), table_sha256=sha256_file(path), **metadata)
+    manifest_path.write_text(json.dumps(manifest))
+
+
+def _save_raw(fixture, raw):
+    path = fixture / "source/raw/prices_raw_2020.parquet"
+    raw.to_parquet(path, index=False)
+    manifest_path = fixture / "source_manifest.json"
+    manifest = json.loads(manifest_path.read_text())
+    manifest["files"][0]["sha256"] = sha256_file(path)
+    manifest_path.write_text(json.dumps(manifest))
+
+
+def _run(fixture, tmp_path):
+    return run_synthetic_exploration(repo_root=_repo_root(), fixture_root=fixture,
+                                     output_dir=tmp_path / "output", method_config_path=METHOD_CONFIG)
+
+
+def test_exit_open_extremes_do_not_pollute_holding_diagnostic(tmp_path):
+    fixture = build_synthetic_fixture(tmp_path / "fixture")
+    raw = pd.read_parquet(fixture / "source/raw/prices_raw_2020.parquet")
+    exit_day = raw["date"].max()
+    raw.loc[raw["date"].eq(exit_day), ["max", "min"]] = [1000000., .001]
+    _save_raw(fixture, raw)
+    result = _run(fixture, tmp_path)
+    diagnostics = result.mfe_mae.set_index(["run_label", "stock_id"])
+    assert diagnostics.loc[("CANDIDATE_COHORT", "2330"), "mfe"] == pytest.approx(105 / 100.1 - 1)
+    assert diagnostics.loc[("CANDIDATE_COHORT", "2454"), "mfe"] == pytest.approx(101 / 100.1 - 1)
+    assert diagnostics["mae"].tolist() == pytest.approx([89 / 100.1 - 1] * 4)
+
+
+@pytest.mark.parametrize("problem", ["cash", "split", "multi_leg", "missing_raw", "missing_eligibility"])
+def test_diagnostic_ca_or_missing_session_is_unavailable(tmp_path, problem):
+    from astraquant.research.baseline_60d_exploration import _mfe_mae_diagnostics
+    fixture = build_synthetic_fixture(tmp_path / "fixture")
+    normal = _run(fixture, tmp_path)
+    table = pd.read_csv(fixture / "eligibility.csv", dtype={"stock_id": str})
+    days = sorted(table["date"].unique())
+    affected = table["stock_id"].eq("2330") & table["date"].eq(days[62])
+    if problem == "missing_eligibility":
+        table = table.loc[~affected]
+    elif problem != "missing_raw":
+        table.loc[affected, "ca_path_status"] = problem.upper()
+    _save_eligibility(fixture, table)
+    if problem == "missing_raw":
+        raw_path = fixture / "source/raw/prices_raw_2020.parquet"
+        raw = pd.read_parquet(raw_path)
+        raw = raw.loc[~(raw["stock_id"].eq("2330") & pd.to_datetime(raw["date"]).eq(pd.Timestamp(days[62])))]
+        _save_raw(fixture, raw)
+    eligibility = load_eligibility_table(table_path=fixture / "eligibility.csv", manifest_path=fixture / "eligibility_manifest.json")
+    diagnostics = _mfe_mae_diagnostics(source_root=fixture / "source", trades=normal.candidate_trades,
+                                     sessions=tuple(pd.Timestamp(d).date() for d in days), eligibility=eligibility)
+    row = diagnostics.set_index("stock_id").loc["2330"]
+    assert row["status"] == "UNAVAILABLE"
+    assert pd.isna(row["mfe"]) and pd.isna(row["mae"])
+
+
+@pytest.mark.parametrize("problem", ["economic", "missing_row", "missing_raw", "suspended", "cash", "split"])
+def test_first_holding_problem_preserves_entry_and_blocks_portfolio(tmp_path, problem):
+    fixture = build_synthetic_fixture(tmp_path / "fixture")
+    table = pd.read_csv(fixture / "eligibility.csv", dtype={"stock_id": str})
+    days = sorted(table["date"].unique())
+    affected = table["stock_id"].eq("2330") & table["date"].eq(days[63])
+    if problem == "economic":
+        table.loc[affected, ["eligibility_status", "reason_code", "baseline_issue_b_any"]] = ["BLOCKED", "ECONOMIC_CONTENT_UNRESOLVED", True]
+    elif problem == "missing_row":
+        table = table.loc[~affected]
+    elif problem in {"cash", "split"}:
+        table.loc[affected, "ca_path_status"] = problem.upper()
+    _save_eligibility(fixture, table)
+    if problem == "missing_raw":
+        path = fixture / "source/raw/prices_raw_2020.parquet"
+        raw = pd.read_parquet(path)
+        raw = raw.loc[~(raw["stock_id"].eq("2330") & pd.to_datetime(raw["date"]).eq(pd.Timestamp(days[63])))]
+        _save_raw(fixture, raw)
+    if problem == "suspended":
+        path = fixture / "source/reference/tradability.parquet"
+        trad = pd.read_parquet(path)
+        mask = trad["stock_id"].eq("2330") & pd.to_datetime(trad["date"]).eq(pd.Timestamp(days[63]))
+        trad.loc[mask, ["observed_trade", "valid_ohlc"]] = False
+        trad.to_parquet(path, index=False)
+        manifest_path = fixture / "source_manifest.json"
+        manifest = json.loads(manifest_path.read_text())
+        manifest["files"][1]["sha256"] = sha256_file(path)
+        manifest_path.write_text(json.dumps(manifest))
+    result = _run(fixture, tmp_path)
+    assert result.report["candidate_funnel"]["eligible_candidates"] == 3
+    metrics = result.report["candidate_cohort"]["metrics"]
+    assert (metrics["n_closed"], metrics["n_open"], metrics["n_data_censored"]) == (1, 1, 1)
+    assert metrics["entered_trade_denominator"] == 3
+    assert metrics["data_censored_share"] == pytest.approx(1/3)
+    assert metrics["return_statistics_scope"] == "RESOLVED_CLOSED_TRADES_ONLY_NOT_OVERALL_EXPECTANCY"
+    censored = result.censored_positions
+    one = censored[censored["run_label"].eq("CANDIDATE_COHORT")].iloc[0]
+    assert one["stock_id"] == "2330"
+    assert one["entry_at"].startswith(days[62])
+    assert one["censored_at"] == days[63]
+    assert one["last_reliable_date"] == days[62]
+    assert one["last_reliable_boundary"] == "SESSION_CLOSE"
+    assert one["status"] == "DATA_CENSORED" and one["resolution_status"] == "UNRESOLVED"
+    assert "2330" not in set(result.candidate_trades["stock_id"])
+    assert set(result.open_positions["stock_id"]) == {"3008"}
+    capital = result.report["capital_constrained"]
+    assert capital["performance_status"] == "BLOCKED_DATA_CENSORED"
+    assert capital["blocked_at"] == days[63]
+    assert capital["entries_executed"] == 2
+    assert capital["metrics"]["n_closed"] == 0  # No planned exit at unreliable open.
+    assert capital["metrics"]["n_open"] == 0
+    assert capital["metrics"]["n_data_censored"] == 2
+    assert capital["metrics"]["data_censored_share"] == 1
+    assert result.capital_trades.empty
+
+
+def test_sol4_mapping_retains_pit_flags_reasons_and_original_denominator(tmp_path):
+    fixture = build_synthetic_fixture(tmp_path / "fixture")
+    table = pd.read_csv(fixture / "eligibility.csv", dtype={"stock_id": str})
+    table["limited_exploration_label"] = table["eligibility_status"].map({"ELIGIBLE": "ELIGIBLE_WITH_PIT_EVIDENCE_INCOMPLETE", "BLOCKED": "NOT_ELIGIBLE"})
+    table = table.drop(columns=["eligibility_status", "reason_code", "reason_detail"])
+    table["baseline_issue_a_any"] = True
+    table["baseline_evidence_state"] = "INDETERMINATE"
+    table["raw_version_evidence_reason"] = "HISTORICAL_VERSION_UNKNOWN"
+    table["ma120_b_event_ids"] = "synthetic-id-1;synthetic-id-2"
+    table["ma120_b_reasons"] = "synthetic-reason-1;synthetic-reason-2"
+    _save_eligibility(fixture, table, schema_version="2", original_row_denominator=2048,
+                      source_revision="synthetic-baseline-exploration-v1",
+                      contract_revision="synthetic-contract-r2", evidence_revision="synthetic-evidence-r2",
+                      private_delivery_revision="synthetic-delivery-r2")
+    result = _run(fixture, tmp_path)
+    audit = result.eligibility_rows
+    assert audit["baseline_issue_a_any"].all()
+    assert set(audit["eligibility_status"]) == {"ELIGIBLE_WITH_PIT_EVIDENCE_INCOMPLETE", "BLOCKED"}
+    pd.testing.assert_series_equal(audit.set_index(["date", "stock_id"])["limited_exploration_label"],
+                                   table.assign(date=pd.to_datetime(table["date"])).set_index(["date", "stock_id"])["limited_exploration_label"].sort_index())
+    assert audit["ma120_b_event_ids"].eq("synthetic-id-1;synthetic-id-2").all()
+    assert audit["ma120_b_reasons"].eq("synthetic-reason-1;synthetic-reason-2").all()
+    assert audit["baseline_evidence_state"].eq("INDETERMINATE").all()
+    population = result.report["population"]
+    assert population["row_denominator"] == 2048
+    assert population["provided_row_count"] == 1024
+    assert population["evidence_manifest"]["contract_revision"] == "synthetic-contract-r2"
+    assert result.report["candidate_cohort"]["metrics"]["n_closed"] == 2
+    assert "baseline_issue_a_any" in result.candidate_funnel
+
+
+def test_pit_label_cannot_erase_b_exposure(tmp_path):
+    fixture = build_synthetic_fixture(tmp_path / "fixture")
+    table = pd.read_csv(fixture / "eligibility.csv", dtype={"stock_id": str})
+    table["eligibility_status"] = "ELIGIBLE_WITH_PIT_EVIDENCE_INCOMPLETE"
+    table["baseline_issue_a_any"] = True
+    table["baseline_evidence_state"] = "INDETERMINATE"
+    _save_eligibility(fixture, table)
+    with pytest.raises(BaselineExplorationError, match="contradicts A/B/C"):
+        _run(fixture, tmp_path)
+
+
+def test_formal_cli_still_rejects_before_any_fixture_access(tmp_path):
+    import os
+    import subprocess
+    import sys
+    result = subprocess.run([sys.executable, str(_repo_root() / "scripts/baseline_60d_exploration_runner.py"),
+                             "--mode", "FORMAL_RESEARCH", "--build-fixture",
+                             "--fixture-root", str(tmp_path / "must-not-exist"), "--output-dir", str(tmp_path / "output")],
+                            capture_output=True, text=True, env={**os.environ, "PYTHONPATH": str(_repo_root() / "src") + os.pathsep + os.environ.get("PYTHONPATH", "")})
+    assert result.returncode != 0
+    assert "formal" in result.stderr.lower()
+    assert not (tmp_path / "must-not-exist").exists()
+
+
+def test_entry_day_censor_is_sticky_and_prevents_later_capital_entries(tmp_path, monkeypatch):
+    from astraquant.research.config_engine import ResearchConfigEngine
+    from astraquant.portfolio.performance_reporting import portfolio_fills
+    fixture = build_synthetic_fixture(tmp_path / "fixture")
+    table = pd.read_csv(fixture / "eligibility.csv", dtype={"stock_id": str})
+    days = sorted(table["date"].unique())
+    affected = table["stock_id"].eq("2330") & table["date"].eq(days[62])
+    table.loc[affected, ["eligibility_status", "reason_code", "baseline_issue_b_any"]] = ["BLOCKED", "ECONOMIC_CONTENT_UNRESOLVED", True]
+    # Day 63 recovers; the previously censored portfolio must never restart.
+    _save_eligibility(fixture, table)
+    panel_path = fixture / "panel.parquet"
+    panel = pd.read_parquet(panel_path)
+    panel.loc[panel["stock_id"].eq("3008") & pd.to_datetime(panel["date"]).eq(pd.Timestamp(days[61])), "close"] = 100.
+    panel.loc[panel["stock_id"].eq("3008") & pd.to_datetime(panel["date"]).eq(pd.Timestamp(days[62])), "close"] = 110.
+    panel.to_parquet(panel_path, index=False)
+    executions = []
+    original = ResearchConfigEngine.execute_prepared
+
+    def record(self, **kwargs):
+        executed = original(self, **kwargs)
+        executions.append((executed.simulation, portfolio_fills(kwargs["simulator"].portfolio)))
+        return executed
+
+    monkeypatch.setattr(ResearchConfigEngine, "execute_prepared", record)
+    result = _run(fixture, tmp_path)
+    one = result.censored_positions.query("run_label == 'CANDIDATE_COHORT'").iloc[0]
+    assert one["entry_at"].startswith(days[62])
+    assert one["censored_at"] == days[62]
+    assert one["last_reliable_date"] == days[62]
+    assert one["last_reliable_boundary"] == "ENTRY_OPEN"
+    assert one["phase"] == "BEFORE_CLOSE"
+    capital_simulation, capital_fills = executions[-1]
+    assert capital_simulation.data_censored_at.isoformat() == days[62]
+    assert capital_simulation.sessions[-1].session_date.isoformat() == days[61]
+    assert len(capital_fills) == 2 and all(fill.side == "buy" for fill in capital_fills)
+    assert all(fill.ticker != "3008" for fill in capital_fills)
+    # Independent candidate 3008 still enters; only the unreliable portfolio stops.
+    assert "3008" in set(result.open_positions["stock_id"])
+    assert result.report["capital_constrained"]["full_period_performance_available"] is False
+
+
+def test_leaving_universe_with_daily_holding_evidence_does_not_censor(tmp_path):
+    fixture = build_synthetic_fixture(tmp_path / "fixture")
+    table = pd.read_csv(fixture / "eligibility.csv", dtype={"stock_id": str})
+    table["in_original_all_liquid"] = True
+    table.loc[table["date"].eq(table["date"].max()), "in_original_all_liquid"] = False
+    _save_eligibility(fixture, table)
+    result = _run(fixture, tmp_path)
+    assert result.report["candidate_cohort"]["metrics"]["n_closed"] == 2
+    assert result.censored_positions.empty

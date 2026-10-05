@@ -1,5 +1,5 @@
 {
-  "schema_version": "1",
+  "schema_version": "2",
   "report_type": "baseline_60d_exploration_synthetic",
   "strategy_version": "baseline_60d_breakout_v1",
   "mode": "SYNTHETIC_FIXTURE",
@@ -14,7 +14,7 @@
   "costs": {
     "buy_fee_bps": 14.25,
     "sell_fee_bps_including_tax": 44.25,
-    "adverse_slippage_bps_each_side": 10,
+    "adverse_slippage_bps_each_side": 10.0,
     "settlement_lag_sessions": 2
   },
   "unfrozen_for_real_e1": [
@@ -27,6 +27,21 @@
   ],
   "population": {
     "row_denominator": 1024,
+    "provided_row_count": 1024,
+    "evidence_manifest": {
+      "schema_version": "1",
+      "scope": "SYNTHETIC_FIXTURE",
+      "source_revision": "synthetic-baseline-exploration-v1",
+      "epoch": "SYNTHETIC_E2E",
+      "period_start": "2020-01-02",
+      "period_end": "2020-03-31",
+      "row_count": 1024,
+      "table_sha256": "9dc036dc1898c2740e598952db237eccb328887850d2d68b64a6c131a2a6fe85",
+      "original_row_denominator": null,
+      "contract_revision": null,
+      "evidence_revision": null,
+      "private_delivery_revision": null
+    },
     "unique_tickers": 16,
     "status_counts": {
       "ELIGIBLE": 960,
@@ -52,7 +67,7 @@
   "candidate_cohort": {
     "execution_basis": "PER_TICKER_INDEPENDENT_CANONICAL_SIMULATION",
     "fixture_policy": {
-      "opening_cash_twd": 10000000,
+      "opening_cash_twd": 10000000.0,
       "position_fraction": 0.5,
       "max_positions": 1,
       "capacity_selection_rule": "TICKER_ASC"
@@ -61,28 +76,33 @@
     "metrics": {
       "n_closed": 2,
       "n_open": 1,
+      "n_data_censored": 0,
+      "data_censored_reason_counts": {},
+      "entered_trade_denominator": 3,
+      "data_censored_share": 0.0,
+      "return_statistics_scope": "RESOLVED_CLOSED_TRADES_ONLY_NOT_OVERALL_EXPECTANCY",
       "win_rate": 0.5,
-      "average_win": 0.04178059377275482,
-      "average_loss_abs": 0.05743660563417414,
-      "payoff_ratio": 0.7274210115908353,
-      "average_net_return_per_trade": -0.007828005930709658,
-      "average_holding_days": 1,
-      "average_holding_sessions": 1,
-      "top1_positive_return_share": 1,
-      "expectancy_ex_top1": -0.05743660563417414,
+      "average_win": 0.04178059377275503,
+      "average_loss_abs": 0.057436605634173986,
+      "payoff_ratio": 0.7274210115908408,
+      "average_net_return_per_trade": -0.007828005930709477,
+      "average_holding_days": 1.0,
+      "average_holding_sessions": 1.0,
+      "top1_positive_return_share": 1.0,
+      "average_net_return_ex_top1": -0.057436605634173986,
       "n_closed_ex_top1": 1,
-      "top3_positive_return_share": 1,
-      "expectancy_ex_top3": null,
+      "top3_positive_return_share": 1.0,
+      "average_net_return_ex_top3": null,
       "n_closed_ex_top3": 0,
-      "top5_positive_return_share": 1,
-      "expectancy_ex_top5": null,
+      "top5_positive_return_share": 1.0,
+      "average_net_return_ex_top5": null,
       "n_closed_ex_top5": 0
     }
   },
   "capital_constrained": {
     "execution_basis": "SINGLE_CANONICAL_PORTFOLIO",
     "fixture_policy": {
-      "opening_cash_twd": 10000000,
+      "opening_cash_twd": 10000000.0,
       "position_fraction": 0.3,
       "max_positions": 2,
       "capacity_selection_rule": "TICKER_ASC"
@@ -90,29 +110,39 @@
     "entries_executed": 2,
     "entry_skips": 1,
     "capacity_rejections": 1,
+    "performance_status": "COMPLETE",
+    "blocked_at": null,
+    "full_period_performance_available": true,
+    "last_complete_session": "2020-03-31",
     "metrics": {
       "n_closed": 2,
       "n_open": 0,
+      "n_data_censored": 0,
+      "data_censored_reason_counts": {},
+      "entered_trade_denominator": 2,
+      "data_censored_share": 0.0,
+      "return_statistics_scope": "RESOLVED_CLOSED_TRADES_ONLY_NOT_OVERALL_EXPECTANCY",
       "win_rate": 0.5,
-      "average_win": 0.04178059377275482,
-      "average_loss_abs": 0.05743660563417414,
-      "payoff_ratio": 0.7274210115908353,
-      "average_net_return_per_trade": -0.007828005930709658,
-      "average_holding_days": 1,
-      "average_holding_sessions": 1,
-      "top1_positive_return_share": 1,
-      "expectancy_ex_top1": -0.05743660563417414,
+      "average_win": 0.04178059377275503,
+      "average_loss_abs": 0.057436605634173986,
+      "payoff_ratio": 0.7274210115908408,
+      "average_net_return_per_trade": -0.007828005930709477,
+      "average_holding_days": 1.0,
+      "average_holding_sessions": 1.0,
+      "top1_positive_return_share": 1.0,
+      "average_net_return_ex_top1": -0.057436605634173986,
       "n_closed_ex_top1": 1,
-      "top3_positive_return_share": 1,
-      "expectancy_ex_top3": null,
+      "top3_positive_return_share": 1.0,
+      "average_net_return_ex_top3": null,
       "n_closed_ex_top3": 0,
-      "top5_positive_return_share": 1,
-      "expectancy_ex_top5": null,
+      "top5_positive_return_share": 1.0,
+      "average_net_return_ex_top5": null,
       "n_closed_ex_top5": 0
     }
   },
   "mfe_mae": {
     "role": "DIAGNOSTIC_ONLY",
+    "scope": "TRADE_HOLDING_PATH_THROUGH_EXIT_OPEN",
     "row_count": 4,
     "status_counts": {
       "OK": 4
@@ -123,6 +153,8 @@
     "candidate cohort and capital-constrained portfolio are reported separately",
     "eligibility denominator is retained; non-eligible rows are not zero-filled",
     "MFE/MAE are diagnostics and are not used for selection or headline claims",
+    "positive_return_share is a share of summed positive return rates, not monetary profit concentration",
+    "return averages describe resolved closed trades only, never overall strategy expectancy",
     "FORMAL_RESEARCH remains unconditionally blocked"
   ]
 }

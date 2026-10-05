@@ -86,7 +86,7 @@ Implemented:
 - row-level eligibility/reason-table validation with full population
   denominator retention;
 - separate independent candidate-cohort and capital-constrained report blocks;
-- canonical cost-adjusted trade metrics, open-position disclosure, profit
+- canonical cost-adjusted trade metrics, open-position disclosure, positive-return-rate
   concentration, holding time, and diagnostic-only MFE/MAE;
 - source/eligibility checksum validation;
 - deterministic synthetic fixture builder, executable CLI, package E2E and a
