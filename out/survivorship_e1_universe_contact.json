@@ -1,0 +1,60 @@
+{
+ "universe_rows": 458315,
+ "universe_stocks": 1394,
+ "unmodeled_total": 74,
+ "ever_in_universe": 68,
+ "never_in_universe": [
+  "2443",
+  "2475",
+  "4987",
+  "6702",
+  "8418",
+  "9188"
+ ],
+ "ever_in_universe_stock_days": 15797,
+ "ends_in_e1": 42,
+ "ends_in_e1_and_in_universe": 40,
+ "exit_gap_buckets": {
+  "0-5": {
+   "tickers": 15,
+   "stock_days": 6468
+  },
+  "6-30": {
+   "tickers": 6,
+   "stock_days": 1997
+  },
+  "31-120": {
+   "tickers": 5,
+   "stock_days": 709
+  },
+  "121-1000000000": {
+   "tickers": 14,
+   "stock_days": 1803
+  }
+ },
+ "at_risk_tickers": [
+  "1704",
+  "1715",
+  "1729",
+  "1902",
+  "2311",
+  "2325",
+  "2437",
+  "2448",
+  "2847",
+  "2856",
+  "3474",
+  "3514",
+  "3561",
+  "3598",
+  "3698",
+  "4733",
+  "4984",
+  "5264",
+  "5349",
+  "6238",
+  "6452"
+ ],
+ "at_risk_stock_days": 8465,
+ "at_risk_share_pct": 1.847
+}
