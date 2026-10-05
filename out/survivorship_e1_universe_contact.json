@@ -56,9 +56,34 @@
   "6452"
  ],
  "at_risk_ticker_lifetime_universe_days": 8465,
- "days_within_30d_of_last_raw": 219,
+ "holding_period_days": 60,
+ "days_within_window_of_last_raw": {
+  "30": {
+   "at_risk_21": 219,
+   "all_74": 219
+  },
+  "60": {
+   "at_risk_21": 410,
+   "all_74": 413
+  },
+  "90": {
+   "at_risk_21": 588,
+   "all_74": 595
+  },
+  "120": {
+   "at_risk_21": 810,
+   "all_74": 825
+  }
+ },
+ "days_within_holding_period_of_last_raw": 410,
  "e1_end_observed": "2021-12-30",
  "manifest_period_end": "2021-12-31",
  "at_risk_lifetime_share_pct": 1.847,
- "risk_window_share_pct": 0.048
+ "risk_window_share_pct_at_holding_period": 0.089,
+ "risk_window_share_pct_by_window": {
+  "30": 0.048,
+  "60": 0.089,
+  "90": 0.128,
+  "120": 0.177
+ }
 }
