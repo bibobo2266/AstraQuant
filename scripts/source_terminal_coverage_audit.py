@@ -38,6 +38,10 @@ EXCLUSIONS_PATH = Path(
 P2_060_START = pd.Timestamp("2016-01-04")
 P2_060_END = pd.Timestamp("2026-06-30")
 AUDIT_END = pd.Timestamp("2026-07-07")
+# 本稽核的 terminal 判定窗是整個來源（至 AUDIT_END），不是 E1。
+# E1_END 是凍結 E1 panel 實際觀測到的最後一列；manifest 宣告 period_end = 2021-12-31，
+# 差一日為當日無合格列。用它把 unmodeled 清單分成 E1 內／外兩個子集。
+E1_END = pd.Timestamp("2021-12-30")
 EXPECTED_EXCLUSION_SHA256 = (
     "379d58f6a8aa06b1e020d56911930f4bc01861d3eeca109613d9e5b1e490d134"
 )
@@ -435,7 +439,7 @@ def main() -> None:
         "|---|---|---|---|---|---|",
     ]
     if modeled_rows.empty:
-        lines.append("| — | — | — | — | — | — |")
+        lines.append("| — | — | — | — | — | — | — |")
     else:
         for row in modeled_rows.itertuples(index=False):
             lines.append(
@@ -449,19 +453,22 @@ def main() -> None:
         "",
         "## Unmodeled terminal securities",
         "",
-        "| Ticker | Last RAW | Missing lifecycle event | Tradability coverage end | Source availability | Source detail |",
+        "| Ticker | Last RAW | Missing lifecycle event | Tradability coverage end "
+        "| Source availability | Source detail | Terminal window |",
         "|---|---|---|---|---|---|---|",
     ]
     if unmodeled_rows.empty:
-        lines.append("| — | — | — | — | — | — |")
+        lines.append("| — | — | — | — | — | — | — |")
     else:
         for row in unmodeled_rows.itertuples(index=False):
             detail = str(row.source_detail).replace("|", "/")
+            window = ("E1_INSIDE" if pd.notna(row.last_raw_date)
+                      and pd.Timestamp(row.last_raw_date) <= E1_END else "E1_OUTSIDE")
             lines.append(
                 f"| {row.ticker} | {_md_date(row.last_raw_date)} | "
                 f"{row.missing_event} | "
                 f"{_md_date(row.tradability_coverage_end)} | "
-                f"{row.source_availability} | {detail} |"
+                f"{row.source_availability} | {detail} | {window} |"
             )
 
     lines += [
