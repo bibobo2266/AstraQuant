@@ -1,0 +1,123 @@
+{
+ "task_id": "AQ-EXP-SURVIVOR-003",
+ "revision": 1,
+ "schema_version": "aq-exp-survivor-003-v1",
+ "scope": "SOURCE_EVIDENCE",
+ "execution_authorized": false,
+ "formal_research_gate": "BLOCKED_UNCONDITIONALLY",
+ "measurement_layer": "DATA_LAYER_DIAGNOSTIC",
+ "metrics_not_reported": [
+  "win_rate",
+  "payoff_ratio",
+  "expectancy_per_trade"
+ ],
+ "external_delisting_data_used": false,
+ "external_data_note": "本輪未引用任何外部下市日期做判定；外部清單只用來界定要回答的那 21 檔代號",
+ "thresholds_fixed_at_issue_time": {
+  "manifest_period_end": "2021-12-31",
+  "panel_last_observed_row": "2021-12-30",
+  "classification_basis": "該檔在 panel 內的最後一列日期（last_panel_row）",
+  "ENDS_AT_PERIOD_END": "last_panel_row == 2021-12-30",
+  "ENDS_EARLY": "last_panel_row < 2021-12-30",
+  "UNKNOWN": "該檔在 panel 內沒有任何列",
+  "no_tolerance_window": true,
+  "note": "不設緩衝區間、不設容忍天數；門檻寫死於此，事後不調整"
+ },
+ "inputs": {
+  "panel": "由固定 revision 的 producer 重建（2,427,931 列，母體 458,315 / 1,394 檔）",
+  "producer_revision": "20162dc7ad4014cfd5983d309ab3826167b69a71",
+  "source_revision": "fb8b042b46dc38838d103544ca17da10286c7bfe",
+  "ticker_list": "out/survivorship_74_tickers.csv（AQ-EXP-SURVIVOR-002 step 0）",
+  "audit_last_raw": "docs/SOURCE_TERMINAL_COVERAGE_AUDIT.md 的 Unmodeled 區段"
+ },
+ "coverage": {
+  "tickers_in": 74,
+  "with_last_panel_row": 74,
+  "unknown": 0,
+  "unknown_tickers": []
+ },
+ "classification": {
+  "ENDS_AT_PERIOD_END": 32,
+  "ENDS_EARLY": 42,
+  "UNKNOWN": 0,
+  "cross_tab_last_raw_after_e1": {
+   "raw_after_e1_and_ends_at_period_end": 32,
+   "raw_after_e1_and_ends_early": 0,
+   "raw_within_e1_and_ends_early": 42,
+   "raw_within_e1_and_ends_at_period_end": 0
+  }
+ },
+ "coverage_gap_test": {
+  "definition": "last_raw 落在 E1 內、但 panel 的序列比 last_raw 更早結束 → panel 缺了來源有的資料",
+  "candidates_found": 0,
+  "all_42_early_tickers_panel_end_equals_last_raw": true,
+  "note": "42 檔 ENDS_EARLY 的 panel 最後有效收盤日與稽核的 last_raw 完全相同，無一例外"
+ },
+ "late21_verdict": {
+  "tickers": [
+   "1507",
+   "1592",
+   "1701",
+   "2443",
+   "2809",
+   "2841",
+   "2888",
+   "2936",
+   "3202",
+   "3426",
+   "3454",
+   "3536",
+   "4945",
+   "4987",
+   "6172",
+   "6288",
+   "6747",
+   "6806",
+   "8427",
+   "8480",
+   "9188"
+  ],
+  "ends_at_period_end": 19,
+  "ends_early": 2,
+  "ends_early_tickers": [
+   "1592",
+   "6172"
+  ],
+  "verdict": "MIXED_BUT_NEITHER_PURE_A_NOR_B",
+  "breakdown": {
+   "neither_a_nor_b": {
+    "count": 19,
+    "reason": "這 19 檔的 panel 序列跑滿整個 E1 到 2021-12-30，且稽核的 last_raw 落在 E1 之後（最晚到 2026-06-22）。外部說終止日晚於 2021-12-30，與資料不矛盾。真正的成因是『terminal 的判定窗是全來源 2015–2026，不是 E1』——它們在 E1 內根本沒有 terminal 事件。這是分類口徑問題，不是資料錯誤也不是覆蓋缺口。"
+   },
+   "points_to_a": {
+    "count": 2,
+    "tickers": [
+     "1592",
+     "6172"
+    ],
+    "reason": "這 2 檔的 panel 序列在 E1 內結束（1592 於 2021-06-15、6172 於 2021-11-17），而稽核的 last_raw 與之完全相同。來源涵蓋到 2026 且對其他 ticker 有 2022–2026 的資料，卻在該日之後沒有這 2 檔任何一筆。外部宣稱的終止日晚於 2021-12-30 與來源相矛盾，證據指向外部資料有誤。本輪不採認外部資料，此處只記錄矛盾方向。"
+   },
+   "points_to_b": {
+    "count": 0,
+    "reason": "沒有任何一檔的 panel 序列比來源更早結束，覆蓋缺口測試得 0 個候選"
+   }
+  }
+ },
+ "b_impact": {
+  "verdict_b_ticker_count": 0,
+  "affected_stock_days": 0,
+  "four_way_intersection_before": 428102,
+  "four_way_intersection_after": 428102,
+  "four_way_delta": 0,
+  "is_actual_not_estimated": true,
+  "calculation_path": "判定為 (b) 的檔數為 0 → 沒有任何股票日是因覆蓋缺口而被遺漏 → 四項交集的輸入列集合不變 → 增量依定義為 0。這不是估計，是空集合直接得出。"
+ },
+ "limitations": [
+  "本輪只回答 74 檔的序列終點與那 21 檔的成因歸屬，未查任何下市日期、未碰 TWSE／TPEx 端點",
+  "對 1592 與 6172 的 (a) 判定是『來源沒有該日之後的資料』這一項證據，不等於已證明外部資料錯誤",
+  "外部取證結果（B 份 54 列）全部 UNVERIFIED，本輪未引用其任何欄位做判定",
+  "未處理剩餘 33 檔的下市日期取證",
+  "資料層診斷，不含勝率／賠率／每筆期望值，不得用於論斷任何元件有效或無效",
+  "只輸出代號與日期，未複製任何私有逐列內容"
+ ]
+}
