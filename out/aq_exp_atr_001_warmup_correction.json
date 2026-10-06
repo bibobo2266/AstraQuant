@@ -1,0 +1,353 @@
+{
+ "task_id": "AQ-EXP-ATR-001",
+ "revision": 1,
+ "schema_version": "aq-exp-atr-001-v1",
+ "scope": "SOURCE_EVIDENCE",
+ "execution_authorized": false,
+ "formal_research_gate": "BLOCKED_UNCONDITIONALLY",
+ "supersedes_finding": {
+  "document": "docs/AQ_EXP_DATA_001_REVISION_2.md",
+  "section": "2 / 5.2",
+  "previous_value": "UNKNOWN, range 0-399",
+  "previous_upper_bound": 399
+ },
+ "defect": {
+  "producer_min_valid_bars": 15,
+  "formal_min_valid_bars": 14,
+  "formal_first_true_range": "high - low",
+  "producer_c_reason": "WARMUP_INSUFFICIENT_15_VALID_BARS_FOR_14_TR"
+ },
+ "method": {
+  "selector": "atr14_issue_c AND valid_bar_ordinal == 14 AND valid_observed_bar == True",
+  "ordinal_source": "rebuilt by importing the pinned producer's load_panel/add_universe/add_c_states against the frozen source checkout; the v1 parquet does not carry valid_bar_ordinal",
+  "b_exposure_recomputed": false,
+  "original_population_recomputed": false,
+  "features_touched": [
+   "ATR14"
+  ]
+ },
+ "inputs": {
+  "private_delivery_commit": "8226478d0bcb5dc1ae66c08701535f4f1d579a35",
+  "private_row_table_sha256": "5b9d9d02fde44fd637ebfc6f61a143535d102d579c6ecb2187f386653e3fae3c",
+  "producer_revision": "20162dc7ad4014cfd5983d309ab3826167b69a71",
+  "producer_git_blob": "fa6b2729e36351eb0cadc3097547fc1a66d0e33f",
+  "producer_sha256": "16a953aca36ba794b01121cd435c711af696dd1f854c16990edb1b9bf6140a5c",
+  "source_revision": "fb8b042b46dc38838d103544ca17da10286c7bfe",
+  "astra_contract_revision": "1e184908f17c7e612fad636f30b61071ed916a56",
+  "exclusion_sha256": "379d58f6a8aa06b1e020d56911930f4bc01861d3eeca109613d9e5b1e490d134"
+ },
+ "reconstruction_validation": {
+  "members_rows": 458315,
+  "members_rows_expected": 458315,
+  "members_unique_stocks": 1394,
+  "members_unique_stocks_expected": 1394,
+  "atr14_c_rows_rebuilt": 399,
+  "atr14_c_rows_frozen": 399,
+  "atr14_c_flag_vector_identical": true,
+  "low20_c_rows_rebuilt": 502,
+  "low20_c_rows_frozen": 502,
+  "low20_c_flag_vector_identical": true
+ },
+ "result": {
+  "real_affected_rows": 17,
+  "is_exact": true,
+  "affected_unique_stocks": 17,
+  "affected_by_year": {
+   "2016": 6,
+   "2017": 1,
+   "2018": 2,
+   "2020": 1,
+   "2021": 7
+  },
+  "affected_with_atr14_issue_b": 1,
+  "affected_with_atr14_b_known": 0,
+  "atr14_c_rows_by_valid_bar_ordinal": {
+   "1": 57,
+   "2": 45,
+   "3": 35,
+   "4": 32,
+   "5": 31,
+   "6": 25,
+   "7": 24,
+   "8": 24,
+   "9": 27,
+   "10": 24,
+   "11": 21,
+   "12": 19,
+   "13": 18,
+   "14": 17
+  },
+  "atr14_c_rows_remaining_after_correction": 382
+ },
+ "atr14_feature_aggregate": {
+  "before": {
+   "stock_days": 458315,
+   "numeric_computable": 457916,
+   "limited_exploration_eligible": 437419,
+   "issue_B_days": 20524,
+   "issue_C_days": 399,
+   "known_affected_days": 410,
+   "supported_unaffected_days": 0,
+   "indeterminate_days": 457905,
+   "dominant_C": 399,
+   "dominant_B": 20497,
+   "dominant_A": 437419
+  },
+  "after": {
+   "stock_days": 458315,
+   "numeric_computable": 457933,
+   "limited_exploration_eligible": 437435,
+   "issue_B_days": 20524,
+   "issue_C_days": 382,
+   "known_affected_days": 393,
+   "supported_unaffected_days": 0,
+   "indeterminate_days": 457922,
+   "dominant_C": 382,
+   "dominant_B": 20498,
+   "dominant_A": 437435
+  },
+  "delta": {
+   "numeric_computable": 17,
+   "limited_exploration_eligible": 16,
+   "issue_C_days": -17,
+   "known_affected_days": -17,
+   "indeterminate_days": 17,
+   "dominant_C": -17,
+   "dominant_B": 1,
+   "dominant_A": 16
+  }
+ },
+ "atr14_yearly_aggregate": {
+  "2016": {
+   "before": {
+    "stock_days": 68570,
+    "numeric_computable": 68471,
+    "limited_exploration_eligible": 65451,
+    "issue_B_days": 3022,
+    "issue_C_days": 99,
+    "known_affected_days": 99,
+    "supported_unaffected_days": 0,
+    "indeterminate_days": 68471,
+    "dominant_C": 99,
+    "dominant_B": 3020,
+    "dominant_A": 65451
+   },
+   "after": {
+    "stock_days": 68570,
+    "numeric_computable": 68477,
+    "limited_exploration_eligible": 65457,
+    "issue_B_days": 3022,
+    "issue_C_days": 93,
+    "known_affected_days": 93,
+    "supported_unaffected_days": 0,
+    "indeterminate_days": 68477,
+    "dominant_C": 93,
+    "dominant_B": 3020,
+    "dominant_A": 65457
+   },
+   "delta": {
+    "numeric_computable": 6,
+    "limited_exploration_eligible": 6,
+    "issue_C_days": -6,
+    "known_affected_days": -6,
+    "indeterminate_days": 6,
+    "dominant_C": -6,
+    "dominant_A": 6
+   }
+  },
+  "2017": {
+   "before": {
+    "stock_days": 74351,
+    "numeric_computable": 74279,
+    "limited_exploration_eligible": 71039,
+    "issue_B_days": 3241,
+    "issue_C_days": 72,
+    "known_affected_days": 72,
+    "supported_unaffected_days": 0,
+    "indeterminate_days": 74279,
+    "dominant_C": 72,
+    "dominant_B": 3240,
+    "dominant_A": 71039
+   },
+   "after": {
+    "stock_days": 74351,
+    "numeric_computable": 74280,
+    "limited_exploration_eligible": 71040,
+    "issue_B_days": 3241,
+    "issue_C_days": 71,
+    "known_affected_days": 71,
+    "supported_unaffected_days": 0,
+    "indeterminate_days": 74280,
+    "dominant_C": 71,
+    "dominant_B": 3240,
+    "dominant_A": 71040
+   },
+   "delta": {
+    "numeric_computable": 1,
+    "limited_exploration_eligible": 1,
+    "issue_C_days": -1,
+    "known_affected_days": -1,
+    "indeterminate_days": 1,
+    "dominant_C": -1,
+    "dominant_A": 1
+   }
+  },
+  "2018": {
+   "before": {
+    "stock_days": 76937,
+    "numeric_computable": 76882,
+    "limited_exploration_eligible": 73502,
+    "issue_B_days": 3388,
+    "issue_C_days": 55,
+    "known_affected_days": 55,
+    "supported_unaffected_days": 0,
+    "indeterminate_days": 76882,
+    "dominant_C": 55,
+    "dominant_B": 3380,
+    "dominant_A": 73502
+   },
+   "after": {
+    "stock_days": 76937,
+    "numeric_computable": 76884,
+    "limited_exploration_eligible": 73504,
+    "issue_B_days": 3388,
+    "issue_C_days": 53,
+    "known_affected_days": 53,
+    "supported_unaffected_days": 0,
+    "indeterminate_days": 76884,
+    "dominant_C": 53,
+    "dominant_B": 3380,
+    "dominant_A": 73504
+   },
+   "delta": {
+    "numeric_computable": 2,
+    "limited_exploration_eligible": 2,
+    "issue_C_days": -2,
+    "known_affected_days": -2,
+    "indeterminate_days": 2,
+    "dominant_C": -2,
+    "dominant_A": 2
+   }
+  },
+  "2019": {
+   "before": {
+    "stock_days": 75794,
+    "numeric_computable": 75760,
+    "limited_exploration_eligible": 72206,
+    "issue_B_days": 3554,
+    "issue_C_days": 34,
+    "known_affected_days": 34,
+    "supported_unaffected_days": 0,
+    "indeterminate_days": 75760,
+    "dominant_C": 34,
+    "dominant_B": 3554,
+    "dominant_A": 72206
+   },
+   "after": {
+    "stock_days": 75794,
+    "numeric_computable": 75760,
+    "limited_exploration_eligible": 72206,
+    "issue_B_days": 3554,
+    "issue_C_days": 34,
+    "known_affected_days": 34,
+    "supported_unaffected_days": 0,
+    "indeterminate_days": 75760,
+    "dominant_C": 34,
+    "dominant_B": 3554,
+    "dominant_A": 72206
+   },
+   "delta": {}
+  },
+  "2020": {
+   "before": {
+    "stock_days": 78081,
+    "numeric_computable": 78056,
+    "limited_exploration_eligible": 74562,
+    "issue_B_days": 3494,
+    "issue_C_days": 25,
+    "known_affected_days": 25,
+    "supported_unaffected_days": 0,
+    "indeterminate_days": 78056,
+    "dominant_C": 25,
+    "dominant_B": 3494,
+    "dominant_A": 74562
+   },
+   "after": {
+    "stock_days": 78081,
+    "numeric_computable": 78057,
+    "limited_exploration_eligible": 74563,
+    "issue_B_days": 3494,
+    "issue_C_days": 24,
+    "known_affected_days": 24,
+    "supported_unaffected_days": 0,
+    "indeterminate_days": 78057,
+    "dominant_C": 24,
+    "dominant_B": 3494,
+    "dominant_A": 74563
+   },
+   "delta": {
+    "numeric_computable": 1,
+    "limited_exploration_eligible": 1,
+    "issue_C_days": -1,
+    "known_affected_days": -1,
+    "indeterminate_days": 1,
+    "dominant_C": -1,
+    "dominant_A": 1
+   }
+  },
+  "2021": {
+   "before": {
+    "stock_days": 84582,
+    "numeric_computable": 84468,
+    "limited_exploration_eligible": 80659,
+    "issue_B_days": 3825,
+    "issue_C_days": 114,
+    "known_affected_days": 125,
+    "supported_unaffected_days": 0,
+    "indeterminate_days": 84457,
+    "dominant_C": 114,
+    "dominant_B": 3809,
+    "dominant_A": 80659
+   },
+   "after": {
+    "stock_days": 84582,
+    "numeric_computable": 84475,
+    "limited_exploration_eligible": 80665,
+    "issue_B_days": 3825,
+    "issue_C_days": 107,
+    "known_affected_days": 118,
+    "supported_unaffected_days": 0,
+    "indeterminate_days": 84464,
+    "dominant_C": 107,
+    "dominant_B": 3810,
+    "dominant_A": 80665
+   },
+   "delta": {
+    "numeric_computable": 7,
+    "limited_exploration_eligible": 6,
+    "issue_C_days": -7,
+    "known_affected_days": -7,
+    "indeterminate_days": 7,
+    "dominant_C": -7,
+    "dominant_B": 1,
+    "dominant_A": 6
+   }
+  }
+ },
+ "baseline_level_unchanged": {
+  "all_four_numeric_computable_before": 428102,
+  "all_four_numeric_computable_after": 428102,
+  "all_four_delta": 0,
+  "agrees_with_pr8_argument": true,
+  "reason": "every one of the 17 rows still carries low20_issue_c=True at valid bar ordinal 14; LOW20 needs 21",
+  "original_row_count": 458315,
+  "baseline_yearly_table_unchanged": true
+ },
+ "limitations": [
+  "only the ATR14 warm-up threshold was corrected; bar-geometry and calendar-completeness defects are untouched",
+  "B exposure and the original population were not recomputed",
+  "no strategy effect, no E2/E3 read, no parameter sweep",
+  "A (PIT raw-version identity) still applies to every row; nothing was promoted to VERIFIED",
+  "private row-level content is not republished; only aggregates appear here"
+ ]
+}

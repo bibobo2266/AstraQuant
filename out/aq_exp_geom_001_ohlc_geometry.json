@@ -1,0 +1,183 @@
+{
+ "task_id": "AQ-EXP-GEOM-001",
+ "revision": 1,
+ "schema_version": "aq-exp-geom-001-v1",
+ "scope": "SOURCE_EVIDENCE",
+ "execution_authorized": false,
+ "formal_research_gate": "BLOCKED_UNCONDITIONALLY",
+ "defect_under_test": {
+  "document": "docs/AQ_EXP_DATA_001_REVISION_2.md",
+  "table_row": "第22根 high=90、open/close=100、low=99，但來源 flag=True → positive OHLC 被算 valid、ATR非C",
+  "producer_has_independent_geometry_gate": false,
+  "producer_validity_predicate": "observed_trade AND valid_ohlc AND close>0 AND Trading_money notna",
+  "defect_class": "LATENT_CONDITIONAL_ON_UPSTREAM_FLAG"
+ },
+ "geometry_predicates": [
+  "high < low",
+  "high < max(open, close)",
+  "low > min(open, close)",
+  "any of open/high/low/close <= 0",
+  "any of open/high/low/close is null"
+ ],
+ "inputs": {
+  "private_delivery_commit": "8226478d0bcb5dc1ae66c08701535f4f1d579a35",
+  "producer_revision": "20162dc7ad4014cfd5983d309ab3826167b69a71",
+  "producer_git_blob": "fa6b2729e36351eb0cadc3097547fc1a66d0e33f",
+  "producer_sha256": "16a953aca36ba794b01121cd435c711af696dd1f854c16990edb1b9bf6140a5c",
+  "source_revision": "fb8b042b46dc38838d103544ca17da10286c7bfe",
+  "astra_contract_revision": "1e184908f17c7e612fad636f30b61071ed916a56",
+  "exclusion_sha256": "379d58f6a8aa06b1e020d56911930f4bc01861d3eeca109613d9e5b1e490d134"
+ },
+ "reconstruction_validation": {
+  "members_rows": 458315,
+  "members_rows_expected": 458315,
+  "members_unique_stocks": 1394,
+  "members_unique_stocks_expected": 1394,
+  "panel_rows_scanned": 2427931
+ },
+ "result": {
+  "real_violating_rows_in_universe": 0,
+  "is_exact": true,
+  "violating_stocks_in_universe": 0,
+  "violating_rows_by_year_in_universe": {},
+  "violations_by_type_in_universe": {
+   "high_lt_low": 0,
+   "high_lt_max_open_close": 0,
+   "low_gt_min_open_close": 0,
+   "nonpositive_ohlc": 0,
+   "null_ohlc": 0
+  },
+  "violations_by_type_whole_panel": {
+   "high_lt_low": 0,
+   "high_lt_max_open_close": 49368,
+   "low_gt_min_open_close": 30628,
+   "nonpositive_ohlc": 22739,
+   "null_ohlc": 39579
+  },
+  "any_violation_whole_panel": 119601,
+  "violating_stocks_whole_panel": 862,
+  "violations_by_year_whole_panel": {
+   "2015": 15137,
+   "2016": 20668,
+   "2017": 18303,
+   "2018": 19562,
+   "2019": 17175,
+   "2020": 15828,
+   "2021": 12928
+  },
+  "violations_passing_source_valid_ohlc": 0,
+  "violations_already_flagged_upstream": 119601,
+  "upstream_catch_rate_pct": 100.0,
+  "high_lt_low_rows_anywhere": 0
+ },
+ "evidence_state_of_violating_rows": {
+  "applicable": false,
+  "reason": "no violating row is inside the 458,315 universe, so no row carries an evidence_state or dominant_problem_class to report"
+ },
+ "feature_aggregate_impact": {
+  "rule_applied": "geometry violation => row unusable",
+  "rows_newly_unusable": 0,
+  "per_feature": {
+   "MA120": {
+    "before": {
+     "stock_days": 458315,
+     "numeric_computable": 428102,
+     "limited_exploration_eligible": 272280,
+     "issue_C_days": 30213,
+     "issue_B_days": 165709,
+     "known_affected_days": 30312
+    },
+    "after": {
+     "stock_days": 458315,
+     "numeric_computable": 428102,
+     "limited_exploration_eligible": 272280,
+     "issue_C_days": 30213,
+     "issue_B_days": 165709,
+     "known_affected_days": 30312
+    },
+    "delta": {}
+   },
+   "N60": {
+    "before": {
+     "stock_days": 458315,
+     "numeric_computable": 438344,
+     "limited_exploration_eligible": 354271,
+     "issue_C_days": 19971,
+     "issue_B_days": 87572,
+     "known_affected_days": 20029
+    },
+    "after": {
+     "stock_days": 458315,
+     "numeric_computable": 438344,
+     "limited_exploration_eligible": 354271,
+     "issue_C_days": 19971,
+     "issue_B_days": 87572,
+     "known_affected_days": 20029
+    },
+    "delta": {}
+   },
+   "ATR14": {
+    "before": {
+     "stock_days": 458315,
+     "numeric_computable": 457916,
+     "limited_exploration_eligible": 437419,
+     "issue_C_days": 399,
+     "issue_B_days": 20524,
+     "known_affected_days": 410
+    },
+    "after": {
+     "stock_days": 458315,
+     "numeric_computable": 457916,
+     "limited_exploration_eligible": 437419,
+     "issue_C_days": 399,
+     "issue_B_days": 20524,
+     "known_affected_days": 410
+    },
+    "delta": {}
+   },
+   "LOW20": {
+    "before": {
+     "stock_days": 458315,
+     "numeric_computable": 457813,
+     "limited_exploration_eligible": 428783,
+     "issue_C_days": 502,
+     "issue_B_days": 29060,
+     "known_affected_days": 519
+    },
+    "after": {
+     "stock_days": 458315,
+     "numeric_computable": 457813,
+     "limited_exploration_eligible": 428783,
+     "issue_C_days": 502,
+     "issue_B_days": 29060,
+     "known_affected_days": 519
+    },
+    "delta": {}
+   }
+  },
+  "all_four_numeric_computable_before": 428102,
+  "all_four_numeric_computable_after": 428102,
+  "all_four_delta": 0,
+  "dominant_feature_for_all_four_delta": null,
+  "dominant_feature_note": "all-four delta is 0, so no feature dominates"
+ },
+ "residual_risk": {
+  "note": "the producer inherits 100% of its geometry safety from the upstream tradability.valid_ohlc flag; it has no gate of its own",
+  "rows_that_would_enter_candidate_screen_if_upstream_flag_regressed": 48518,
+  "stocks_affected_in_that_case": 290,
+  "interpretation": "blast radius, not a current error; it is the size of the exposure the single upstream gate is holding back"
+ },
+ "reference_counts": {
+  "universe_rows_with_zero_range_bar_high_equals_low": 453,
+  "note": "zero-range bars are legal (sealed limit moves), not geometry violations; recorded only because they make true range 0"
+ },
+ "contradicts_pr8": false,
+ "contradiction_check": "PR #8 demonstrates the defect with a synthetic bar whose source flag is forced True; this round measures how often that precondition occurs in the frozen source. Zero occurrences does not retract the code-level defect.",
+ "limitations": [
+  "only OHLC geometry was measured; calendar completeness and the ATR warm-up threshold are separate defects",
+  "the frozen source and its tradability flags were taken as given; the flag itself was not independently audited",
+  "no strategy effect, no E2/E3 read, no parameter sweep",
+  "producer, frozen delivery and coverage v1 were not modified or regenerated",
+  "private row-level content is not republished; only aggregates appear here"
+ ]
+}

@@ -1,0 +1,86 @@
+{
+ "task_id": "AQ-EXP-CAL-003",
+ "revision": 1,
+ "schema_version": "aq-exp-cal-003-v1",
+ "scope": "SOURCE_EVIDENCE",
+ "execution_authorized": false,
+ "formal_research_gate": "BLOCKED_UNCONDITIONALLY",
+ "measurement_layer": "DATA_LAYER_DIAGNOSTIC",
+ "metrics_not_reported": [
+  "win_rate",
+  "payoff_ratio",
+  "expectancy_per_trade"
+ ],
+ "authoritative_source": {
+  "name": "TWSE FMTQIK 每日市場成交資訊",
+  "endpoint_template": "https://www.twse.com.tw/en/exchangeReport/FMTQIK?response=csv&date={ym}01",
+  "authoritative": true,
+  "months_requested": 72,
+  "months_ok": 71,
+  "months_unknown": 1,
+  "months_unknown_list": [
+   "201710"
+  ],
+  "stopped_early": false,
+  "stop_reason": null,
+  "full_coverage": false,
+  "raw_responses_kept": "out/twse_fmtqik_raw/FMTQIK_<YYYYMM>.csv",
+  "license": "TWSE 公開資訊；政府資料開放授權條款第1版"
+ },
+ "adjudication": {
+  "days_in": 104,
+  "upgraded_to_authoritative": 101,
+  "still_third_party": 3,
+  "non_trading_day": 101,
+  "real_missing_session": 0,
+  "real_missing_session_dates": [],
+  "not_upgraded_dates": [
+   "2017-10-04",
+   "2017-10-09",
+   "2017-10-10"
+  ],
+  "third_party_used_as_filler": false
+ },
+ "full_period_reconciliation": {
+  "covered_months": 71,
+  "panel_sessions_in_covered_months": 1449,
+  "authoritative_sessions_in_covered_months": 1449,
+  "authoritative_only_dates": [],
+  "authoritative_only_count": 0,
+  "panel_only_dates": [],
+  "panel_only_count": 0,
+  "panel_only_all_saturdays": true,
+  "panel_only_matches_expected_makeup_saturdays": false,
+  "expected_makeup_saturdays": [
+   "2016-01-30",
+   "2016-06-04",
+   "2016-09-10",
+   "2017-02-18",
+   "2017-06-03",
+   "2017-09-30",
+   "2018-03-31",
+   "2018-12-22"
+  ],
+  "makeup_saturdays_present_in_authoritative": [
+   "2016-01-30",
+   "2016-06-04",
+   "2016-09-10",
+   "2017-02-18",
+   "2017-06-03",
+   "2017-09-30",
+   "2018-03-31",
+   "2018-12-22"
+  ],
+  "panel_only_explanation": "0 而非 8：權威紀錄本身收錄了8 個補行交易週六，所以 panel 沒有任何一天是權威沒有的。CAL-002 量到的差異，來源是第三方日曆漏收補行交易日，不是 panel 多算。",
+  "note": "panel 有而權威無的，預期全為補行交易週六；數目不同須解釋。權威有而 panel 無的即真缺日。"
+ },
+ "four_way_intersection": {
+  "before": 428102,
+  "real_missing_sessions_found": 0,
+  "delta": 0,
+  "after": 428102,
+  "is_actual_not_estimated": true,
+  "calculation_path": "真缺日 0 天 → CAL-001 的敏感度路徑輸入為空集合 → 四項交集不變",
+  "reference_delta_per_missing_session": -34254
+ }
+}

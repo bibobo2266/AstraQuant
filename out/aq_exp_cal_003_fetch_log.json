@@ -1,0 +1,305 @@
+{
+ "endpoint_template": "https://www.twse.com.tw/en/exchangeReport/FMTQIK?response=csv&date={ym}01",
+ "months_requested": 72,
+ "interval_seconds": 4.0,
+ "stopped_early": false,
+ "stop_reason": null,
+ "months": {
+  "201601": {
+   "status": "OK",
+   "sessions": 21
+  },
+  "201602": {
+   "status": "OK",
+   "sessions": 13
+  },
+  "201603": {
+   "status": "OK",
+   "sessions": 23
+  },
+  "201604": {
+   "status": "OK",
+   "sessions": 19
+  },
+  "201605": {
+   "status": "OK",
+   "sessions": 21
+  },
+  "201606": {
+   "status": "OK",
+   "sessions": 21
+  },
+  "201607": {
+   "status": "OK",
+   "sessions": 20
+  },
+  "201608": {
+   "status": "OK",
+   "sessions": 23
+  },
+  "201609": {
+   "status": "OK",
+   "sessions": 19
+  },
+  "201610": {
+   "status": "OK",
+   "sessions": 20
+  },
+  "201611": {
+   "status": "OK",
+   "sessions": 22
+  },
+  "201612": {
+   "status": "OK",
+   "sessions": 22
+  },
+  "201701": {
+   "status": "OK",
+   "sessions": 16
+  },
+  "201702": {
+   "status": "OK",
+   "sessions": 18
+  },
+  "201703": {
+   "status": "OK",
+   "sessions": 23
+  },
+  "201704": {
+   "status": "OK",
+   "sessions": 18
+  },
+  "201705": {
+   "status": "OK",
+   "sessions": 20
+  },
+  "201706": {
+   "status": "OK",
+   "sessions": 23
+  },
+  "201707": {
+   "status": "OK",
+   "sessions": 21
+  },
+  "201708": {
+   "status": "OK",
+   "sessions": 23
+  },
+  "201709": {
+   "status": "OK",
+   "sessions": 22
+  },
+  "201710": {
+   "status": "UNKNOWN",
+   "detail": "BLOCKED: response looks like a block page (<html)"
+  },
+  "201711": {
+   "status": "OK",
+   "sessions": 22
+  },
+  "201712": {
+   "status": "OK",
+   "sessions": 21
+  },
+  "201801": {
+   "status": "OK",
+   "sessions": 22
+  },
+  "201802": {
+   "status": "OK",
+   "sessions": 13
+  },
+  "201803": {
+   "status": "OK",
+   "sessions": 23
+  },
+  "201804": {
+   "status": "OK",
+   "sessions": 18
+  },
+  "201805": {
+   "status": "OK",
+   "sessions": 22
+  },
+  "201806": {
+   "status": "OK",
+   "sessions": 20
+  },
+  "201807": {
+   "status": "OK",
+   "sessions": 22
+  },
+  "201808": {
+   "status": "OK",
+   "sessions": 23
+  },
+  "201809": {
+   "status": "OK",
+   "sessions": 19
+  },
+  "201810": {
+   "status": "OK",
+   "sessions": 22
+  },
+  "201811": {
+   "status": "OK",
+   "sessions": 22
+  },
+  "201812": {
+   "status": "OK",
+   "sessions": 21
+  },
+  "201901": {
+   "status": "OK",
+   "sessions": 21
+  },
+  "201902": {
+   "status": "OK",
+   "sessions": 13
+  },
+  "201903": {
+   "status": "OK",
+   "sessions": 20
+  },
+  "201904": {
+   "status": "OK",
+   "sessions": 20
+  },
+  "201905": {
+   "status": "OK",
+   "sessions": 22
+  },
+  "201906": {
+   "status": "OK",
+   "sessions": 19
+  },
+  "201907": {
+   "status": "OK",
+   "sessions": 23
+  },
+  "201908": {
+   "status": "OK",
+   "sessions": 21
+  },
+  "201909": {
+   "status": "OK",
+   "sessions": 19
+  },
+  "201910": {
+   "status": "OK",
+   "sessions": 21
+  },
+  "201911": {
+   "status": "OK",
+   "sessions": 21
+  },
+  "201912": {
+   "status": "OK",
+   "sessions": 22
+  },
+  "202001": {
+   "status": "OK",
+   "sessions": 15
+  },
+  "202002": {
+   "status": "OK",
+   "sessions": 19
+  },
+  "202003": {
+   "status": "OK",
+   "sessions": 22
+  },
+  "202004": {
+   "status": "OK",
+   "sessions": 20
+  },
+  "202005": {
+   "status": "OK",
+   "sessions": 20
+  },
+  "202006": {
+   "status": "OK",
+   "sessions": 20
+  },
+  "202007": {
+   "status": "OK",
+   "sessions": 23
+  },
+  "202008": {
+   "status": "OK",
+   "sessions": 21
+  },
+  "202009": {
+   "status": "OK",
+   "sessions": 22
+  },
+  "202010": {
+   "status": "OK",
+   "sessions": 19
+  },
+  "202011": {
+   "status": "OK",
+   "sessions": 21
+  },
+  "202012": {
+   "status": "OK",
+   "sessions": 23
+  },
+  "202101": {
+   "status": "OK",
+   "sessions": 20
+  },
+  "202102": {
+   "status": "OK",
+   "sessions": 13
+  },
+  "202103": {
+   "status": "OK",
+   "sessions": 22
+  },
+  "202104": {
+   "status": "OK",
+   "sessions": 19
+  },
+  "202105": {
+   "status": "OK",
+   "sessions": 21
+  },
+  "202106": {
+   "status": "OK",
+   "sessions": 21
+  },
+  "202107": {
+   "status": "OK",
+   "sessions": 22
+  },
+  "202108": {
+   "status": "OK",
+   "sessions": 22
+  },
+  "202109": {
+   "status": "OK",
+   "sessions": 20
+  },
+  "202110": {
+   "status": "OK",
+   "sessions": 20
+  },
+  "202111": {
+   "status": "OK",
+   "sessions": 22
+  },
+  "202112": {
+   "status": "OK",
+   "sessions": 22
+  }
+ },
+ "months_ok": 71,
+ "months_unknown": 1,
+ "months_unknown_list": [
+  "201710"
+ ],
+ "total_sessions": 1449,
+ "blocked_total": 1,
+ "block_policy": "single block -> mark UNKNOWN, never retried; 2 consecutive or 3 cumulative -> stop the endpoint"
+}

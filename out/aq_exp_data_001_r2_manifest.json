@@ -1,0 +1,118 @@
+{
+  "task_id": "AQ-EXP-DATA-001",
+  "revision": 2,
+  "schema_version": "aq-exp-data-001-r2",
+  "scope": "SOURCE_EVIDENCE",
+  "execution_authorized": false,
+  "full_coverage_rerun": false,
+  "review_base_sha": "6cf63b4f4f9d48999dbd0671bdaa444a5a612905",
+  "runner_reviewed_sha": "a614ae8e369134bf1e1245e19d031a697bb8149f",
+  "fixed_inputs": {
+    "source_revision": "fb8b042b46dc38838d103544ca17da10286c7bfe",
+    "astra_contract_revision": "1e184908f17c7e612fad636f30b61071ed916a56",
+    "private_evidence_revision": "abdc6e18f13710f830000bc946e63ca1c151dcfe",
+    "ca_reconciliation_program_revision": "9914525fe7db92a69fc08360823fb679518ee0b8",
+    "ca_reconciliation_run_id": 37171913233,
+    "coverage_workflow_run_id": 37213806645,
+    "private_delivery_commit": "8226478d0bcb5dc1ae66c08701535f4f1d579a35",
+    "p2_060_exclusion_sha256": "379d58f6a8aa06b1e020d56911930f4bc01861d3eeca109613d9e5b1e490d134",
+    "event_reconciliation_sha256": "80c07cfd22f33f8aa8e9d991f3763b87a2c82a279633d616054b8ad0c550381f"
+  },
+  "producer": {
+    "repository": "bibobo2266/tradestation",
+    "revision": "20162dc7ad4014cfd5983d309ab3826167b69a71",
+    "path": "scripts/astraquant_aq_exp_data_001.py",
+    "git_blob": "fa6b2729e36351eb0cadc3097547fc1a66d0e33f",
+    "sha256": "16a953aca36ba794b01121cd435c711af696dd1f854c16990edb1b9bf6140a5c",
+    "functions_reviewed": [
+      "load_panel",
+      "add_universe",
+      "add_c_states",
+      "build_b_exposures",
+      "feature_state",
+      "main"
+    ],
+    "private_code_not_republished": true
+  },
+  "workflow": {
+    "run_id": 37213806645,
+    "attempt": 1,
+    "conclusion": "success",
+    "path": ".github/workflows/aq_exp_data_001.yml",
+    "git_blob": "8d2be23b1cd001fe9e23289e8ce34254e29b5cd2",
+    "revision": "20162dc7ad4014cfd5983d309ab3826167b69a71",
+    "python": "3.11",
+    "dependencies": [
+      "pandas",
+      "numpy",
+      "pyarrow"
+    ],
+    "dependency_versions_pinned": false,
+    "historical_command": "python delivery/scripts/astraquant_aq_exp_data_001.py --source-root source_runtime/minervini_picks/data --astra-root AstraQuant --private-evidence-root evidence_input --output-dir delivery/private/astraquant/aq_exp_data_001_e1_coverage_v1",
+    "command_executed_in_revision_2": false
+  },
+  "delivery": {
+    "repository": "bibobo2266/tradestation",
+    "path": "private/astraquant/aq_exp_data_001_e1_coverage_v1/",
+    "commit": "8226478d0bcb5dc1ae66c08701535f4f1d579a35",
+    "machine_table": "aq_exp_data_001_eligibility_reason_rows.parquet",
+    "machine_table_git_blob_sha": "bf226d682470f7e83f7175afe6fff6e0167ef476",
+    "machine_table_size_bytes": 2718958,
+    "summary_path": "private/astraquant/aq_exp_data_001_e1_coverage_v1/aq_exp_data_001_summary.json",
+    "summary_git_blob": "6f3b210a02d9e518f24cebca5b8698346b8e0156",
+    "row_bytes_read": false,
+    "table_sha256": null,
+    "table_sha256_status": "UNAVAILABLE_BINARY_READER"
+  },
+  "denominator": {
+    "name": "frozen all_liquid daily membership",
+    "row_count": 458315,
+    "unique_stocks": 1394,
+    "period_start": "2016-01-04",
+    "period_end": "2021-12-31",
+    "warmup_start": "2015-01-01",
+    "population_changed": false,
+    "provisional_limited_rows": 272280,
+    "not_full_trade_coverage": true
+  },
+  "findings": {
+    "atr14_min_bars": {
+      "producer": 15,
+      "formal": 14,
+      "synthetic_14_atr": 2.2857142857142856,
+      "synthetic_15_atr": 2.0,
+      "real_feature_delta": 17,
+      "real_feature_delta_upper_bound_from_original_atr_c": 399,
+      "isolated_warmup_change_all_four_delta": 0,
+      "isolated_warmup_change_note": "LOW20 remains C at valid ordinal 14; excludes separate validity/calendar defects",
+      "real_feature_delta_status": "EXACT",
+      "real_feature_delta_source": "AQ-EXP-ATR-001 / out/aq_exp_atr_001_warmup_correction.json",
+      "real_feature_delta_note": "399 ATR C rows; only 17 sit at valid bar ordinal 14 with a valid current bar"
+    },
+    "bar_validity": {
+      "geometry_checked_by_producer": false,
+      "current_bar_acceptance_required_by_producer_c": false,
+      "real_affected_rows": null
+    },
+    "n60": {
+      "required_common_rows": 62,
+      "previous_close_lte_previous_prior_high": true,
+      "current_close_strict_gt_prior_high": true,
+      "calendar_completeness_verified_on_real_source": false
+    },
+    "real_counts_recomputed": "ATR14_WARMUP_ONLY"
+  },
+  "evidence": {
+    "test_file": "tests/test_aq_exp_data_001_r2.py",
+    "contract_module": "src/astraquant/research/exploration_data_contract.py",
+    "document": "docs/AQ_EXP_DATA_001_REVISION_2.md",
+    "schema_issue_comment_id": 5985511174
+  },
+  "limitations": [
+    "private binary row table unavailable through current reader",
+    "actual source calendar completeness not verified",
+    "runtime dependency versions in historical workflow not pinned",
+    "runner integration not implemented by this task",
+    "PIT A retained; formal gate blocked"
+  ]
+}
