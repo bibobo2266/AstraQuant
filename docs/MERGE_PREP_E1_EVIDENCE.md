@@ -1,108 +1,123 @@
-# AQ-EXP-MERGE-PREP-001 — E1 證據線四個 Draft PR 的合併前準備
+# AQ-EXP-MERGE-PREP-001 — E1 證據線八個 Draft PR 的合併前準備
 
-task_id: AQ-EXP-MERGE-PREP-001 / revision 1
+task_id: AQ-EXP-MERGE-PREP-001 / revision 2
 狀態：本輪**不合併任何 PR**，只做準備。由執行端產出，不自行驗收。
 
-本輪未改任何既有交付的內容、未改 manifest 本體、未改 producer、未改 queue、未改 workflow。
+revision 2 的改動：revision 1 只涵蓋 #8／#9／#10／#11 四個 PR，並把它們當成一條線，
+漏掉 runner 線的 #4／#5／#7 以及兩疊互不相依的 stack 結構；且其乾跑結論早於各分支的現行 head。
+§1、§2 已整段汰換，§3 之後的結論經重新驗證後維持不變。
+
+未改任何既有交付的內容、未改 manifest 本體、未改 producer、未改 queue、未改 workflow。
 FORMAL_RESEARCH 維持無條件阻擋。私有逐列內容未進 repo。
 
-依全域凍結令：本文件與 `scripts/merge_postcheck.py` 均未碰
-`solb/baseline-60d-exploration-runner-prep`、`src/astraquant/portfolio/strategy_simulator.py`、
-`src/astraquant/research/baseline_60d_exploration.py`。
-四個待合併 PR 也都沒有觸碰那兩個檔案（逐檔核對過，見 §1 表格）。
-
-本文件撰寫時的參考點：`main` = `f783976320244ae6032ced8bbe80bcbf340d21fb`。
-main 若往前走，§2 的乾跑結論需重跑確認。
+參考點：`main` = `42a5324`。所有 head 與乾跑結論均以此為準；main 若再往前走，§2 需重跑確認。
 
 ## 1. 依賴圖與建議合併順序
 
-### 1.1 四個 PR 的實際關係
+> **revision 2 更正**：revision 1 把八個 PR 當成一條線處理，漏了 runner 線三支的
+> stack 關係，也沒有涵蓋 #4／#5／#7。實際上是**兩疊互不相依的 stack**，可並行。
+> 以下為以現行 head 重做的結果。
 
-| PR | head | base | 落後 main | 自身 commit | 改動檔案 |
-| --- | --- | --- | --- | --- | --- |
-| #8 | `25266f8a` | `main` | 5 | 1 | `docs/AQ_EXP_DATA_001_E1_COVERAGE.md`(M)、`docs/AQ_EXP_DATA_001_REVISION_2.md`(A)、`docs/OWNER_PRIORITY_QUEUE.md`(M)、`out/aq_exp_data_001_r2_manifest.json`(A)、`src/astraquant/research/exploration_data_contract.py`(A)、`tests/test_aq_exp_data_001_r2.py`(A) |
-| #9 | `05bfd378` | `main` | 1 | 10 | `docs/SURVIVORSHIP_72_DELISTED.md`(A)、`out/survivorship_e1_universe_contact.json`(A)、`scripts/survivorship_72_scan.py`(A) |
-| #10 | `bfbafa31` | `sol4/aq-exp-data-001-r2` | — | 2 | `docs/AQ_EXP_ATR_001_WARMUP_CORRECTION.md`(A)、`out/aq_exp_atr_001_warmup_correction.json`(A)、`out/aq_exp_data_001_r2_manifest.json`(**M**)、`tests/test_aq_exp_atr_001.py`(A) |
-| #11 | `2ccc65ed` | `sol4/aq-exp-data-001-r2` | — | 2 | `docs/AQ_EXP_GEOM_001_OHLC_GEOMETRY.md`(A)、`out/aq_exp_geom_001_ohlc_geometry.json`(A)、`tests/test_aq_exp_geom_001.py`(A) |
-
-依賴形狀：
+### 1.1 兩疊 stack 與現行 head
 
 ```
-main
- ├── #8  (sol4/aq-exp-data-001-r2)
- │     ├── #10 (solc/aq-exp-atr-001)   ← 修改 #8 新增的 manifest
- │     └── #11 (solc/aq-exp-geom-001)  ← 讀 #8 的 manifest，不改
- └── #9  (claude/aq-exp-survivor-001)  ← 與上面三個完全獨立
+資料／證據線                                runner 線
+main ← #8   sol4/aq-exp-data-001-r2         main ← #4  solb/baseline-60d-simulator-integration
+       ↑ #10 solc/aq-exp-atr-001                   ↑ #5  solb/prepared-run-eligibility-evidence
+       ↑ #11 solc/aq-exp-geom-001                        ↑ #7  solb/baseline-60d-exploration-runner-prep
+
+main ← #9   claude/aq-exp-survivor-001      獨立
+main ← #12  solc/aq-exp-merge-prep-001      獨立
 ```
 
-#10 與 #11 的 merge-base 就是 #8 的 head，**不是**平行分支。
-#11 不改 manifest，但它的測試會讀 manifest 的 `producer.*` 與 `fixed_inputs.*` 欄位做身分核對，
-所以它仍依賴 #8 先進去。
+| PR | head（現行） | base |
+| --- | --- | --- |
+| #4 | `4d69eca9` | `main` |
+| #5 | `aee7387a` | `solb/baseline-60d-simulator-integration` |
+| #7 | `7bab63fb` | `solb/prepared-run-eligibility-evidence` |
+| #8 | `25266f8a` | `main` |
+| #9 | `05bfd378` | `main` |
+| #10 | `bfbafa31` | `sol4/aq-exp-data-001-r2` |
+| #11 | `2ccc65ed` | `sol4/aq-exp-data-001-r2` |
+| #12 | `8c30ca4a` | `main` |
 
-### 1.2 建議順序（只按兩次 main）
+#4／#5／#7 的 head 是合併前置①（把 main 併入 runner 線三支並重跑 CI）之後的新值，
+不是 revision 1 當時的 `75a0867` / `c275f81` / `418154bf`。
 
-1. **#10 → `sol4/aq-exp-data-001-r2`**（base 已正確，乾跑 CLEAN）
-2. **#11 → `sol4/aq-exp-data-001-r2`**（乾跑 CLEAN）
-3. **#8 → `main`**：此時 sol4 已含 #10 與 #11，一次帶進去
-4. **#9 → `main`**（乾跑 CLEAN，與前三者零交集）
+### 1.2 建議順序
 
-這個順序的好處是 manifest 只在 sol4 線內被動一次，main 上看不到任何中間態。
+兩疊各自由深到淺，互不相依：
 
-兩個必須先知道的副作用：
+- **資料線**：`#10 → #11 → #8 → main`
+- **runner 線**：`#7 → #5 → #4 → main`
+- `#9`、`#12` 獨立，順序不拘
 
-- **第 1、2 步會把 PR #8 的 diff 撐大。** 合併 #10、#11 之後，#8 的 diff 從 6 個檔變成 12 個檔。
-  Owner 在第 3 步按下去之前應該**重讀一次 #8 的最終 diff**，不要照著舊的審查印象按。
-- **不要直接把 #10 或 #11 合進 main。** 它們的 commit 鏈裡含著 #8，直接合會把 #8
-  連帶拖進 main，而且 #8 的審查狀態會被跳過。若 Owner 想先放 #8 進 main，
-  那就必須把 #10、#11 的 base 改指到 main，順序與結果等價但多兩個動作。
+兩個必須先知道的副作用（兩疊都適用）：
 
-### 1.3 另一種順序（若 Owner 想先讓 main 拿到 #8）
+- **先合深層會把淺層 PR 的 diff 撐大。** 例如 #10、#11 進 sol4 之後，#8 的 diff
+  從 6 個檔變 12 個檔；#7 進 #5 之後，#5 的 diff 也會長大。按下最外層那一顆之前
+  應重讀其最終 diff，不要照舊的審查印象按。
+- **不要直接把深層 PR 合進 main。** #10／#11 的 commit 鏈含著 #8，#7 的含著 #5 與 #4；
+  直接合會把上游連帶拖進 main 並跳過其審查狀態。
 
-`#8 → main` → 把 #10、#11 的 base 改為 `main` → `#10 → main` → `#11 → main` → `#9 → main`。
-乾跑同樣 CLEAN。代價是 main 上會短暫出現「manifest 的 `real_feature_delta` 尚未填入」的中間態，
-期間若有人跑 `scripts/merge_postcheck.py --strict` 會 FAIL。不建議，但不是錯的。
+## 2. 衝突清單（以現行 head 重做，本機乾跑，未推、未合併）
 
-## 2. 衝突清單（本機乾跑，未推、未合併）
-
-全部用 `git merge --no-commit --no-ff` 乾跑後 `git merge --abort`，沒有任何推送。
+全部用 `git merge --no-commit --no-ff` 乾跑後 `git merge --abort`，未推送。
 
 ### 2.1 兩兩乾跑
 
 | 目標 ← 來源 | 結果 |
 | --- | --- |
-| `main` ← #8 | CLEAN |
-| `main` ← #9 | CLEAN |
 | `sol4`(#8) ← #10 | CLEAN |
 | `sol4`(#8) ← #11 | CLEAN |
+| `main` ← #8 | CLEAN |
+| `solb/prepared-run`(#5) ← #7 | CLEAN |
+| `solb/simulator`(#4) ← #5 | CLEAN |
+| `main` ← #4 | CLEAN |
+| `main` ← #9 | CLEAN |
+| `main` ← #12 | CLEAN |
 
-### 2.2 依建議順序整串乾跑
+### 2.2 兩疊整串乾跑
 
-`main` ← #8 ← #10 ← #11 ← #9：**四步全部 CLEAN，零衝突檔案、零衝突行段。**
+- 資料線 `#10 → #11 → #8 → main`：**三步全 CLEAN**
+- runner 線 `#7 → #5 → #4 → main`：**三步全 CLEAN**
+- 再接 `#9`、`#12` 進 main：**CLEAN**
+
+**八個 PR 全部併進同一棵樹後，零衝突檔案、零衝突行段。**
+該樹上 `pytest -q` = **502 passed, 6 skipped**（6 skip 是需要私有逐列／固定 source 的
+那幾支，缺輸入時明示 skip）；帶齊三層輸入跑 `scripts/merge_postcheck.py --strict`
+= **PASS 48 / FAIL 0 / SKIP 0**。
 
 ### 2.3 被多個 PR 同時觸碰的檔案
 
-**只有一個**：`out/aq_exp_data_001_r2_manifest.json`，由 #8 新增、由 #10 修改。
+| 檔案 | 被幾個 PR 碰 | 性質 |
+| --- | --- | --- |
+| `src/astraquant/portfolio/strategy_simulator.py` | 3（#4／#5／#7） | 同一 stack 上的先後修改，非並行衝突 |
+| `tests/test_baseline_60d_simulator_integration.py` | 2（#4／#5） | 同上 |
+| `src/astraquant/research/config_engine.py` | 2（#4／#5） | 同上 |
+| `docs/BASELINE_60D_BREAKOUT_READINESS.md` | 2（#5／#7） | 同上 |
+| `out/aq_exp_data_001_r2_manifest.json` | 2（#8／#10） | 同上（#10 的 merge-base 即 #8 的 head） |
 
-這不是衝突，是**順序依賴**。#10 的 merge-base 正是 #8 的 head `25266f8a`，
-所以 git 看到的是同一條線上的先後兩次修改，不是兩個分支各改一份。
-#10 對該檔的改動只有 6 行增、3 行減，全部落在
-`findings.atr14_min_bars` 這一個物件裡（新增 `real_feature_delta: 17`、
-`real_feature_delta_status`、`real_feature_delta_source`、`real_feature_delta_note`，
-並把 `findings.real_counts_recomputed` 改為 `"ATR14_WARMUP_ONLY"`），
-沒有碰 `denominator`、`producer`、`fixed_inputs`、`evidence`、`limitations` 任何一欄。
+**全部都是 stack 內的順序依賴，沒有任何一組是兩個獨立分支各改一份。**
+兩疊之間零交集：資料線四個 PR 不碰 runner 線的 `src/` 檔，runner 線三個 PR 不碰
+`out/aq_exp_data_001_*` 或 `scripts/survivorship_72_scan.py`。
 
-**唯一會變成真衝突的情境**：若在合併前又有人往 `sol4/aq-exp-data-001-r2`
-推新 commit 去改 `findings` 區塊。目前沒有，但 #8 若要再補審查意見就會發生。
-屆時的解法是在 sol4 上直接改、讓 #10 rebase，不要在 main 側解。
+唯一會變成真衝突的情境，是在合併前又有人往某疊的中間層推新 commit 去改上面那些檔案；
+屆時應在該疊內部解、讓下游 rebase，不要在 main 側解。
 
-其餘 10 個檔案各自只被一個 PR 觸碰，沒有重疊。
+### 2.4 合併前置①的結果（CI 重跑）
 
-### 2.4 與凍結路徑的交集
+runner 線三支原本落後 main 22 個 commit，已依序 `main → #4 → #5 → #7` 併接，
+每一步 CLEAN、每一步本機測試通過後才推，三支 CI `tests` 皆 **completed / success**
+（#4 415 passed、#5 440 passed、#7 465 passed）。
 
-四個 PR 沒有任何一個觸碰 `src/astraquant/portfolio/strategy_simulator.py` 或
-`src/astraquant/research/baseline_60d_exploration.py`。
-#8 新增的 `src/astraquant/research/exploration_data_contract.py` 是另一個檔，不在凍結清單內。
-合併這四個 PR **不會**與 PR #7 的 src 改動相撞——但也**不會**解除那條線的阻塞，見 §5。
+附帶一項更正：發工時認為那 22 個 commit 裡的
+`ci: guard source config sweeps` 與 `ci: guard observation sweeps` 改了 workflow、
+使舊綠燈失效。查證下來**不成立**——main 上那兩個 commit（`fa63a51`、`053e83b`）是
+**空 commit**；真正改動 `source_observation_sweeps.yml` / `source_config_sweep.yml`
+的是 `c61b143` 與 `04ae230`，兩者早就在三支分支的歷史裡。三支與 main 之間唯一有差異的
+workflow 是 `watchdog.yaml`（監看排程，非 CI 閘門），而真正的閘門 `tests.yml`
+在這 22 個 commit 內完全沒被改。重跑仍照辦且全綠，但結論是「本來就有效，再確認一次」。
 
 ## 3. period_end 定稿方案（只提方案，本輪不執行）
 
@@ -204,12 +219,11 @@ AQ_PRODUCER=/path/scripts/astraquant_aq_exp_data_001.py \
 
 ## 5. 合併後**仍未**解決的事項
 
-以下沒有一項因為這四個 PR 合併而完成。不要在合併紀錄裡把它們寫成已完成。
+以下沒有一項因為這八個 PR 合併而完成。不要在合併紀錄裡把它們寫成已完成。
 
-1. **PR #7 / `solb` 的 src 凍結未解除。** `src/astraquant/portfolio/strategy_simulator.py`
-   與 `src/astraquant/research/baseline_60d_exploration.py` 仍在凍結狀態，
-   exploration runner 那條線整條停著。這四個 PR 不碰那兩個檔，所以合併它們
-   **既不會解除也不會惡化**，但也不要誤以為合併之後路就通了。等 Owner 裁定。
+1. **runner 線只有合成 fixture。** #4／#5／#7 的 src 凍結已由 Owner 解除、三個 PR 皆已 ACCEPTED，
+   但 runner 至今只跑過 deterministic synthetic fixture，沒有真實 parquet 整合驗收，
+   也沒有真實 E1／E2／E3。合併它們不等於 runner 可以跑真實資料。
 2. **共同日曆完整性缺陷未量化。** `REVISION_2` 列出的三項缺陷裡，ATR14 暖機門檻
    由 #10 算成 17、OHLC 幾何由 #11 算成 0，**日曆完整性那一項到現在還是 UNKNOWN**。
 3. **producer 仍沒有獨立的幾何閘門。** #11 量到的 0 是上游
