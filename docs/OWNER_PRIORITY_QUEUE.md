@@ -2,11 +2,11 @@
 
 ## 目前狀態
 
-更新時間：2026-10-04T05:06:00Z
-做完：147 筆 CA 候選證據裁定完成；逐筆裁定與查證紀錄保留 private，public 僅更新安全聚合，未重跑全量 reconciliation、未注入 normalizer
-結果：142 筆補事件候選＝證據足夠 0、金額足夠但時間不足 142、仍無法裁定 0；5 筆衝突中 4 筆已裁定 cutoff／時序修訂關係、1 筆僅裁定金額但歷史 cutoff 證據不足；正式核准 0
-卡住：第 5 項仍 BLOCKED；142 筆均缺逐筆歷史 cutoff 發布證據，另 1 筆衝突缺精確值的歷史 cutoff 證據，完整 revision lineage 仍不得假定
-下一項：待Astra驗收147筆CA裁定證據
+更新時間：2026-10-04T15:46:00Z
+做完：AQ-EXP-DATA-001 E1 可實測資料覆蓋率完成；逐股票日資格／原因表保留 private，public 僅放年度、feature 與三態安全聚合，未計算策略報酬
+結果：原 all_liquid 458,315 stock-days／1,394 stocks；四項皆可算 428,102（93.41%）；排除 B/C 後限制性探索可用 272,280（59.41%）；SUPPORTED_UNAFFECTED 0
+卡住：第 5 項仍 BLOCKED；RAW／Trading_money 歷史版本 identity 使全母體仍有 A，B exposure 165,709、C 30,213；本結果不是 PIT VERIFIED、formal artifact 或策略效果授權
+下一項：待Astra驗收 AQ-EXP-DATA-001 覆蓋率與 private eligibility table
 
 狀態：ACTIVE
 
