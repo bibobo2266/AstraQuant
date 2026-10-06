@@ -1,0 +1,96 @@
+name: TWSE FMTQIK calendar (AQ-EXP-CAL-003)
+
+# 逐月取 TWSE FMTQIK 2016-01 ~ 2021-12，建立 E1 期間的權威交易日集合。
+# 端點公開、無需認證、每月一次請求，以固定間隔循序取得。
+#
+# 為什麼要走 Actions：執行端容器的對外網路只允許套件來源，連不到 twse.com.tw；
+# 一般網頁抓取工具又會把帶不同 date 參數的同一端點塌回同一個月。
+# runner 沒有這兩個限制，而且產出的 raw 回應會 commit 回分支，供審查端覆核。
+#
+# 取數紀律：被擋就停整條路徑，不繞過、不換同義查詢重試（實作在腳本裡）。
+
+# ⚠ 單次執行會對 www.twse.com.tw 發出 **72 次對外請求**（2016-01 ~ 2021-12，每月一次），
+# 預設間隔 4 秒，整趟約 6-8 分鐘。不是無害的 no-op，請勿排程、請勿反覆觸發。
+#
+# 取數紀律（以「請求單位」＝單一月份為粒度）：
+#   單次阻擋 → 該月立即標 UNKNOWN，執行端永不重試、不換同義查詢、不換端點，
+#              以相同或更慢的間隔繼續其他月份。
+#   連續兩次或累計三次阻擋 → 立即停止整條端點，保留已取得部分，回報當下狀態。
+#   被擋月份的補取一律須 Owner 裁定後另案發工。
+#
+# 只保留 workflow_dispatch：手動觸發，不綁任何 push 事件。
+on:
+  workflow_dispatch:
+    inputs:
+      start:
+        description: "起始年月 YYYYMM"
+        required: false
+        default: "201601"
+      end:
+        description: "結束年月 YYYYMM"
+        required: false
+        default: "202112"
+      interval:
+        description: "每次請求間隔秒數"
+        required: false
+        default: "4"
+
+permissions:
+  contents: write
+
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref_name }}
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Fetch FMTQIK month by month
+        env:
+          # push 觸發時 inputs 為空，這裡補上與 workflow_dispatch 相同的預設值。
+          START: ${{ inputs.start || '201601' }}
+          END: ${{ inputs.end || '202112' }}
+          INTERVAL: ${{ inputs.interval || '4' }}
+        run: |
+          python scripts/fetch_twse_fmtqik.py \
+            --start "$START" --end "$END" --interval "$INTERVAL"
+
+      - name: Adjudicate against the authoritative record
+        run: python scripts/adjudicate_calendar_authoritative.py
+
+      - name: Summary
+        run: |
+          python - <<'PY'
+          import json, pathlib
+          log = json.loads(pathlib.Path("out/aq_exp_cal_003_fetch_log.json").read_text())
+          print("months OK      :", log["months_ok"])
+          print("months UNKNOWN :", log["months_unknown"], log["months_unknown_list"])
+          print("stopped early  :", log["stopped_early"], log["stop_reason"])
+          print("sessions       :", log["total_sessions"])
+          art = json.loads(pathlib.Path("out/aq_exp_cal_003_authoritative_calendar.json").read_text())
+          print("upgraded       :", art["adjudication"]["upgraded_to_authoritative"])
+          print("still 3rd-party:", art["adjudication"]["still_third_party"])
+          print("real missing   :", art["adjudication"]["real_missing_session_dates"])
+          print("panel-only     :", art["full_period_reconciliation"]["panel_only_count"])
+          PY
+
+      - name: Commit results
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add out/twse_fmtqik_raw out/aq_exp_cal_003_twse_sessions.csv \
+                  out/aq_exp_cal_003_fetch_log.json \
+                  out/aq_exp_cal_003_authoritative_calendar.json \
+                  out/aq_exp_cal_003_adjudication.csv
+          if git diff --cached --quiet; then
+            echo "nothing to commit"
+          else
+            git commit -m "AQ-EXP-CAL-003: TWSE FMTQIK 權威紀錄與重新判定 [no-effects]"
+            git push origin HEAD:${{ github.ref_name }}
+          fi
