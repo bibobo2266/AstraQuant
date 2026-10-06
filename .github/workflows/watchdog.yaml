@@ -1,0 +1,30 @@
+name: Watchdog
+
+# 每 30 分鐘檢查一次實際進度（branch head / PR head / issue 留言）。
+# 只有真的有變動才會在 issue 留言，沒變動靜默結束。
+# GitHub 內建 schedule 在高負載時會延遲甚至跳過，所以同時開 workflow_dispatch，
+# 要準時的話從 cron-job.org 打 dispatch API 觸發。
+
+on:
+  schedule:
+    - cron: "*/30 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  issues: write
+
+concurrency:
+  group: watchdog
+  cancel-in-progress: false
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run watchdog
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          WATCH_ISSUE: "6"
+        run: python3 scripts/watchdog.py

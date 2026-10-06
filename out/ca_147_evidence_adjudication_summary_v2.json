@@ -1,0 +1,54 @@
+{
+  "version": "ca_147_evidence_adjudication_summary_v2",
+  "status": "EVIDENCE_ADJUDICATION_UPDATED_ITEM5_STILL_BLOCKED_ASTRA_REVIEW_REQUIRED",
+  "scope": {
+    "existing_candidate_rows": 147,
+    "supplement_candidates": 142,
+    "value_conflict_candidates": 5,
+    "full_reconciliation_rerun": false
+  },
+  "evidence_buckets": {
+    "EVIDENCE_AVAILABLE": 2,
+    "NOT_INDEPENDENTLY_VERIFIED": 144,
+    "HISTORICAL_CUTOFF_EVIDENCE_NOT_LOCATED": 1
+  },
+  "supplement_candidates": {
+    "rows": 142,
+    "evidence_available": 0,
+    "not_independently_verified": 142,
+    "historical_cutoff_evidence_not_located": 0,
+    "bulk_query_run_this_round": false,
+    "reason": "The MOPS historical-announcement positive-control route returned security-block shell pages for all known controls. The previous 111 date-only zero-hit searches were not repeated and are not treated as evidence that announcements did not exist."
+  },
+  "value_conflicts": {
+    "rows": 5,
+    "evidence_available": 2,
+    "not_independently_verified": 2,
+    "historical_cutoff_evidence_not_located": 1,
+    "cutoff_rule": "publication time, event effective date, and research cutoff are separate; later revisions are never backdated to earlier cutoffs",
+    "fixed_source_snapshots_private": true
+  },
+  "positive_control": {
+    "known_controls": 4,
+    "successful_content_controls": 0,
+    "security_block_shell_controls": 4,
+    "bulk_query_authorized": false,
+    "access_barrier": "MOPS ajax historical major-information requests returned HTTP 200 security pages stating the page cannot be accessed for security reasons."
+  },
+  "governance": {
+    "candidate_rows_approved": 0,
+    "normalizer_modified": false,
+    "source_repo_modified": false,
+    "canonical_ca_accounting_or_execution_modified": false,
+    "formal_e1_feature_artifact_built": false,
+    "strategy_effects_run": false,
+    "gate_unlocked": false
+  },
+  "private_delivery": {
+    "repository": "private",
+    "adjudication_version": "ca_147_final_adjudication_v2",
+    "private_commit": "f243225e06f5a2ea2a0fe92153d757b75da7559c",
+    "contains_row_level_evidence": true,
+    "published_publicly": false
+  }
+}
