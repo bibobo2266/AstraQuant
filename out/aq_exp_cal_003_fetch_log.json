@@ -299,5 +299,7 @@
  "months_unknown_list": [
   "201710"
  ],
- "total_sessions": 1449
+ "total_sessions": 1449,
+ "blocked_total": 1,
+ "block_policy": "single block -> mark UNKNOWN, never retried; 2 consecutive or 3 cumulative -> stop the endpoint"
 }

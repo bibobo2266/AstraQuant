@@ -9,13 +9,17 @@ name: TWSE FMTQIK calendar (AQ-EXP-CAL-003)
 #
 # 取數紀律：被擋就停整條路徑，不繞過、不換同義查詢重試（實作在腳本裡）。
 
-# workflow_dispatch 只認預設分支上的 workflow 檔，這支還沒進 main，
-# 所以另開一個「推 sentinel 檔就跑一次」的觸發，範圍限定在本分支與該單一路徑，
-# 避免本分支其他 commit（含本 workflow 自己 commit 結果）重複觸發。
+# ⚠ 單次執行會對 www.twse.com.tw 發出 **72 次對外請求**（2016-01 ~ 2021-12，每月一次），
+# 預設間隔 4 秒，整趟約 6-8 分鐘。不是無害的 no-op，請勿排程、請勿反覆觸發。
+#
+# 取數紀律（以「請求單位」＝單一月份為粒度）：
+#   單次阻擋 → 該月立即標 UNKNOWN，執行端永不重試、不換同義查詢、不換端點，
+#              以相同或更慢的間隔繼續其他月份。
+#   連續兩次或累計三次阻擋 → 立即停止整條端點，保留已取得部分，回報當下狀態。
+#   被擋月份的補取一律須 Owner 裁定後另案發工。
+#
+# 只保留 workflow_dispatch：手動觸發，不綁任何 push 事件。
 on:
-  push:
-    branches: [solc/aq-exp-cal-003]
-    paths: ["out/.cal003_run_token"]
   workflow_dispatch:
     inputs:
       start:

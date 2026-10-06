@@ -225,6 +225,20 @@ def test_fetcher_month_range_and_block_detection():
     assert fetcher.classify(200, "nothing useful".encode("ms950"))[0] == "EMPTY_OR_BAD"
 
 
+def test_fetch_log_records_the_corrected_block_policy():
+    """更正後的措辭：單次標 UNKNOWN 不重試；連續兩次或累計三次停整條端點。"""
+    src = (ROOT / "scripts" / "fetch_twse_fmtqik.py").read_text(encoding="utf-8")
+    # 停止條件必須同時含連續與累計兩個門檻。
+    assert "consecutive_blocks >= 2 or total_blocks >= 3" in src
+    # 不得出現任何重試或換端點的分支。
+    for banned in ("retry", "retries", "fallback_endpoint", "alt_url"):
+        assert banned not in src.lower().replace("without retrying", "")
+    log = json.loads((ROOT / "out" / "aq_exp_cal_003_fetch_log.json").read_text(encoding="utf-8"))
+    # 本輪實際只發生 1 次阻擋，兩個門檻都未觸發。
+    assert log["months_unknown_list"] == ["201710"]
+    assert log["stopped_early"] is False
+
+
 def test_panel_session_list_is_an_aggregate_with_no_row_level_content():
     path = ROOT / "out" / "aq_exp_cal_003_panel_sessions.csv"
     with path.open(encoding="utf-8") as fh:
