@@ -51,6 +51,27 @@
   "panel_only_count": 0,
   "panel_only_all_saturdays": true,
   "panel_only_matches_expected_makeup_saturdays": false,
+  "expected_makeup_saturdays": [
+   "2016-01-30",
+   "2016-06-04",
+   "2016-09-10",
+   "2017-02-18",
+   "2017-06-03",
+   "2017-09-30",
+   "2018-03-31",
+   "2018-12-22"
+  ],
+  "makeup_saturdays_present_in_authoritative": [
+   "2016-01-30",
+   "2016-06-04",
+   "2016-09-10",
+   "2017-02-18",
+   "2017-06-03",
+   "2017-09-30",
+   "2018-03-31",
+   "2018-12-22"
+  ],
+  "panel_only_explanation": "0 而非 8：權威紀錄本身收錄了8 個補行交易週六，所以 panel 沒有任何一天是權威沒有的。CAL-002 量到的差異，來源是第三方日曆漏收補行交易日，不是 panel 多算。",
   "note": "panel 有而權威無的，預期全為補行交易週六；數目不同須解釋。權威有而 panel 無的即真缺日。"
  },
  "four_way_intersection": {

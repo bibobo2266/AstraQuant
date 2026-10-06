@@ -33,6 +33,11 @@ OUT_CSV = ROOT / "out" / "aq_exp_cal_003_adjudication.csv"
 
 MONTHS_EXPECTED = 72
 EXPECTED_MAKEUP_SATURDAYS = 8
+# CAL-002 量到 panel 有而 XTAI 無的 8 天，全為補行交易週六。
+MAKEUP_SATURDAYS = {
+    "2016-01-30", "2016-06-04", "2016-09-10", "2017-02-18",
+    "2017-06-03", "2017-09-30", "2018-03-31", "2018-12-22",
+}
 ALL_FOUR = 428102
 FOUR_WAY_DELTA_PER_MISSING_SESSION = -34254   # AQ-EXP-CAL-001 實測，單一缺日
 
@@ -124,6 +129,10 @@ def build(root: Path = ROOT) -> dict:
             "panel_only_all_saturdays": all(_is_saturday(d) for d in panel_only),
             "panel_only_matches_expected_makeup_saturdays":
                 len(panel_only) == EXPECTED_MAKEUP_SATURDAYS,
+            "expected_makeup_saturdays": sorted(MAKEUP_SATURDAYS),
+            "makeup_saturdays_present_in_authoritative": sorted(
+                d for d in MAKEUP_SATURDAYS if d in twse_cov),
+            "panel_only_explanation": _explain_panel_only(panel_only, twse_cov),
             "note": ("panel 有而權威無的，預期全為補行交易週六；數目不同須解釋。"
                      "權威有而 panel 無的即真缺日。"),
         },
@@ -143,6 +152,21 @@ def build(root: Path = ROOT) -> dict:
     }
     del delta, four_way_delta
     return {"artifact": result, "rows": rows}
+
+
+def _explain_panel_only(panel_only: list[str], twse_cov: set[str]) -> str:
+    """panel 有而權威無的日子，數目與預期不同時必須有解釋。"""
+    covered_makeup = sorted(d for d in MAKEUP_SATURDAYS if d in twse_cov)
+    if len(panel_only) == EXPECTED_MAKEUP_SATURDAYS:
+        return "與預期相同：panel 多出的就是 8 個補行交易週六。"
+    if not panel_only:
+        return (f"0 而非 {EXPECTED_MAKEUP_SATURDAYS}：權威紀錄本身收錄了"
+                f"{len(covered_makeup)} 個補行交易週六，所以 panel 沒有任何一天是"
+                "權威沒有的。CAL-002 量到的差異，來源是第三方日曆漏收補行交易日，"
+                "不是 panel 多算。")
+    extra = sorted(set(panel_only) - MAKEUP_SATURDAYS)
+    return (f"數目為 {len(panel_only)}，與預期的 8 不同；"
+            f"其中不屬於已知補行交易週六的有 {len(extra)} 天：{extra}。需人工判讀。")
 
 
 def _is_saturday(day: str) -> bool:

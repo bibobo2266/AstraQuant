@@ -125,6 +125,18 @@ def test_both_directions_of_the_reconciliation_are_listed(tmp_path):
     assert rec["panel_only_all_saturdays"] is True
     # 數目與預期的 8 個不同時，旗標要落下來，交由報告解釋。
     assert rec["panel_only_matches_expected_makeup_saturdays"] is False
+    # 數目與預期不同時必須有解釋，不得只留一個 False 旗標。
+    assert rec["panel_only_explanation"].strip()
+
+
+def test_zero_panel_only_is_explained_when_authoritative_covers_the_saturdays(tmp_path):
+    """權威本身就收錄補行交易週六時，panel_only 會是 0 而非 8，必須講清楚。"""
+    root = _fixture(tmp_path, extra_twse=["2016-01-30"])
+    rec = MOD.build(root)["artifact"]["full_period_reconciliation"]
+    assert rec["panel_only_count"] == 0
+    assert rec["authoritative_only_count"] == 0
+    assert "2016-01-30" in rec["makeup_saturdays_present_in_authoritative"]
+    assert "不是 panel 多算" in rec["panel_only_explanation"]
 
 
 def test_a_real_missing_session_is_not_silently_turned_into_a_delta(tmp_path):
