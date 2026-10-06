@@ -1,0 +1,8 @@
+schema_version: "1"
+run_name: baseline_60d_breakout_v1
+strategy_version: baseline_60d_breakout_v1
+universe: configs/examples/universes/all_liquid.yaml
+signal: configs/research/baseline_60d_breakout_v1/signal.yaml
+exit: configs/research/baseline_60d_breakout_v1/exit.yaml
+execution_assumptions_id: baseline-60d-v1-costs
+report_trade_stats_first: true

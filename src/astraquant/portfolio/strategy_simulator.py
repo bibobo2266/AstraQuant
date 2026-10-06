@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import date, datetime, timedelta
+from typing import Callable
 
 import pandas as pd
 
@@ -87,6 +88,7 @@ class StrategySimulationResult:
     total_baseline_blocked_exit_attempts: int = 0
     total_baseline_terminal_superseded: int = 0
     baseline_exit_state: Baseline60DExitState | None = None
+    data_censored_at: date | None = None
 
 
 class CanonicalStrategySimulator:
@@ -112,6 +114,7 @@ class CanonicalStrategySimulator:
         policy: PortfolioIntentPolicy,
         signal: SignalDeclaration,
         config: StrategySimulationConfig | None = None,
+        baseline_data_guard: Callable[[date, str], bool] | None = None,
     ) -> None:
         if execution.portfolio is not portfolio:
             raise ValueError("execution and simulator must share PortfolioEngine")
@@ -120,6 +123,7 @@ class CanonicalStrategySimulator:
         self.policy = policy
         self.signal = signal
         self.config = config or StrategySimulationConfig()
+        self.baseline_data_guard = baseline_data_guard
         self.replay = CanonicalPortfolioReplay(
             execution=execution,
             portfolio=portfolio,
@@ -236,6 +240,9 @@ class CanonicalStrategySimulator:
                 candidates=candidates,
             )
 
+        if self.baseline_data_guard is not None and not baseline_enabled:
+            raise ValueError("baseline_data_guard requires baseline execution")
+
         trading_calendar = TradingCalendar(sessions)
         calendar = trading_calendar.sessions
 
@@ -312,7 +319,12 @@ class CanonicalStrategySimulator:
         latest_ca_session: dict[str, date] = {}
         held_at_prior_close: set[str] = set()
 
+        data_censored_at = None
         for idx, day in enumerate(calendar):
+            # Stop before any settlement, CA, exit, sizing or NAV mutation.
+            if self.baseline_data_guard is not None and not self.baseline_data_guard(day, "BEFORE_OPEN"):
+                data_censored_at = day
+                break
             start = self._session_start(day)
             terminal_stale_tickers = {
                 ticker
@@ -771,6 +783,11 @@ class CanonicalStrategySimulator:
             total_entries += entries
             total_entry_skips += entry_skips
 
+            # Preserve same-day entry fills, but never value an unreliable holding.
+            if self.baseline_data_guard is not None and not self.baseline_data_guard(day, "BEFORE_CLOSE"):
+                data_censored_at = day
+                break
+
             stop_exits = 0
             max_hold_exits = 0
 
@@ -1012,4 +1029,5 @@ class CanonicalStrategySimulator:
                 total_baseline_terminal_superseded
             ),
             baseline_exit_state=baseline_exit_state,
+            data_censored_at=data_censored_at,
         )
