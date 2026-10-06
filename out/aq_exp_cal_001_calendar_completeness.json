@@ -1,0 +1,141 @@
+{
+ "task_id": "AQ-EXP-CAL-001",
+ "revision": 1,
+ "schema_version": "aq-exp-cal-001-v1",
+ "scope": "SOURCE_EVIDENCE",
+ "execution_authorized": false,
+ "formal_research_gate": "BLOCKED_UNCONDITIONALLY",
+ "measurement_layer": "DATA_LAYER_DIAGNOSTIC",
+ "metrics_not_reported": [
+  "win_rate",
+  "payoff_ratio",
+  "expectancy_per_trade"
+ ],
+ "defect_under_test": {
+  "document": "docs/AQ_EXP_DATA_001_REVISION_2.md",
+  "claim": "producer 以每檔自己的列序當共同交易日曆，未對照正典 session 集合",
+  "producer_calendar_basis": "common_row_ordinal = per-stock cumcount of tradability rows; MA120/N60 windows roll over that row sequence",
+  "assumption_it_relies_on": "每檔在其活躍區間內，每個正典 session 都有一列（缺值列以 null 保留，不得整列消失）"
+ },
+ "inputs": {
+  "private_delivery_commit": "8226478d0bcb5dc1ae66c08701535f4f1d579a35",
+  "producer_revision": "20162dc7ad4014cfd5983d309ab3826167b69a71",
+  "producer_git_blob": "fa6b2729e36351eb0cadc3097547fc1a66d0e33f",
+  "producer_sha256": "16a953aca36ba794b01121cd435c711af696dd1f854c16990edb1b9bf6140a5c",
+  "source_revision": "fb8b042b46dc38838d103544ca17da10286c7bfe",
+  "astra_contract_revision": "1e184908f17c7e612fad636f30b61071ed916a56",
+  "exclusion_sha256": "379d58f6a8aa06b1e020d56911930f4bc01861d3eeca109613d9e5b1e490d134"
+ },
+ "reconstruction_validation": {
+  "members_rows": 458315,
+  "members_rows_expected": 458315,
+  "members_unique_stocks": 1394,
+  "members_unique_stocks_expected": 1394,
+  "panel_rows_scanned": 2427931
+ },
+ "canonical_calendar": {
+  "definition": "a date is a session iff at least one stock in the filtered panel has observed_trade = True",
+  "sessions_warmup_to_e1_end": 1712,
+  "sessions_in_e1": 1468,
+  "first_session": "2015-01-05",
+  "last_session": "2021-12-30",
+  "panel_dates_with_no_trading_stock": 0
+ },
+ "result": {
+  "real_affected_rows_in_universe": 0,
+  "is_exact": true,
+  "duplicate_date_stock_rows": 0,
+  "missing_rows_within_active_span": 0,
+  "stocks_with_missing_rows": 0,
+  "stocks_checked": 1604,
+  "stocks_with_more_rows_than_sessions": 0,
+  "raw_only_keys_silently_dropped": 0,
+  "tradability_only_keys_derived_missing_row": 6996,
+  "derived_missing_rows_inside_universe": 0,
+  "sessions_in_e1": 1468
+ },
+ "unknown_fail_closed": {
+  "e1_weekdays_that_are_not_sessions": 104,
+  "classification": "UNKNOWN",
+  "reason": "repo 內沒有外部台股交易日曆，無法判定這些平日是國定假日還是真的缺一個 session；依 fail-closed 一律標 UNKNOWN，不以推估填補",
+  "by_year": {
+   "2016": 19,
+   "2017": 17,
+   "2018": 16,
+   "2019": 19,
+   "2020": 17,
+   "2021": 16
+  },
+  "sessions_by_year": {
+   "2016": 244,
+   "2017": 246,
+   "2018": 247,
+   "2019": 242,
+   "2020": 245,
+   "2021": 244
+  },
+  "consistency_note": "每年 16-19 天，與台股國定假日天數同量級；一致不等於已驗證，仍為 UNKNOWN",
+  "longest_consecutive_run_days": 5,
+  "isolated_single_days": 29,
+  "runs_total": 58
+ },
+ "four_way_intersection": {
+  "before": 428102,
+  "after": 428102,
+  "delta": 0,
+  "dominant_feature_for_delta": null,
+  "reason": "沒有任何一列因日曆完整性被判為不可用，四個 feature 的聚合全部不動"
+ },
+ "per_feature_unchanged": {
+  "MA120": {
+   "numeric_computable": 428102,
+   "issue_C_days": 30213,
+   "issue_C_breakdown": {
+    "WARMUP_INSUFFICIENT_COMMON_ROWS": 1762,
+    "INPUT_MISSING_OR_SUSPENDED_IN_120_COMMON_ROWS": 28451
+   }
+  },
+  "N60": {
+   "numeric_computable": 438344,
+   "issue_C_days": 19971
+  },
+  "ATR14": {
+   "numeric_computable": 457916,
+   "issue_C_days": 399
+  },
+  "LOW20": {
+   "numeric_computable": 457813,
+   "issue_C_days": 502
+  }
+ },
+ "sensitivity_when_it_would_start_to_matter": {
+  "method": "對一個 E1 內無法分類的平日，為該期間所有在市個股插入一列空值（observed_trade=False、OHLC 為 null），重跑 add_universe 與 add_c_states，與凍結結果比對",
+  "simulated_date": "2018-12-31",
+  "inserted_null_rows": 1446,
+  "universe_rows_before": 458315,
+  "universe_rows_after": 458315,
+  "four_way_before": 428102,
+  "four_way_after": 393848,
+  "four_way_delta": -34254,
+  "four_way_delta_pct": -8.0,
+  "per_feature_delta": {
+   "MA120": -34254,
+   "N60": -17807,
+   "ATR14": 0,
+   "LOW20": 0
+  },
+  "dominant_feature": "MA120",
+  "mechanism": "MA120 的視窗是對每檔 120 個共同列滾動，要求視窗內 120 個有效收盤。補回一列空值會把一個真實列擠出視窗，使 ma_valid_count 由 120 降為 119，整段視窗涵蓋範圍內的列由可算轉為 INPUT_MISSING_OR_SUSPENDED",
+  "interpretation": "目前量到 0 是因為 104 個平日全都不是 session。只要其中任何一天其實是真的 session，四項交集就會以數萬列的量級移動，而且方向是變少不是變多"
+ },
+ "contradicts_pr8": false,
+ "contradiction_check": "PR #8 將日曆完整性列為未量化缺陷，本輪把它量成 0 並附上條件化敏感度；未推翻任何既有結論",
+ "limitations": [
+  "正典日曆由資料自身定義（有人成交即為 session），沒有外部台股交易日曆可對照；整個市場同時缺一天在這個定義下不可見，這正是 104 天被標 UNKNOWN 的原因",
+  "敏感度只模擬單一日期，未窮舉 104 天的組合",
+  "只量日曆完整性；ATR14 暖機門檻與 OHLC 幾何為另外兩輪，三者不相加",
+  "未改 producer、未改凍結交付、未重新產生 coverage v1",
+  "資料層診斷，不含勝率／賠率／每筆期望值，不得用於論斷任何元件有效或無效",
+  "私有逐列內容未republish，只有聚合"
+ ]
+}
