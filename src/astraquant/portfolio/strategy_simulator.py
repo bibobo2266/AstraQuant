@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import date, datetime, timedelta
+from typing import Callable
 
 import pandas as pd
 
@@ -33,6 +34,14 @@ from astraquant.research.candidates import (
     normalize_candidates,
 )
 from astraquant.research.exit_engine import CompiledExitPlan
+from astraquant.research.feature_panel_integration import (
+    EligibilityEvidenceScope,
+    FeaturePanelIntegrationError,
+)
+from astraquant.research.prepared_run_evidence import (
+    PreparedRunEligibilityEvidence,
+    validate_prepared_execution_binding,
+)
 
 
 @dataclass(frozen=True)
@@ -79,6 +88,7 @@ class StrategySimulationResult:
     total_baseline_blocked_exit_attempts: int = 0
     total_baseline_terminal_superseded: int = 0
     baseline_exit_state: Baseline60DExitState | None = None
+    data_censored_at: date | None = None
 
 
 class CanonicalStrategySimulator:
@@ -104,6 +114,7 @@ class CanonicalStrategySimulator:
         policy: PortfolioIntentPolicy,
         signal: SignalDeclaration,
         config: StrategySimulationConfig | None = None,
+        baseline_data_guard: Callable[[date, str], bool] | None = None,
     ) -> None:
         if execution.portfolio is not portfolio:
             raise ValueError("execution and simulator must share PortfolioEngine")
@@ -112,6 +123,7 @@ class CanonicalStrategySimulator:
         self.policy = policy
         self.signal = signal
         self.config = config or StrategySimulationConfig()
+        self.baseline_data_guard = baseline_data_guard
         self.replay = CanonicalPortfolioReplay(
             execution=execution,
             portfolio=portfolio,
@@ -183,7 +195,54 @@ class CanonicalStrategySimulator:
         corporate_actions: list[HistoricalCorporateActionInstruction] | None = None,
         exit_plan: CompiledExitPlan | None = None,
         baseline_context: BaselineSimulationContext | None = None,
+        eligibility_evidence: PreparedRunEligibilityEvidence | None = None,
     ) -> StrategySimulationResult:
+        baseline_enabled = bool(
+            exit_plan is not None and exit_plan.baseline_60d_enabled
+        )
+        if baseline_context is not None and not baseline_enabled:
+            raise ValueError(
+                "baseline_context requires the exact baseline_60d compiled exit plan"
+            )
+        if eligibility_evidence is not None and not baseline_enabled:
+            raise ValueError(
+                "eligibility_evidence is only supported by the baseline path"
+            )
+        if baseline_enabled:
+            if baseline_context is None:
+                raise ValueError(
+                    "baseline_60d compiled exit plan requires baseline_context"
+                )
+            # Formal mode is rejected before any artifact/execution-data read.
+            baseline_context.require_runnable()
+            if eligibility_evidence is None:
+                raise FeaturePanelIntegrationError(
+                    "direct baseline simulator entry requires prepared-run "
+                    "eligibility evidence"
+                )
+            if candidates is None or signals is not None:
+                raise FeaturePanelIntegrationError(
+                    "baseline execution binding requires prepared candidates"
+                )
+            if (
+                eligibility_evidence.feature_evidence.scope
+                is not EligibilityEvidenceScope.SYNTHETIC_FIXTURE
+            ):
+                raise FeaturePanelIntegrationError(
+                    "synthetic baseline simulator requires "
+                    "SYNTHETIC_FIXTURE eligibility evidence"
+                )
+            validate_prepared_execution_binding(
+                evidence=eligibility_evidence,
+                exit_plan=exit_plan,
+                actual_policy=self.policy.config,
+                sessions=sessions,
+                candidates=candidates,
+            )
+
+        if self.baseline_data_guard is not None and not baseline_enabled:
+            raise ValueError("baseline_data_guard requires baseline execution")
+
         trading_calendar = TradingCalendar(sessions)
         calendar = trading_calendar.sessions
 
@@ -196,17 +255,7 @@ class CanonicalStrategySimulator:
         )
         session_index = {day: i for i, day in enumerate(calendar)}
 
-        baseline_enabled = bool(exit_plan is not None and exit_plan.baseline_60d_enabled)
-        if baseline_context is not None and not baseline_enabled:
-            raise ValueError(
-                "baseline_context requires the exact baseline_60d compiled exit plan"
-            )
         if baseline_enabled:
-            if baseline_context is None:
-                raise ValueError(
-                    "baseline_60d compiled exit plan requires baseline_context"
-                )
-            baseline_context.require_runnable()
             if (
                 self.policy.config.stop_fraction is not None
                 or self.policy.config.max_hold_sessions is not None
@@ -270,7 +319,12 @@ class CanonicalStrategySimulator:
         latest_ca_session: dict[str, date] = {}
         held_at_prior_close: set[str] = set()
 
+        data_censored_at = None
         for idx, day in enumerate(calendar):
+            # Stop before any settlement, CA, exit, sizing or NAV mutation.
+            if self.baseline_data_guard is not None and not self.baseline_data_guard(day, "BEFORE_OPEN"):
+                data_censored_at = day
+                break
             start = self._session_start(day)
             terminal_stale_tickers = {
                 ticker
@@ -729,6 +783,11 @@ class CanonicalStrategySimulator:
             total_entries += entries
             total_entry_skips += entry_skips
 
+            # Preserve same-day entry fills, but never value an unreliable holding.
+            if self.baseline_data_guard is not None and not self.baseline_data_guard(day, "BEFORE_CLOSE"):
+                data_censored_at = day
+                break
+
             stop_exits = 0
             max_hold_exits = 0
 
@@ -970,4 +1029,5 @@ class CanonicalStrategySimulator:
                 total_baseline_terminal_superseded
             ),
             baseline_exit_state=baseline_exit_state,
+            data_censored_at=data_censored_at,
         )

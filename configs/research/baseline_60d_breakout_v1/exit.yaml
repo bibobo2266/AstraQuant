@@ -1,0 +1,20 @@
+schema_version: "1"
+name: baseline_60d_breakout_v1_exit
+first_trigger_wins: false
+rules:
+  - type: ATR_FROM_ENTRY_STOP
+    params:
+      period: 14
+      multiplier: 3.0
+      smoothing: SMA
+      trigger_field: CLOSE
+      execution: NEXT_OPEN
+      observation_basis: VALID_OBSERVED_OHLC
+  - type: BREAK_N_DAY_LOW
+    params:
+      window: 20
+      field: CLOSE
+      exclude_current: true
+      strict: true
+      execution: NEXT_OPEN
+      observation_basis: VALID_OBSERVED_OHLC
