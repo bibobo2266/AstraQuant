@@ -1,0 +1,73 @@
+name: TWSE FMTQIK calendar (AQ-EXP-CAL-003)
+
+# 逐月取 TWSE FMTQIK 2016-01 ~ 2021-12，建立 E1 期間的權威交易日集合。
+# 端點公開、無需認證、每月一次請求，以固定間隔循序取得。
+#
+# 為什麼要走 Actions：執行端容器的對外網路只允許套件來源，連不到 twse.com.tw；
+# 一般網頁抓取工具又會把帶不同 date 參數的同一端點塌回同一個月。
+# runner 沒有這兩個限制，而且產出的 raw 回應會 commit 回分支，供審查端覆核。
+#
+# 取數紀律：被擋就停整條路徑，不繞過、不換同義查詢重試（實作在腳本裡）。
+
+on:
+  workflow_dispatch:
+    inputs:
+      start:
+        description: "起始年月 YYYYMM"
+        required: false
+        default: "201601"
+      end:
+        description: "結束年月 YYYYMM"
+        required: false
+        default: "202112"
+      interval:
+        description: "每次請求間隔秒數"
+        required: false
+        default: "4"
+
+permissions:
+  contents: write
+
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref_name }}
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Fetch FMTQIK month by month
+        run: |
+          python scripts/fetch_twse_fmtqik.py \
+            --start "${{ inputs.start }}" \
+            --end "${{ inputs.end }}" \
+            --interval "${{ inputs.interval }}"
+
+      - name: Summary
+        run: |
+          python - <<'PY'
+          import json, pathlib
+          log = json.loads(pathlib.Path("out/aq_exp_cal_003_fetch_log.json").read_text())
+          print("months OK      :", log["months_ok"])
+          print("months UNKNOWN :", log["months_unknown"], log["months_unknown_list"])
+          print("stopped early  :", log["stopped_early"], log["stop_reason"])
+          print("sessions       :", log["total_sessions"])
+          PY
+
+      - name: Commit results
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add out/twse_fmtqik_raw out/aq_exp_cal_003_twse_sessions.csv \
+                  out/aq_exp_cal_003_fetch_log.json
+          if git diff --cached --quiet; then
+            echo "nothing to commit"
+          else
+            git commit -m "AQ-EXP-CAL-003: TWSE FMTQIK raw months and session set [no-effects]"
+            git push origin HEAD:${{ github.ref_name }}
+          fi
