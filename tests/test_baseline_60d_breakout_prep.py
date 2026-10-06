@@ -11,7 +11,6 @@ from astraquant.research.baseline_60d_breakout import (
     atr_from_entry_stop_trigger,
     break_n_day_low_trigger,
 )
-from astraquant.research.component_registry import UnsupportedComponentError
 from astraquant.research.exit_engine import ExitCompiler
 from astraquant.research.strategy_config import ComponentSpec, ExitConfig, ExitRuleConfig
 from astraquant.research.technical_components import column_threshold
@@ -82,10 +81,11 @@ def test_ma120_and_prior20_amount_reuse_column_threshold_without_new_filter():
 
 
 @pytest.mark.parametrize("exit_type", ["ATR_FROM_ENTRY_STOP", "BREAK_N_DAY_LOW"])
-def test_unwired_baseline_exit_types_remain_fail_closed(exit_type):
+def test_baseline_exit_types_fail_closed_without_exact_approved_params(exit_type):
     config = ExitConfig(
-        name="baseline_60d_prep_only",
+        name="baseline_60d_exact_contract_required",
+        first_trigger_wins=False,
         rules=(ExitRuleConfig(type=exit_type, params={}),),
     )
-    with pytest.raises(UnsupportedComponentError, match=exit_type):
+    with pytest.raises(ValueError, match="requires exact baseline params"):
         ExitCompiler().compile(config)

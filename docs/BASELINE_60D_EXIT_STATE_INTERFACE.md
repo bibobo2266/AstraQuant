@@ -1,10 +1,10 @@
 # baseline_60d_breakout_v1 — Exit-State Module Interface
 
-Status: **SYNTHETICALLY TESTED STATE MODULE / NOT WIRED TO CANONICAL SIMULATOR / NOT A STRATEGY RUN**
+Status: **SYNTHETIC CANONICAL INTEGRATION / FORMAL DATA GATE BLOCKED / NOT A STRATEGY RUN**
 
 Frozen implementation base: `4be871dd031f655b5453836f37eeb0d85c158340`.
 
-This module implements only the owner-authorized TRANSLATED exit-state semantics for the 60-day breakout baseline. It does not register a runnable exit component, does not create orders or fills, does not mutate canonical accounting, and does not authorize any E1/E2/E3 strategy-effect run.
+This interface describes the owner-authorized TRANSLATED exit-state semantics and the dependent synthetic integration into the canonical simulator. The state module still does not manufacture fills or mutate canonical accounting. The simulator integration is opt-in and uses canonical RAW execution. Formal baseline research remains fail-closed behind the existing PIT/data gate; no E1/E2/E3 strategy-effect run is authorized.
 
 ## Module
 
@@ -14,6 +14,37 @@ Implementation:
 - state owner: `Baseline60DExitState`
 
 The existing math-only helpers in `baseline_60d_breakout.py` remain unchanged.
+
+## Compiled baseline contract and opt-in boundary
+
+The default ExitCompiler now recognizes the two baseline names only under one exact fixed contract:
+
+- ATR_FROM_ENTRY_STOP: period=14, multiplier=3.0, smoothing=SMA, trigger_field=CLOSE, execution=NEXT_OPEN, observation_basis=VALID_OBSERVED_OHLC.
+- BREAK_N_DAY_LOW: window=20, field=CLOSE, exclude_current=true, strict=true, execution=NEXT_OPEN, observation_basis=VALID_OBSERVED_OHLC.
+- both rules are required together;
+- first_trigger_wins must be false so a same-close dual trigger can be classified BOTH;
+- fixed-stop, TIME_EXIT, ATR_TRAILING, MA_BREAK, or another close rule cannot be mixed into this baseline plan.
+
+Exact scalar validation is non-lossy:
+- boolean parameters must be actual YAML/Python booleans; strings such as "false" and integers such as 1 are rejected;
+- integer parameters must be actual integers; floats such as 14.0 or 20.9 are rejected;
+- numeric multiplier values may be integer or float only, must be finite, and must equal the frozen value;
+- string enum-like parameters must be strings and are normalized only by trim + uppercase before exact comparison;
+- NaN/Inf and unsupported values are rejected.
+
+A compiled exact pair causes apply_to_policy() to disable legacy stop_fraction and max_hold_sessions. Non-baseline exit plans retain their existing behavior.
+
+ResearchConfigEngine passes PreparedResearchRun.exit_plan to CanonicalStrategySimulator. The baseline path is activated only when the exact compiled pair is accompanied by an explicit BaselineSimulationContext.
+
+BaselineSimulationContext separates:
+- SYNTHETIC_FIXTURE: the only executable mode in this revision, for software acceptance only;
+- FORMAL_RESEARCH: unconditionally fail-closed in this revision.
+
+Mode and availability inputs are normalized only from their enum instances or recognized case-insensitive strings. Null, blank, unknown, or non-string/non-enum values are rejected during context construction; they cannot fall through to synthetic behavior.
+
+The existing FeaturePanelIntegrator already validates declared availability, manifest identity, epoch and artifact SHA256 during hydration. However, it does not currently return a canonical simulator-verifiable eligibility object bound to the exact PreparedResearchRun. Therefore caller-supplied VERIFIED plus free-form source text is not accepted as formal evidence. FORMAL_RESEARCH remains blocked until a separately reviewed canonical handoff exists; this integration does not create a parallel gate.
+
+Corporate-action technical transforms also require an event-specific BaselineCATechnicalApproval with an explicit source. Presence of a canonical accounting event never auto-approves the technical transform.
 
 ## Canonical-facing inputs
 
@@ -126,11 +157,11 @@ A trigger on the entry session is allowed. The earliest executable session index
 
 The module emits/retains intent state only. It never manufactures an execution fill.
 
-## Required opening order for future simulator wiring
+## Canonical opt-in event order now implemented for synthetic integration
 
 The canonical historical runner already establishes settlement -> opening CA -> trades. The current `CanonicalStrategySimulator` establishes settlement -> opening CA -> opening entries, but has no generic pending-close-exit stage.
 
-Future baseline wiring must insert the new state transition without changing existing accounting order:
+The opt-in baseline path now uses the following order without changing canonical accounting:
 
 1. settlement / due CA cash;
 2. opening canonical CA/lifecycle application;
@@ -141,7 +172,13 @@ Future baseline wiring must insert the new state transition without changing exi
 7. at close, ingest the valid observed bar and evaluate ATR/LOW20;
 8. close-applied terminal lifecycle may supersede a newly-created pending strategy intent.
 
-This repository change does not perform that wiring.
+The integration uses CanonicalExecutionService for pending EXIT/open fills. Non-executable open attempts retain the original pending state. Only the canonical post-fill position quantity of zero permits the state module to clear a strategy holding.
+
+## Same-ticker re-entry boundary
+
+For the opt-in baseline path, the simulator records which tickers were held at the prior close. A candidate formed at that close is not eligible to buy at the next open if the ticker was held when the signal formed, even if an older pending exit is successfully sold first at that same open.
+
+A genuinely new signal formed at the close after the sale remains eligible for the following session open, subject to the existing canonical policy and execution constraints.
 
 ## Successor boundary
 
@@ -178,4 +215,4 @@ On successor/composite/unknown mapping:
 - multi-stock isolation;
 - period-end pending preservation.
 
-These are synthetic software acceptance tests only. They are not PIT validation, strategy-effect evidence, or a baseline backtest.
+State-level tests remain synthetic software acceptance only. The dependent integration tests additionally exercise real ResearchConfigEngine preparation, exact ExitCompiler compilation, CanonicalStrategySimulator event ordering, RAW ExecutionMarketData, CanonicalExecutionService fills, fee/slippage models, portfolio accounting, settlement state, CA lifecycle and terminal precedence. They are still not PIT validation, strategy-effect evidence, or a baseline backtest.

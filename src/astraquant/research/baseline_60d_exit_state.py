@@ -248,6 +248,7 @@ class Baseline60DExitState:
     skipped_session_reasons: dict[str, list[str]] = field(default_factory=dict)
     retired_observation_counts: dict[str, int] = field(default_factory=dict)
     processed_open_report_ids: set[str] = field(default_factory=set)
+    completed_exit_intents: list[BaselinePendingExit] = field(default_factory=list)
 
     @property
     def applied_ca_event_ids(self) -> set[str]:
@@ -684,6 +685,7 @@ class Baseline60DExitState:
         self.processed_open_report_ids.add(result.report_id)
         holding.open_attempts += 1
         if result.outcome is BaselineOpenExecutionOutcome.FILLED:
+            self.completed_exit_intents.append(pending)
             self.holdings.pop(ticker, None)
 
     @staticmethod

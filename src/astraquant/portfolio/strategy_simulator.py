@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import date, datetime, timedelta
+from typing import Callable
 
 import pandas as pd
 
@@ -17,10 +18,29 @@ from astraquant.portfolio.models import OrderIntent
 from astraquant.portfolio.policy import EntryCandidate, PortfolioIntentPolicy
 from astraquant.portfolio.replay_runner import CanonicalPortfolioReplay, ReplaySnapshot
 from astraquant.portfolio.valuation import value_portfolio
+from astraquant.research.baseline_60d_exit_state import (
+    Baseline60DExitState,
+    BaselineBarInput,
+    BaselineCorporateActionInput,
+    BaselineOpenExecutionOutcome,
+    BaselineOpenExecutionResult,
+    BaselineTerminalDisposition,
+    BaselineTerminalResult,
+)
+from astraquant.research.baseline_60d_simulation import BaselineSimulationContext
 from astraquant.research.candidates import (
     declaration_from_candidate,
     legacy_signals_to_candidates,
     normalize_candidates,
+)
+from astraquant.research.exit_engine import CompiledExitPlan
+from astraquant.research.feature_panel_integration import (
+    EligibilityEvidenceScope,
+    FeaturePanelIntegrationError,
+)
+from astraquant.research.prepared_run_evidence import (
+    PreparedRunEligibilityEvidence,
+    validate_prepared_execution_binding,
 )
 
 
@@ -46,6 +66,10 @@ class StrategySessionAudit:
     corporate_actions_applied: int
     corporate_cash_payments: int
     snapshot: ReplaySnapshot
+    baseline_exit_fills: int = 0
+    baseline_blocked_exit_attempts: int = 0
+    baseline_pending_count: int = 0
+    baseline_terminal_superseded: int = 0
 
 
 @dataclass(frozen=True)
@@ -60,6 +84,11 @@ class StrategySimulationResult:
     total_blocked_exits: int
     total_corporate_actions: int
     total_corporate_cash_payments: int
+    total_baseline_exit_fills: int = 0
+    total_baseline_blocked_exit_attempts: int = 0
+    total_baseline_terminal_superseded: int = 0
+    baseline_exit_state: Baseline60DExitState | None = None
+    data_censored_at: date | None = None
 
 
 class CanonicalStrategySimulator:
@@ -85,6 +114,7 @@ class CanonicalStrategySimulator:
         policy: PortfolioIntentPolicy,
         signal: SignalDeclaration,
         config: StrategySimulationConfig | None = None,
+        baseline_data_guard: Callable[[date, str], bool] | None = None,
     ) -> None:
         if execution.portfolio is not portfolio:
             raise ValueError("execution and simulator must share PortfolioEngine")
@@ -93,6 +123,7 @@ class CanonicalStrategySimulator:
         self.policy = policy
         self.signal = signal
         self.config = config or StrategySimulationConfig()
+        self.baseline_data_guard = baseline_data_guard
         self.replay = CanonicalPortfolioReplay(
             execution=execution,
             portfolio=portfolio,
@@ -162,7 +193,56 @@ class CanonicalStrategySimulator:
         candidates: pd.DataFrame | None = None,
         signals: pd.DataFrame | None = None,
         corporate_actions: list[HistoricalCorporateActionInstruction] | None = None,
+        exit_plan: CompiledExitPlan | None = None,
+        baseline_context: BaselineSimulationContext | None = None,
+        eligibility_evidence: PreparedRunEligibilityEvidence | None = None,
     ) -> StrategySimulationResult:
+        baseline_enabled = bool(
+            exit_plan is not None and exit_plan.baseline_60d_enabled
+        )
+        if baseline_context is not None and not baseline_enabled:
+            raise ValueError(
+                "baseline_context requires the exact baseline_60d compiled exit plan"
+            )
+        if eligibility_evidence is not None and not baseline_enabled:
+            raise ValueError(
+                "eligibility_evidence is only supported by the baseline path"
+            )
+        if baseline_enabled:
+            if baseline_context is None:
+                raise ValueError(
+                    "baseline_60d compiled exit plan requires baseline_context"
+                )
+            # Formal mode is rejected before any artifact/execution-data read.
+            baseline_context.require_runnable()
+            if eligibility_evidence is None:
+                raise FeaturePanelIntegrationError(
+                    "direct baseline simulator entry requires prepared-run "
+                    "eligibility evidence"
+                )
+            if candidates is None or signals is not None:
+                raise FeaturePanelIntegrationError(
+                    "baseline execution binding requires prepared candidates"
+                )
+            if (
+                eligibility_evidence.feature_evidence.scope
+                is not EligibilityEvidenceScope.SYNTHETIC_FIXTURE
+            ):
+                raise FeaturePanelIntegrationError(
+                    "synthetic baseline simulator requires "
+                    "SYNTHETIC_FIXTURE eligibility evidence"
+                )
+            validate_prepared_execution_binding(
+                evidence=eligibility_evidence,
+                exit_plan=exit_plan,
+                actual_policy=self.policy.config,
+                sessions=sessions,
+                candidates=candidates,
+            )
+
+        if self.baseline_data_guard is not None and not baseline_enabled:
+            raise ValueError("baseline_data_guard requires baseline execution")
+
         trading_calendar = TradingCalendar(sessions)
         calendar = trading_calendar.sessions
 
@@ -174,6 +254,22 @@ class CanonicalStrategySimulator:
             else legacy_signals_to_candidates(signals, declaration=self.signal)
         )
         session_index = {day: i for i, day in enumerate(calendar)}
+
+        if baseline_enabled:
+            if (
+                self.policy.config.stop_fraction is not None
+                or self.policy.config.max_hold_sessions is not None
+            ):
+                raise ValueError(
+                    "baseline_60d must run with legacy fixed stop/max-hold disabled"
+                )
+            baseline_exit_state: Baseline60DExitState | None = Baseline60DExitState()
+        else:
+            baseline_exit_state = None
+
+        baseline_tickers = {
+            str(value) for value in normalized_candidates["stock_id"].astype(str).tolist()
+        } if baseline_enabled else set()
 
         entry_signals: dict[date, list[dict[str, object]]] = {}
         for row in normalized_candidates.to_dict("records"):
@@ -217,9 +313,18 @@ class CanonicalStrategySimulator:
         total_blocked_exits = 0
         total_ca = 0
         total_ca_payments = 0
+        total_baseline_exit_fills = 0
+        total_baseline_blocked_exit_attempts = 0
+        total_baseline_terminal_superseded = 0
         latest_ca_session: dict[str, date] = {}
+        held_at_prior_close: set[str] = set()
 
+        data_censored_at = None
         for idx, day in enumerate(calendar):
+            # Stop before any settlement, CA, exit, sizing or NAV mutation.
+            if self.baseline_data_guard is not None and not self.baseline_data_guard(day, "BEFORE_OPEN"):
+                data_censored_at = day
+                break
             start = self._session_start(day)
             terminal_stale_tickers = {
                 ticker
@@ -263,10 +368,11 @@ class CanonicalStrategySimulator:
 
             ca_count = 0
             current_ca_mark_transforms: dict[str, list[tuple[float, float]]] = {}
-            for item in sorted(
+            opening_ca_items = tuple(sorted(
                 ca_by_day.get(day, []),
                 key=lambda x: x.event.event_id,
-            ):
+            ))
+            for item in opening_ca_items:
                 event = item.event
                 economic_apply_at = max(item.applied_at, start)
                 position = self.portfolio.positions.positions.get(event.ticker)
@@ -361,14 +467,221 @@ class CanonicalStrategySimulator:
                         self.policy.register_exit(str(event.ticker))
                 latest_ca_session[str(event.ticker)] = day
                 ca_count += 1
+
+            baseline_exit_fills = 0
+            baseline_blocked_exit_attempts = 0
+            baseline_terminal_superseded = 0
+
+            if baseline_exit_state is not None:
+                relevant_opening_ca = tuple(
+                    item
+                    for item in opening_ca_items
+                    if (
+                        str(item.event.ticker) in baseline_tickers
+                        or baseline_exit_state.holding_state(str(item.event.ticker)) is not None
+                    )
+                )
+                if relevant_opening_ca:
+                    baseline_exit_state.apply_opening_corporate_actions(
+                        tuple(
+                            BaselineCorporateActionInput(
+                                instruction=item,
+                                approved_for_technical_transform=(
+                                    baseline_context.ca_approval(
+                                        item.event.event_id
+                                    ).approved
+                                ),
+                            )
+                            for item in relevant_opening_ca
+                        ),
+                        session_start=start,
+                        decision_cutoff=start,
+                    )
+
+                    for item in relevant_opening_ca:
+                        ticker = str(item.event.ticker)
+                        holding = baseline_exit_state.holding_state(ticker)
+                        if item.extinguish_position and holding is not None:
+                            position = self.portfolio.positions.positions.get(ticker)
+                            canonical_quantity = (
+                                0.0 if position is None else float(position.quantity)
+                            )
+                            if canonical_quantity == 0.0:
+                                audit = baseline_exit_state.record_terminal_result(
+                                    BaselineTerminalResult(
+                                        ticker=ticker,
+                                        session_date=day,
+                                        disposition=BaselineTerminalDisposition.EXTINGUISHED,
+                                        reason=(
+                                            "CANONICAL_OPENING_TERMINAL_EXTINGUISHMENT"
+                                        ),
+                                    )
+                                )
+                                if audit.superseded_pending is not None:
+                                    baseline_terminal_superseded += 1
+                                    total_baseline_terminal_superseded += 1
+                        elif (
+                            item.successor_ticker is not None
+                            or item.successor_legs
+                        ) and (
+                            holding is not None
+                            or baseline_exit_state.technical_block_reason(ticker)
+                            is not None
+                        ):
+                            baseline_exit_state.record_terminal_result(
+                                BaselineTerminalResult(
+                                    ticker=ticker,
+                                    session_date=day,
+                                    disposition=(
+                                        BaselineTerminalDisposition.CANONICAL_LIFECYCLE_REQUIRED
+                                    ),
+                                    reason="CANONICAL_SUCCESSOR_MAPPING_REQUIRED",
+                                )
+                            )
+
+                for ticker in sorted(list(baseline_exit_state.holdings)):
+                    pending = baseline_exit_state.pending_for_open(
+                        ticker,
+                        session_index=idx,
+                    )
+                    if pending is None:
+                        continue
+                    holding = baseline_exit_state.holding_state(ticker)
+                    position = self.portfolio.positions.positions.get(ticker)
+                    before_quantity = (
+                        0.0 if position is None else float(position.quantity)
+                    )
+                    if before_quantity <= 0:
+                        audit = baseline_exit_state.record_terminal_result(
+                            BaselineTerminalResult(
+                                ticker=ticker,
+                                session_date=day,
+                                disposition=BaselineTerminalDisposition.EXTINGUISHED,
+                                reason="CANONICAL_POSITION_ZERO_BEFORE_PENDING_EXIT",
+                            )
+                        )
+                        if audit.superseded_pending is not None:
+                            baseline_terminal_superseded += 1
+                            total_baseline_terminal_superseded += 1
+                        continue
+
+                    decision = self.execution.market_data.resolve(
+                        ticker=ticker,
+                        session_date=day,
+                        side="sell",
+                        use=PriceUse.EXIT,
+                        field="open",
+                    )
+                    report_id = f"baseline-exit-report:{day}:{ticker}:{pending.intent_id}"
+                    if decision.availability is not ExecutionAvailability.EXECUTABLE:
+                        if (
+                            decision.tradability is not None
+                            and decision.tradability.sell_blocked
+                        ):
+                            outcome = BaselineOpenExecutionOutcome.SELL_BLOCKED
+                        elif decision.reason in {
+                            "RAW_MISSING_OR_NONUNIQUE",
+                            "RAW_INVALID_OHLC",
+                            "TRADABILITY_MISSING_OR_NONUNIQUE",
+                        }:
+                            outcome = BaselineOpenExecutionOutcome.NO_VALID_OPEN
+                        else:
+                            outcome = BaselineOpenExecutionOutcome.NOT_EXECUTABLE
+                        baseline_exit_state.record_open_execution(
+                            BaselineOpenExecutionResult(
+                                report_id=report_id,
+                                ticker=ticker,
+                                session_date=day,
+                                session_index=idx,
+                                outcome=outcome,
+                                reason=decision.reason,
+                                pending_intent_id=pending.intent_id,
+                                entry_fill_id=holding.entry_fill_id,
+                                canonical_position_quantity_before=before_quantity,
+                                canonical_position_quantity_after=before_quantity,
+                                fill=None,
+                            )
+                        )
+                        baseline_blocked_exit_attempts += 1
+                        total_baseline_blocked_exit_attempts += 1
+                        total_blocked_exits += 1
+                        continue
+
+                    intent = OrderIntent(
+                        intent_id=f"baseline-exit:{day}:{ticker}",
+                        ticker=ticker,
+                        side="sell",
+                        quantity=before_quantity,
+                        created_at=start,
+                        rationale=f"baseline_60d pending {pending.reason.value}",
+                    )
+                    out = self.execution.execute(
+                        intent=intent,
+                        signal=self.signal,
+                        order_id=f"order:baseline-exit:{day}:{ticker}",
+                        fill_id=f"fill:baseline-exit:{day}:{ticker}",
+                        submitted_at=start,
+                        session_date=day,
+                        use=PriceUse.EXIT,
+                        field="open",
+                        settlement=SettlementInstruction(
+                            settlement_id=f"settle:baseline-exit:{day}:{ticker}",
+                            due_at=self._settlement_due(
+                                sessions=calendar,
+                                session_index=idx,
+                            ),
+                        ),
+                    )
+                    after_position = self.portfolio.positions.positions.get(ticker)
+                    after_quantity = (
+                        0.0
+                        if after_position is None
+                        else float(after_position.quantity)
+                    )
+                    baseline_exit_state.record_open_execution(
+                        BaselineOpenExecutionResult(
+                            report_id=report_id,
+                            ticker=ticker,
+                            session_date=day,
+                            session_index=idx,
+                            outcome=BaselineOpenExecutionOutcome.FILLED,
+                            reason="CANONICAL_EXIT_FILL",
+                            pending_intent_id=pending.intent_id,
+                            entry_fill_id=holding.entry_fill_id,
+                            canonical_position_quantity_before=before_quantity,
+                            canonical_position_quantity_after=after_quantity,
+                            fill=out.fill,
+                        )
+                    )
+                    if ticker in self.policy.managed_positions:
+                        self.policy.register_exit(ticker)
+                    baseline_exit_fills += 1
+                    total_baseline_exit_fills += 1
+
             held_before_open = set(self.policy.managed_positions)
 
-            signal_rows = sorted(entry_signals.get(day, []), key=lambda row: str(row["stock_id"]))
+            signal_rows = sorted(
+                entry_signals.get(day, []),
+                key=lambda row: str(row["stock_id"]),
+            )
             tickers = [str(row["stock_id"]) for row in signal_rows]
             entry_candidates: list[EntryCandidate] = []
             candidate_signal_by_ticker: dict[str, SignalDeclaration] = {}
+            baseline_pre_entry_skips: dict[str, str] = {}
             for row in signal_rows:
                 ticker = str(row["stock_id"])
+                if baseline_exit_state is not None:
+                    if ticker in held_at_prior_close:
+                        baseline_pre_entry_skips[ticker] = (
+                            "BASELINE_SIGNAL_FORMED_WHILE_HELD"
+                        )
+                        continue
+                    if baseline_exit_state.technical_block_reason(ticker) is not None:
+                        baseline_pre_entry_skips[ticker] = (
+                            "BASELINE_TECHNICAL_STATE_BLOCKED"
+                        )
+                        continue
+
                 candidate_signal = declaration_from_candidate(row)
                 candidate_signal_by_ticker[ticker] = candidate_signal
                 sizing = self.execution.sizing_price(
@@ -383,8 +696,16 @@ class CanonicalStrategySimulator:
                         ticker=ticker,
                         sizing_decision=sizing,
                         signal_date=str(pd.Timestamp(row["signal_date"]).date()),
-                        turnover_value=(None if pd.isna(row.get("turnover_value")) else float(row["turnover_value"])),
-                        breakout_excess=(None if pd.isna(row.get("breakout_excess")) else float(row["breakout_excess"])),
+                        turnover_value=(
+                            None
+                            if pd.isna(row.get("turnover_value"))
+                            else float(row["turnover_value"])
+                        ),
+                        breakout_excess=(
+                            None
+                            if pd.isna(row.get("breakout_excess"))
+                            else float(row["breakout_excess"])
+                        ),
                     )
                 )
 
@@ -406,7 +727,7 @@ class CanonicalStrategySimulator:
                 current_nav=opening_nav,
                 available_cash=self.portfolio.cash.available_to_commit_cash,
             )
-            entry_skips = len(skipped)
+            entry_skips = len(skipped) + len(baseline_pre_entry_skips)
             capacity_rejections = sum(
                 reason == "NO_POSITION_SLOT" or reason.startswith("CAPACITY_")
                 for reason in skipped.values()
@@ -453,9 +774,19 @@ class CanonicalStrategySimulator:
                     fill_price=out.fill.price,
                     session_index=idx,
                 )
+                if baseline_exit_state is not None:
+                    baseline_exit_state.register_entry(
+                        out.fill,
+                        session_index=idx,
+                    )
                 entries += 1
             total_entries += entries
             total_entry_skips += entry_skips
+
+            # Preserve same-day entry fills, but never value an unreliable holding.
+            if self.baseline_data_guard is not None and not self.baseline_data_guard(day, "BEFORE_CLOSE"):
+                data_censored_at = day
+                break
 
             stop_exits = 0
             max_hold_exits = 0
@@ -547,6 +878,43 @@ class CanonicalStrategySimulator:
             total_stop_exits += stop_exits
             total_max_hold_exits += max_hold_exits
 
+            if baseline_exit_state is not None:
+                close_tickers = baseline_tickers | set(baseline_exit_state.holdings)
+                for ticker in sorted(close_tickers):
+                    decision = self.execution.market_data.resolve(
+                        ticker=ticker,
+                        session_date=day,
+                        side="sell",
+                        use=PriceUse.MARK,
+                        field="close",
+                    )
+                    raw_bar = decision.bar
+                    tradability = decision.tradability
+                    baseline_exit_state.observe_bar(
+                        BaselineBarInput(
+                            ticker=ticker,
+                            session_date=day,
+                            session_index=idx,
+                            open=(None if raw_bar is None else raw_bar.open),
+                            high=(None if raw_bar is None else raw_bar.high),
+                            low=(None if raw_bar is None else raw_bar.low),
+                            close=(None if raw_bar is None else raw_bar.close),
+                            observed_trade=(
+                                False
+                                if tradability is None
+                                else bool(tradability.observed_trade)
+                            ),
+                            valid_ohlc=(
+                                False
+                                if tradability is None
+                                else bool(tradability.valid_ohlc)
+                            ),
+                            gap_reason=(
+                                None if decision.reason == "OK" else decision.reason
+                            ),
+                        )
+                    )
+
             # Conservative terminal fallback events are close-applied so the
             # final RAW trading session remains fully executable. They use the
             # observed final RAW close as cash consideration and never create a
@@ -586,10 +954,25 @@ class CanonicalStrategySimulator:
                 )
                 if str(event.ticker) in self.policy.managed_positions:
                     self.policy.register_exit(str(event.ticker))
+                if baseline_exit_state is not None:
+                    ticker = str(event.ticker)
+                    if baseline_exit_state.holding_state(ticker) is not None:
+                        audit = baseline_exit_state.record_terminal_result(
+                            BaselineTerminalResult(
+                                ticker=ticker,
+                                session_date=day,
+                                disposition=BaselineTerminalDisposition.EXTINGUISHED,
+                                reason="CANONICAL_CLOSE_TERMINAL_EXTINGUISHMENT",
+                            )
+                        )
+                        if audit.superseded_pending is not None:
+                            baseline_terminal_superseded += 1
+                            total_baseline_terminal_superseded += 1
                 latest_ca_session[str(event.ticker)] = day
                 ca_count += 1
 
             total_ca += ca_count
+            held_at_prior_close = set(self.policy.managed_positions)
 
             snapshot = self.replay.snapshot(
                 at=datetime.combine(day, datetime.max.time()),
@@ -613,6 +996,17 @@ class CanonicalStrategySimulator:
                     corporate_actions_applied=ca_count,
                     corporate_cash_payments=ca_payment_count,
                     snapshot=snapshot,
+                    baseline_exit_fills=baseline_exit_fills,
+                    baseline_blocked_exit_attempts=baseline_blocked_exit_attempts,
+                    baseline_pending_count=(
+                        0
+                        if baseline_exit_state is None
+                        else sum(
+                            holding.pending_exit is not None
+                            for holding in baseline_exit_state.holdings.values()
+                        )
+                    ),
+                    baseline_terminal_superseded=baseline_terminal_superseded,
                 )
             )
 
@@ -627,4 +1021,13 @@ class CanonicalStrategySimulator:
             total_blocked_exits=total_blocked_exits,
             total_corporate_actions=total_ca,
             total_corporate_cash_payments=total_ca_payments,
+            total_baseline_exit_fills=total_baseline_exit_fills,
+            total_baseline_blocked_exit_attempts=(
+                total_baseline_blocked_exit_attempts
+            ),
+            total_baseline_terminal_superseded=(
+                total_baseline_terminal_superseded
+            ),
+            baseline_exit_state=baseline_exit_state,
+            data_censored_at=data_censored_at,
         )
