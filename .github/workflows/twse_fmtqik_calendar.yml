@@ -48,6 +48,9 @@ jobs:
             --end "${{ inputs.end }}" \
             --interval "${{ inputs.interval }}"
 
+      - name: Adjudicate against the authoritative record
+        run: python scripts/adjudicate_calendar_authoritative.py
+
       - name: Summary
         run: |
           python - <<'PY'
@@ -57,6 +60,11 @@ jobs:
           print("months UNKNOWN :", log["months_unknown"], log["months_unknown_list"])
           print("stopped early  :", log["stopped_early"], log["stop_reason"])
           print("sessions       :", log["total_sessions"])
+          art = json.loads(pathlib.Path("out/aq_exp_cal_003_authoritative_calendar.json").read_text())
+          print("upgraded       :", art["adjudication"]["upgraded_to_authoritative"])
+          print("still 3rd-party:", art["adjudication"]["still_third_party"])
+          print("real missing   :", art["adjudication"]["real_missing_session_dates"])
+          print("panel-only     :", art["full_period_reconciliation"]["panel_only_count"])
           PY
 
       - name: Commit results
@@ -64,10 +72,12 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add out/twse_fmtqik_raw out/aq_exp_cal_003_twse_sessions.csv \
-                  out/aq_exp_cal_003_fetch_log.json
+                  out/aq_exp_cal_003_fetch_log.json \
+                  out/aq_exp_cal_003_authoritative_calendar.json \
+                  out/aq_exp_cal_003_adjudication.csv
           if git diff --cached --quiet; then
             echo "nothing to commit"
           else
-            git commit -m "AQ-EXP-CAL-003: TWSE FMTQIK raw months and session set [no-effects]"
+            git commit -m "AQ-EXP-CAL-003: TWSE FMTQIK 權威紀錄與重新判定 [no-effects]"
             git push origin HEAD:${{ github.ref_name }}
           fi
