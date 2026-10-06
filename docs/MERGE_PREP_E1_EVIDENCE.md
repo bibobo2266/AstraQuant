@@ -1,16 +1,17 @@
-# AQ-EXP-MERGE-PREP-001 — E1 證據線十二個 Draft PR 的合併前準備
+# AQ-EXP-MERGE-PREP-001 — E1 證據線十四個 Draft PR 的合併前準備
 
-task_id: AQ-EXP-MERGE-PREP-001 / revision 3
+task_id: AQ-EXP-MERGE-PREP-001 / revision 4
 狀態：本輪**不合併任何 PR**，只做準備。由執行端產出，不自行驗收。
 
-revision 3 的改動：revision 2 只涵蓋 #4～#12 共八個 PR，不含 #13／#14／#15／#16，
-其 `502 passed` 也不包含它們。本版以十二個 PR 的現行 head 重做乾跑，
-並補上 CAL-003 的覆蓋範圍限制（§5 第 2 條）。§1、§2 整段汰換，§3 之後重新驗證後不變。
+revision 4 的改動：revision 3 是十二個 PR 的版本，`#17`／`#18` 把倖存者線延長為
+`#18 → #17 → #16 → #9 → main`，現在是十四個。r3 的 `539 passed` **作廢，合併輪不得套用**。
+本版以十四個 PR 的現行 head 重做乾跑，並新增 §2.5 處理 `#18` 帶進來的新交集面。
+§1、§2 整段汰換，§3 之後重新驗證後不變。
 
-未改任何既有交付的內容、未改 manifest 本體、未改 producer、未改 queue。
-FORMAL_RESEARCH 維持無條件阻擋。私有逐列內容未進 repo。
+未改任何 PR 的內容 —— 本輪沒有為了讓乾跑過而動任何一行。
+未改 manifest 本體、未改 producer、未改 queue。FORMAL_RESEARCH 維持無條件阻擋。
 
-參考點：`main` = `6b60b05`。所有 head 與乾跑結論均以此為準；main 若再往前走，§2 需重跑確認。
+參考點：`main` = `6b60b05`。main 若再往前走，§2 需重跑確認。
 
 ## 1. 依賴圖與建議合併順序
 
@@ -18,14 +19,15 @@ FORMAL_RESEARCH 維持無條件阻擋。私有逐列內容未進 repo。
 
 ```
 資料／證據線                                 倖存者線
-main ← #8   sol4/aq-exp-data-001-r2          main ← #9  claude/aq-exp-survivor-001
+main ← #8   sol4/aq-exp-data-001-r2          main ← #9   claude/aq-exp-survivor-001
        ↑ #10 solc/aq-exp-atr-001                    ↑ #16 solc/aq-exp-survivor-002
-       ↑ #11 solc/aq-exp-geom-001
-       ↑ #13 solc/aq-exp-cal-001             runner 線
-            ↑ #14 solc/aq-exp-cal-002        main ← #4  solb/baseline-60d-simulator-integration
-                 ↑ #15 solc/aq-exp-cal-003          ↑ #5  solb/prepared-run-eligibility-evidence
-                                                         ↑ #7  solb/baseline-60d-exploration-runner-prep
-main ← #12  solc/aq-exp-merge-prep-001  獨立
+       ↑ #11 solc/aq-exp-geom-001                        ↑ #17 solc/aq-exp-survivor-003
+       ↑ #13 solc/aq-exp-cal-001                              ↑ #18 solc/aq-exp-survivor-004
+            ↑ #14 solc/aq-exp-cal-002
+                 ↑ #15 solc/aq-exp-cal-003   runner 線
+                                             main ← #4  solb/baseline-60d-simulator-integration
+main ← #12  solc/aq-exp-merge-prep-001              ↑ #5  solb/prepared-run-eligibility-evidence
+            獨立                                          ↑ #7  solb/baseline-60d-exploration-runner-prep
 ```
 
 | PR | head（現行） | base |
@@ -37,86 +39,107 @@ main ← #12  solc/aq-exp-merge-prep-001  獨立
 | #9 | `05bfd378` | `main` |
 | #10 | `bfbafa31` | `sol4/aq-exp-data-001-r2` |
 | #11 | `2ccc65ed` | `sol4/aq-exp-data-001-r2` |
-| #12 | `49d038bd` | `main` |
+| #12 | `f090d96b` | `main` |
 | #13 | `bb2fb943` | `sol4/aq-exp-data-001-r2` |
 | #14 | `9f3b5979` | `solc/aq-exp-cal-001` |
 | #15 | `773d4709` | `solc/aq-exp-cal-002` |
 | #16 | `7e58989d` | `claude/aq-exp-survivor-001` |
+| #17 | `ddbe1ae4` | `solc/aq-exp-survivor-002` |
+| #18 | `311165ec` | `solc/aq-exp-survivor-003` |
 
 ### 1.2 建議順序
 
 四疊各自由深到淺，互不相依：
 
 - **資料線**：`#10 → #11 → #15 → #14 → #13 → #8 → main`
-  （#13／#14／#15 是一條線性鏈；#10 與 #11 與 #13 同層，三者都掛在 #8 上）
-- **倖存者線**：`#16 → #9 → main`
+- **倖存者線**：`#18 → #17 → #16 → #9 → main`
 - **runner 線**：`#7 → #5 → #4 → main`
 - `#12` 獨立
 
 兩個必須先知道的副作用（四疊都適用）：
 
-- **先合深層會把淺層 PR 的 diff 撐大。** #10／#11／#13／#14／#15 全進 sol4 之後，
-  #8 的 diff 會從 6 個檔長到 20 餘個。按下最外層那一顆之前應重讀其最終 diff。
-- **不要直接把深層 PR 合進 main。** 它們的 commit 鏈含著上游，直接合會把上游
-  連帶拖進 main 並跳過其審查狀態。
+- **先合深層會把淺層 PR 的 diff 撐大。** 倖存者線尤其明顯：#16／#17／#18 全進 #9 之後，
+  #9 的 diff 會從 3 個檔長到 12 個檔，其中包含對 #9 自己交付的
+  `docs/SURVIVORSHIP_72_DELISTED.md` 的修改。按下 #9 之前應重讀其最終 diff。
+- **不要直接把深層 PR 合進 main。** 它們的 commit 鏈含著上游。
 
-## 2. 衝突清單（以十二個 PR 的現行 head 重做）
+## 2. 衝突清單（以十四個 PR 的現行 head 重做）
 
 全部用 `git merge --no-commit --no-ff` 乾跑後 `git merge --abort`，未推送、未合併。
+**沒有為了讓乾跑過而更動任何 PR 的內容。**
 
 ### 2.1 兩兩乾跑
 
 | 目標 ← 來源 | 結果 |
 | --- | --- |
-| `solc/aq-exp-cal-002`(#14) ← #15 | CLEAN |
-| `solc/aq-exp-cal-001`(#13) ← #14 | CLEAN |
-| `sol4`(#8) ← #13 / ← #10 / ← #11 | CLEAN / CLEAN / CLEAN |
-| `main` ← #8 | CLEAN |
-| `claude/aq-exp-survivor-001`(#9) ← #16 | CLEAN |
+| `#14` ← #15 ／ `#13` ← #14 ／ `#8` ← #13 | CLEAN ／ CLEAN ／ CLEAN |
+| `#8` ← #10 ／ `#8` ← #11 ／ `main` ← #8 | CLEAN ／ CLEAN ／ CLEAN |
+| `#17` ← #18 ／ `#16` ← #17 ／ `#9` ← #16 | CLEAN ／ CLEAN ／ CLEAN |
 | `main` ← #9 | CLEAN |
-| `solb/prepared-run`(#5) ← #7 | CLEAN |
-| `solb/simulator`(#4) ← #5 | CLEAN |
-| `main` ← #4 | CLEAN |
+| `#5` ← #7 ／ `#4` ← #5 ／ `main` ← #4 | CLEAN ／ CLEAN ／ CLEAN |
 | `main` ← #12 | CLEAN |
 
 ### 2.2 四疊整串乾跑
 
 - 資料線 `#13 → #14 → #15 → #10 → #11` 疊進 #8：**五步全 CLEAN**
-- 倖存者線 `#16 → #9`：**CLEAN**
+- 倖存者線 `#16 → #17 → #18` 疊進 #9：**三步全 CLEAN**
 - runner 線 `#7 → #5 → #4`：**CLEAN**
 - 四疊再加 `#12` 全部併進 main：**四步全 CLEAN**
 
-**十二個 PR 併進同一棵樹後，零衝突檔案、零衝突行段。**
-該樹上 `pytest -q` = **539 passed, 9 skipped**（9 skip 是需要私有逐列／固定 source／
-外部日曆套件的那幾支，缺輸入時明示 skip）；帶齊三層輸入跑
+**十四個 PR 併進同一棵樹後，零衝突檔案、零衝突行段。**
+該樹上 `pytest -q` = **564 passed, 9 skipped**；帶齊三層輸入跑
 `scripts/merge_postcheck.py --strict` = **PASS 48 / FAIL 0 / SKIP 0**。
 
-revision 2 的 `502 passed` 不含 #13～#16，已作廢，合併輪不得引用。
+r3 的 `539 passed` 不含 #17／#18，已作廢。
 
 ### 2.3 被多個 PR 同時觸碰的檔案
 
-| 檔案 | 被幾個 PR 碰 | 性質 |
+| 檔案 | PR | 性質 |
 | --- | --- | --- |
-| `src/astraquant/portfolio/strategy_simulator.py` | 3（#4／#5／#7） | 同一 stack 的先後修改 |
-| `tests/test_baseline_60d_simulator_integration.py` | 2（#4／#5） | 同上 |
-| `src/astraquant/research/config_engine.py` | 2（#4／#5） | 同上 |
-| `docs/BASELINE_60D_BREAKOUT_READINESS.md` | 2（#5／#7） | 同上 |
-| `out/aq_exp_data_001_r2_manifest.json` | 2（#8／#10） | 同上 |
+| `src/astraquant/portfolio/strategy_simulator.py` | #4／#5／#7 | runner stack 內先後修改 |
+| `docs/BASELINE_60D_BREAKOUT_READINESS.md` | #4／#7 | 同上 |
+| `src/astraquant/research/config_engine.py` | #4／#5 | 同上 |
+| `tests/test_baseline_60d_simulator_integration.py` | #4／#5 | 同上 |
+| `out/aq_exp_data_001_r2_manifest.json` | #8／#10 | 資料線 stack 內 |
+| **`docs/SURVIVORSHIP_72_DELISTED.md`** | **#9／#18** | **倖存者線 stack 內（新）** |
+| **`docs/AQ_EXP_SURVIVOR_003_SEQUENCE_END.md`** | **#17／#18** | **倖存者線 stack 內（新）** |
 
-**全部是 stack 內的順序依賴，沒有任何一組是兩個獨立分支各改一份。**
-新增的 #13／#14／#15／#16 沒有與任何其他 PR 共用檔案 —— 它們各自只新增自己的
-docs／out／tests，#15 另有 `scripts/` 與一支 workflow。四疊之間零交集。
+### 2.4 #18 帶進來的新交集面（r3 未涵蓋）
 
-### 2.4 CAL-003 的 workflow：已改為可落地 main 的形式
+`#18` 動到 `scripts/source_terminal_coverage_audit.py` 與四份 docs，其中兩份與
+`#9`／`#17` 的原始交付重疊。逐一確認其性質：
 
-合併前置第 2 點已完成，並在最終合併樹上複驗：
+| 檔案 | 誰新增 | 誰修改 | 判定 |
+| --- | --- | --- | --- |
+| `docs/SURVIVORSHIP_72_DELISTED.md` | #9（add） | #18（mod） | **stack 內順序依賴** |
+| `docs/AQ_EXP_SURVIVOR_003_SEQUENCE_END.md` | #17（add） | #18（mod） | **stack 內順序依賴** |
+| `docs/SOURCE_TERMINAL_COVERAGE_AUDIT.md` | main 既有 | 僅 #18 | 無交集 |
+| `docs/MASTER_PROGRESS.md` | main 既有 | 僅 #18 | 無交集 |
+| `scripts/source_terminal_coverage_audit.py` | main 既有 | 僅 #18 | 無交集 |
 
-- `on.push` 與 sentinel 路徑 `out/.cal003_run_token` **已刪除**，檔案不存在於樹上
-- 只保留 `workflow_dispatch`
-- 檔頭已註明**單次執行為 72 次對外請求**（2016-01～2021-12，每月一次，預設間隔 4 秒，
-  整趟約 6–8 分鐘），並寫明請勿排程、請勿反覆觸發
-- 檔頭同時載明更正後的取數紀律（單次阻擋標 UNKNOWN 不重試、連續兩次或累計三次停整條端點、
-  被擋單位補取須 Owner 裁定）
+**判定依據不是「看起來像」，是祖先關係**。用 `git merge-base --is-ancestor` 逐對驗證：
+
+```
+#9  是 #18 的祖先 ✓      #17 是 #18 的祖先 ✓      #16 是 #17 的祖先 ✓
+#9  是 #16 的祖先 ✓      #8  是 #13/#14/#15 的祖先 ✓
+#4  是 #5/#7 的祖先 ✓    #5  是 #7 的祖先 ✓
+```
+
+每一組共同檔案的兩個 PR 都在同一條 stack 上、且前者是後者的祖先，
+因此 git 看到的是同一條線上的先後兩次修改，**不是兩個分支各改一份**。
+四疊之間零交集：`MASTER_PROGRESS.md`、`SOURCE_TERMINAL_COVERAGE_AUDIT.md` 與其產生器
+只被 #18 碰，沒有任何其他疊觸及。
+
+唯一會變成真衝突的情境，是合併前又有人往某疊的中間層推新 commit 去改上面那些檔案；
+屆時應在該疊內部解、讓下游 rebase，不要在 main 側解。
+
+### 2.5 合併輪三個既有條件在最終樹上的複驗
+
+| 條件 | 複驗結果 |
+| --- | --- |
+| CAL-003 workflow 形態 | `on.push` 無殘留、sentinel 檔不存在、`workflow_dispatch` 保留、檔頭 72 次對外請求註記在位 |
+| 「真缺日 0」的覆蓋範圍 | 月份 OK **71**、UNKNOWN `201710`、仍 third-party **3 天**，與 §5 第 2 條一致 |
+| 「74 檔」判定窗標註 | 未標註的裸「74 檔」敘述 **0 處**；稽核表 `Terminal window` 欄位 **42 E1_INSIDE / 32 E1_OUTSIDE** |
 
 ## 3. period_end 定稿方案（只提方案，本輪不執行）
 
@@ -218,7 +241,7 @@ AQ_PRODUCER=/path/scripts/astraquant_aq_exp_data_001.py \
 
 ## 5. 合併後**仍未**解決的事項
 
-以下沒有一項因為這十二個 PR 合併而完成。不要在合併紀錄裡把它們寫成已完成。
+以下沒有一項因為這十四個 PR 合併而完成。不要在合併紀錄裡把它們寫成已完成。
 
 1. **runner 線只有合成 fixture。** #4／#5／#7 的 src 凍結已由 Owner 解除、三個 PR 皆已 ACCEPTED，
    但 runner 至今只跑過 deterministic synthetic fixture，沒有真實 parquet 整合驗收，
@@ -230,21 +253,24 @@ AQ_PRODUCER=/path/scripts/astraquant_aq_exp_data_001.py \
    該月**未驗證**，`2017-10-04`／`2017-10-09`／`2017-10-10` 三天仍停在 **third-party**。
    合併紀錄若要寫「真缺日 0」，**必須同時寫明覆蓋 71/72、2017-10 未驗證、3 天仍為第三方**，
    不得簡化成全期已驗。2017-10 的補取依更正後的取數紀律須 Owner 裁定後另案發工。
-3. **producer 仍沒有獨立的幾何閘門。** #11 量到的 0 是上游
+3. **E1 倖存者的既有曝光量是以過大母體算出的。** `#17` 確認 E1 內真正有序列終止事件的是
+   **42 檔**，不是 74 檔（判定窗 2015–2026）。既有的 413 股票日 / 0.089% 以全 74 檔為母體，
+   **方向偏保守**，`#18` 已就地加註、數字未重算。合併紀錄不得把 413 / 0.089% 當成 E1 曝光量引用。
+4. **producer 仍沒有獨立的幾何閘門。** #11 量到的 0 是上游
    `tradability.valid_ohlc` 一個欄位撐住的，爆炸半徑 48,518 列 / 290 檔。
    建議的兩條解法（producer 加斷言、回歸測試釘住攔截率）只有後者隨 #11 進去，
    前者未執行。
-4. **`tradability.valid_ohlc` 本身未獨立稽核。** #11 把它當給定值。
-5. **B 依賴曝光與原母體未重跑。** #10 只動 ATR14 的 C／numeric／limited／evidence／reason，
+5. **`tradability.valid_ohlc` 本身未獨立稽核。** #11 把它當給定值。
+6. **B 依賴曝光與原母體未重跑。** #10 只動 ATR14 的 C／numeric／limited／evidence／reason，
    B 曝光 20,524 與母體 458,315 都是沿用 v1 的值。
-6. **21 檔下市事件未查證。** `data/research/terminal_events.csv` 仍待補，
+7. **21 檔下市事件未查證。** `data/research/terminal_events.csv` 仍待補，
    PR #9 只做到接觸面清點，沒有做事件歸類。
-7. **PR #9 §7 的縮減比例仍用 lifetime 口徑**（54%，8,465/15,797）。
+8. **PR #9 §7 的縮減比例仍用 lifetime 口徑**（54%，8,465/15,797）。
    主口徑已改為 60 日窗，同一比較在 60 日窗下是 410/413 ≈ 99.3%。
    這不影響 §7 的建議方向（只查 21 檔），反而更支持它，但兩個口徑並存在同一份文件裡。
    PR #9 已用完兩輪修改額度，列為已知限制。
-8. **A2 的 manifest 註記未執行**（見 §3.3），若要做需另開 PR。
-9. **沒有任何策略效果數字。** FORMAL_RESEARCH 全程無條件阻擋，這四個 PR 全是
+9. **A2 的 manifest 註記未執行**（見 §3.3），若要做需另開 PR。
+10. **沒有任何策略效果數字。** FORMAL_RESEARCH 全程無條件阻擋，這十四個 PR 全是
    資料可算性的 membership accounting，不含勝率、賠率、期望值或任何報酬口徑。
 
 ## 6. 本輪沒有做的事
