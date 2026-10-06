@@ -1,67 +1,26 @@
 {
  "branches": {
-  "main": "42a532451b2217cfe82afc99f402ffd5ada4fd42",
-  "sol4/aq-exp-data-001-r2": "25266f8a15ebd8b505a9835e4db7d5ca4fe82ce0",
+  "main": "a79125013690c5bd6c2099b14cf5c12578447184",
+  "sol4/aq-exp-data-001-r2": "2bc6925cf7313cc56045bf01507f4f0034bd4c63",
   "sol-ab-v2-b-20261004": "f56ec5a145d5edab8192229e1fa4ccdb42fc2cc6",
   "solb/baseline-60d-exit-state": "584bf75f5de556f86dcc665def33d65af0843b14",
   "solb/baseline-60d-exploration-runner-prep": "7bab63fb38d7afbb4e0c7a0aa756dc7fec2a4d1c",
-  "solb/baseline-60d-simulator-integration": "4d69eca9cda91f7565e5e0ba0c04256c70e64570",
-  "solb/prepared-run-eligibility-evidence": "aee7387adf424d009dec919db6120b4a7eb6cbd8",
+  "solb/baseline-60d-simulator-integration": "6d5c2af3086a6ef2ae44000b4250c926a0aaeedc",
+  "solb/prepared-run-eligibility-evidence": "21d4d4b91d95b76ee79f26f4098ae66f2d1164a9",
   "solb/register-ema9-research-candidates": "8a57dffaf0ddf2102c33bd771efa1aadf1d19540",
   "solb/rsi-computability-v1-strict": "5a395ec769612ca6d1f7b021ed332a4daa3b6b8c",
   "solc/aq-exp-atr-001": "bfbafa3142630cf5fa27500e2c3163adfa25b7d0",
-  "solc/aq-exp-cal-001": "bb2fb943addd8f0b5a1d8ed74ae8b97586e276f6",
+  "solc/aq-exp-cal-001": "c070040c27d862d994de46cbe5f1cb3ae3d2e7c6",
+  "solc/aq-exp-cal-002": "1db9ddc85217bd6038ebf9164e286b7f787223a1",
+  "solc/aq-exp-cal-003": "773d4709406a34a76c0447baff251790126f7e1c",
   "solc/aq-exp-geom-001": "2ccc65ed875cf0ea33aa0b6670bf053dfa7bd660",
-  "solc/aq-exp-merge-prep-001": "49d038bd7ddd0eb126896d21c0229e49ad0663f9"
+  "solc/aq-exp-merge-prep-001": "600ffd14df77b8c52895305c0846bf7fc53a99ae",
+  "solc/aq-exp-survivor-002": "24950f38284d3aef46199d17b32e907fbe0c6207",
+  "solc/aq-exp-survivor-003": "353c393b7d667d904472c6eac45bf7b4091c82eb",
+  "solc/aq-exp-survivor-004": "311165eca39914cc8399cbec88fca8b4ecee20fa"
  },
- "prs": {
-  "13": {
-   "sha": "bb2fb943addd8f0b5a1d8ed74ae8b97586e276f6",
-   "draft": true,
-   "title": "AQ-EXP-CAL-001: 共同日曆完整性在原母體內實際受影響 0 列 [no-effects]"
-  },
-  "12": {
-   "sha": "49d038bd7ddd0eb126896d21c0229e49ad0663f9",
-   "draft": true,
-   "title": "AQ-EXP-MERGE-PREP-001: E1 證據線四個 Draft PR 的合併前準備 [no-effects]"
-  },
-  "11": {
-   "sha": "2ccc65ed875cf0ea33aa0b6670bf053dfa7bd660",
-   "draft": true,
-   "title": "AQ-EXP-GEOM-001: OHLC 幾何違反在原母體內實際為 0 列 [no-effects]"
-  },
-  "10": {
-   "sha": "bfbafa3142630cf5fa27500e2c3163adfa25b7d0",
-   "draft": true,
-   "title": "AQ-EXP-ATR-001: ATR14 暖機差異實際受影響筆數 = 17 [no-effects]"
-  },
-  "9": {
-   "sha": "05bfd3785d7b162ba99080342c90c9a376f3e9ee",
-   "draft": true,
-   "title": "AQ-EXP-SURVIVOR-001: 未建模下市股接觸面清點與決策紀錄 [no-effects]"
-  },
-  "8": {
-   "sha": "25266f8a15ebd8b505a9835e4db7d5ca4fe82ce0",
-   "draft": true,
-   "title": "AQ-EXP-DATA-001 r2: reconcile coverage producer and daily data contracts [no-effects]"
-  },
-  "7": {
-   "sha": "7bab63fb38d7afbb4e0c7a0aa756dc7fec2a4d1c",
-   "draft": true,
-   "title": "Prepare frozen baseline 60D exploration runner [no-effects]"
-  },
-  "5": {
-   "sha": "aee7387adf424d009dec919db6120b4a7eb6cbd8",
-   "draft": true,
-   "title": "Bind feature hydration evidence to PreparedResearchRun [no-effects]"
-  },
-  "4": {
-   "sha": "4d69eca9cda91f7565e5e0ba0c04256c70e64570",
-   "draft": true,
-   "title": "Wire baseline 60D exit-state into canonical simulator [no-effects]"
-  }
- },
- "last_comment": 6006637428,
+ "prs": {},
+ "last_comment": 6013564726,
  "flags": [],
- "checked_at": "2026-10-06T03:15:49Z"
+ "checked_at": "2026-10-06T10:41:47Z"
 }
