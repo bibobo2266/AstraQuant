@@ -81,10 +81,13 @@
       "formal": 14,
       "synthetic_14_atr": 2.2857142857142856,
       "synthetic_15_atr": 2.0,
-      "real_feature_delta": null,
+      "real_feature_delta": 17,
       "real_feature_delta_upper_bound_from_original_atr_c": 399,
       "isolated_warmup_change_all_four_delta": 0,
-      "isolated_warmup_change_note": "LOW20 remains C at valid ordinal 14; excludes separate validity/calendar defects"
+      "isolated_warmup_change_note": "LOW20 remains C at valid ordinal 14; excludes separate validity/calendar defects",
+      "real_feature_delta_status": "EXACT",
+      "real_feature_delta_source": "AQ-EXP-ATR-001 / out/aq_exp_atr_001_warmup_correction.json",
+      "real_feature_delta_note": "399 ATR C rows; only 17 sit at valid bar ordinal 14 with a valid current bar"
     },
     "bar_validity": {
       "geometry_checked_by_producer": false,
@@ -97,7 +100,7 @@
       "current_close_strict_gt_prior_high": true,
       "calendar_completeness_verified_on_real_source": false
     },
-    "real_counts_recomputed": false
+    "real_counts_recomputed": "ATR14_WARMUP_ONLY"
   },
   "evidence": {
     "test_file": "tests/test_aq_exp_data_001_r2.py",
