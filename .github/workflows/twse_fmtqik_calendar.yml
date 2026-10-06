@@ -9,7 +9,13 @@ name: TWSE FMTQIK calendar (AQ-EXP-CAL-003)
 #
 # 取數紀律：被擋就停整條路徑，不繞過、不換同義查詢重試（實作在腳本裡）。
 
+# workflow_dispatch 只認預設分支上的 workflow 檔，這支還沒進 main，
+# 所以另開一個「推 sentinel 檔就跑一次」的觸發，範圍限定在本分支與該單一路徑，
+# 避免本分支其他 commit（含本 workflow 自己 commit 結果）重複觸發。
 on:
+  push:
+    branches: [solc/aq-exp-cal-003]
+    paths: ["out/.cal003_run_token"]
   workflow_dispatch:
     inputs:
       start:
@@ -42,11 +48,14 @@ jobs:
           python-version: "3.11"
 
       - name: Fetch FMTQIK month by month
+        env:
+          # push 觸發時 inputs 為空，這裡補上與 workflow_dispatch 相同的預設值。
+          START: ${{ inputs.start || '201601' }}
+          END: ${{ inputs.end || '202112' }}
+          INTERVAL: ${{ inputs.interval || '4' }}
         run: |
           python scripts/fetch_twse_fmtqik.py \
-            --start "${{ inputs.start }}" \
-            --end "${{ inputs.end }}" \
-            --interval "${{ inputs.interval }}"
+            --start "$START" --end "$END" --interval "$INTERVAL"
 
       - name: Adjudicate against the authoritative record
         run: python scripts/adjudicate_calendar_authoritative.py
