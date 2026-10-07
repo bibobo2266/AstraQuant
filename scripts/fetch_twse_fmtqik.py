@@ -91,10 +91,23 @@ def main() -> int:
     ap.add_argument("--interval", type=float, default=4.0,
                     help="每次請求之間的間隔秒數")
     ap.add_argument("--timeout", type=float, default=30.0)
+    ap.add_argument("--merge-existing", action="store_true",
+                    help="把本次結果併進既有的 log 與 sessions，而不是整份覆寫。"
+                         "補取單一月份時必須加這個旗標，否則會洗掉先前已取得的月份。")
     args = ap.parse_args()
 
     RAW_DIR.mkdir(parents=True, exist_ok=True)
     wanted = months(args.start, args.end)
+    prior_log: dict = {}
+    prior_rows: list[tuple[str, str]] = []
+    if args.merge_existing:
+        if LOG.exists():
+            prior_log = json.loads(LOG.read_text(encoding="utf-8"))
+        if SESSIONS.exists():
+            for line in SESSIONS.read_text(encoding="utf-8").splitlines()[1:]:
+                if line.strip():
+                    d, m = line.split(",")
+                    prior_rows.append((d, m))
     log: dict[str, object] = {
         "endpoint_template": ENDPOINT,
         "months_requested": len(wanted),
@@ -148,8 +161,19 @@ def main() -> int:
         if i + 1 < len(wanted):
             time.sleep(args.interval)
 
+    if args.merge_existing and prior_log:
+        # 既有月份保留，本次取到的覆蓋同名月份；兩邊的 raw 檔本來就並存於 RAW_DIR。
+        merged = dict(prior_log.get("months", {}))
+        merged.update(log["months"])
+        log["months"] = merged
+        log["months_requested"] = max(int(prior_log.get("months_requested", 0)),
+                                      len(merged))
+        log["merged_with_prior_run"] = True
+        log["this_run_months"] = wanted
+        kept = {d for d, _ in prior_rows if (d[:4] + d[5:7]) not in wanted}
+        rows.extend((d, m) for d, m in prior_rows if d in kept)
     ok = [m for m, v in log["months"].items() if v["status"] == "OK"]
-    unknown = [m for m in wanted if log["months"].get(m, {}).get("status") != "OK"]
+    unknown = [m for m, v in log["months"].items() if v["status"] != "OK"]
     log["months_ok"] = len(ok)
     log["months_unknown"] = len(unknown)
     log["months_unknown_list"] = unknown
@@ -158,7 +182,7 @@ def main() -> int:
                            "2 consecutive or 3 cumulative -> stop the endpoint")
     log["total_sessions"] = len({d for d, _ in rows})
 
-    rows.sort()
+    rows = sorted(set(rows))
     SESSIONS.write_text(
         "date,source_month\n" + "".join(f"{d},{m}\n" for d, m in rows), encoding="utf-8")
     LOG.write_text(json.dumps(log, indent=1, ensure_ascii=False), encoding="utf-8")
