@@ -12,12 +12,12 @@ import pandas as pd
 from astraquant.execution.assumptions import SideAwareBpsFeeModel
 
 
-RULE_VERSION = "trading-plan-r1-owner-20261007"
+RULE_VERSION = "trading-plan-r1-owner-20261008-r2"
 COMMISSION = 0.001425 * 0.6
 TAX = 0.003
 SLIPPAGE = 0.002
 FEES = SideAwareBpsFeeModel(COMMISSION * 10000, (COMMISSION + TAX) * 10000)
-COMMON = ("run_id", "portfolio_id", "mode", "source_kind", "rule_version", "row_id")
+COMMON = ("run_id", "portfolio_id", "mode", "entry_mode", "source_kind", "rule_version", "row_id")
 SCHEMAS = {
     "eligibility": COMMON + (
         "date", "stock", "condition_values", "condition_passes", "source",
@@ -25,7 +25,7 @@ SCHEMAS = {
     ),
     "decisions": COMMON + (
         "date", "stock", "trade_id", "order_id", "direction", "trigger",
-        "want_price", "price_cap", "stop_price", "reject_reason", "rs",
+        "want_price", "price_cap", "stop_price", "reject_reason", "reject_reasons", "rs",
         "pivot", "structure_stop", "base_sessions", "status",
     ),
     "fills": COMMON + (
@@ -48,7 +48,7 @@ FLOAT_COLUMNS = {
     "equity", "last_reliable_equity", "capital_occupied",
 }
 BOOL_COLUMNS = {"eligible", "order", "fill", "cancel", "exit", "truncated", "frozen"}
-OBJECT_COLUMNS = {"condition_values", "condition_passes", "positions", "blocked_opportunities", "corporate_action"}
+OBJECT_COLUMNS = {"condition_values", "condition_passes", "positions", "blocked_opportunities", "corporate_action", "reject_reasons"}
 
 
 def _day(value: Any) -> str:
@@ -79,10 +79,12 @@ def _plain(value: Any) -> Any:
 class SharedLedger:
     """Four tables; a fill intent keeps its row_id when reconciled."""
 
-    def __init__(self, run_id: str, mode: str, portfolio_id: str = "synthetic-r1"):
+    def __init__(self, run_id: str, mode: str, portfolio_id: str = "synthetic-r1", entry_mode: str = "close"):
         if mode not in {"backtest", "daily"}:
             raise ValueError("mode must be backtest or daily")
-        self.identity = dict(run_id=run_id, portfolio_id=portfolio_id, mode=mode,
+        if entry_mode not in {"close", "next_open"}:
+            raise ValueError("entry_mode must be close or next_open")
+        self.identity = dict(run_id=run_id, portfolio_id=portfolio_id, mode=mode, entry_mode=entry_mode,
                              source_kind="synthetic", rule_version=RULE_VERSION)
         self.rows: dict[str, list[dict]] = {name: [] for name in SCHEMAS}
 
@@ -131,7 +133,7 @@ class Position:
 
 
 class TradingPlanR1:
-    """Owner's close-fill simulation. Synthetic-only; no formal/source gate bypass.
+    """Owner's close/next-open simulation. Synthetic-only; no source gate bypass.
 
     A final close both confirms the signal and prices the same-session fill.
     This is an explicit close-fill simulation convention, not proof that a live
@@ -140,7 +142,7 @@ class TradingPlanR1:
     """
 
     def __init__(self, *, run_id: str, mode: str, sessions: list[str],
-                 initial_cash: float = 1_000_000, portfolio_id: str = "synthetic-r1"):
+                 initial_cash: float = 1_000_000, portfolio_id: str = "synthetic-r1", entry_mode: str = "close"):
         self.sessions = [_day(d) for d in sessions]
         if not self.sessions or self.sessions != sorted(set(self.sessions)):
             raise ValueError("sessions must be a sorted, unique trading calendar")
@@ -148,7 +150,9 @@ class TradingPlanR1:
             raise ValueError("initial_cash must be positive")
         self.initial_cash = float(initial_cash)
         self.cash = float(initial_cash)
-        self.ledger = SharedLedger(run_id, mode, portfolio_id)
+        self.ledger = SharedLedger(run_id, mode, portfolio_id, entry_mode)
+        self.entry_mode = entry_mode
+        self.pending_entries: dict[str, dict] = {}
         self.positions: dict[str, Position] = {}
         self.plans: dict[str, dict] = {}
         self.completed: list[str] = []
@@ -221,13 +225,39 @@ class TradingPlanR1:
                                corporate_action=None, truncated=False, status="INTENT",
                                reason=reason, quantity=quantity, want_price=want_price,
                                commission=0.0, tax=0.0, slippage=0.0, cash_flow=0.0,
-                               price_semantics="OWNER_CLOSE_FILL_SIMULATION")
+                               price_semantics="OWNER_CLOSE_FILL_SIMULATION" if self.entry_mode == "close" else "OWNER_NEXT_OPEN_SIMULATION")
 
-    def _reject(self, decision: dict, reason: str) -> None:
-        decision.update(status="REJECTED", reject_reason=reason)
+    def _reject(self, decision: dict, reasons: str | list[str]) -> None:
+        reasons = [reasons] if isinstance(reasons, str) else list(dict.fromkeys(reasons))
+        if not reasons:
+            raise ValueError("rejection needs at least one reason")
+        reason = reasons[0]
+        decision.update(status="REJECTED", reject_reason=reason, reject_reasons=reasons)
         row = self.ledger.find("fills", decision["order_id"])
         if row is not None:
             row.update(status="REJECTED", cancel=True, reason=reason)
+
+    def _execution_reasons(self, decision: dict, bar: dict | None, previous_close: float) -> list[str]:
+        reasons = []
+        if self.frozen:
+            reasons.append("portfolio_frozen")
+        problem = self._bar_problem(bar)
+        if problem:
+            reasons.append(problem)
+        if bar is None:
+            return reasons
+        price = bar["close"] if self.entry_mode == "close" else bar["open"]
+        if not _finite(bar.get("limit_up_price")) or bar["limit_up_price"] <= 0:
+            reasons.append("limit_up_price_unavailable")
+        if _finite(price) and _finite(decision["price_cap"]) and price > decision["price_cap"]:
+            reasons.append("price_cap_exceeded")
+        if _finite(bar["open"]) and _finite(previous_close) and bar["open"] > previous_close * 1.05:
+            reasons.append("gap_up_over_5pct")
+        if _finite(price) and _finite(bar.get("limit_up_price")) and math.isclose(price, bar["limit_up_price"], rel_tol=0, abs_tol=1e-8):
+            reasons.append("limit_up")
+        if decision["stock"] in self.positions:
+            reasons.append("already_held_no_add")
+        return reasons
 
     def prepare_session(self, bars: pd.DataFrame, day: str) -> dict[str, pd.DataFrame]:
         """Write intentions now; reconcile this same session after bars are available."""
@@ -246,6 +276,24 @@ class TradingPlanR1:
         today = {r["stock"]: _plain(r) for r in p[p.date == day].to_dict("records")}
         features: dict[str, dict] = {}
         candidates = []
+        if self.entry_mode == "next_open":
+            for rid, pending in list(self.pending_entries.items()):
+                if pending["signal_date"] >= day:
+                    continue
+                decision = self.ledger.find("decisions", rid)
+                bar = today.get(decision["stock"])
+                if bar is not None and _finite(bar.get("open")) and _finite(decision["structure_stop"]):
+                    price = bar["open"]
+                    decision.update(want_price=price, stop_price=max(price * 0.93, decision["structure_stop"]))
+                    self.ledger.find("fills", decision["order_id"])["want_price"] = price
+                reasons = self._execution_reasons(decision, bar, pending["signal_close"])
+                if self.sessions.index(day) != self.sessions.index(pending["signal_date"]) + 1:
+                    reasons.append("missed_next_open")
+                if reasons:
+                    self._reject(decision, reasons)
+                else:
+                    candidates.append(rid)
+                del self.pending_entries[rid]
         for stock, bar in sorted(today.items(), key=lambda item: (
             -float(item[1].get("rs", 0)) if _finite(item[1].get("rs", 0)) else math.inf,
             item[0],
@@ -267,38 +315,38 @@ class TradingPlanR1:
             trade_id = self._id("trade", day, stock)
             pivot = feat["pivot"]
             price_cap = pivot * 1.05 if pivot is not None else None
-            stop = max(bar["close"] * 0.93, feat["structure_stop"]) if feat["structure_stop"] is not None else None
+            want_price = bar["close"] if self.entry_mode == "close" else None
+            stop = max(bar["close"] * 0.93, feat["structure_stop"]) if self.entry_mode == "close" and feat["structure_stop"] is not None else None
             order = self._intent(day=day, stock=stock, trade_id=trade_id, side="buy",
-                                 reason="bollinger_breakout", want_price=bar["close"])
+                                 reason="bollinger_breakout", want_price=want_price)
             decision = self.ledger.add("decisions", self._id("decision", day, stock),
                                       date=day, stock=stock, trade_id=trade_id, order_id=order["row_id"],
-                                      direction="LONG", trigger="BB21_2.1_UPPER_CROSS", want_price=bar["close"],
+                                      direction="LONG", trigger="BB21_2.1_UPPER_CROSS", want_price=want_price,
                                       price_cap=price_cap, stop_price=stop, rs=bar.get("rs", 0.0),
                                       pivot=pivot, structure_stop=feat["structure_stop"],
-                                      base_sessions=feat["base_sessions"], status="INTENT", reject_reason="")
-            reason = ""
+                                      base_sessions=feat["base_sessions"], status="INTENT", reject_reason="", reject_reasons=[])
+            reasons = []
             if self.frozen:
-                reason = "portfolio_frozen"
-            elif not er["eligible"]:
-                reason = data_status if data_status != "valid" else "not_eligible_or_not_available"
-            elif not _finite(bar.get("rs")):
-                reason = "rs_unavailable"
-            elif not _finite(bar.get("limit_up_price")) or bar["limit_up_price"] <= 0:
-                reason = "limit_up_price_unavailable"
-            elif not feat["base_valid"]:
-                reason = "base_history_missing"
-            elif feat["base_sessions"] < 10:
-                reason = "base_too_short"
-            elif bar["close"] > price_cap:
-                reason = "price_cap_exceeded"
-            elif bar["open"] > feat["prev_close"] * 1.05:
-                reason = "gap_up_over_5pct"
-            elif _finite(bar.get("limit_up_price")) and math.isclose(bar["close"], bar["limit_up_price"], rel_tol=0, abs_tol=1e-8):
-                reason = "limit_up"
+                reasons.append("portfolio_frozen")
+            if not er["eligible"]:
+                reasons.append(data_status if data_status != "valid" else "not_eligible_or_not_available")
+            if not _finite(bar.get("rs")):
+                reasons.append("rs_unavailable")
+            if self.entry_mode == "close" and (not _finite(bar.get("limit_up_price")) or bar["limit_up_price"] <= 0):
+                reasons.append("limit_up_price_unavailable")
+            if not feat["base_valid"]:
+                reasons.append("base_history_missing")
+            if feat["base_sessions"] < 10:
+                reasons.append("base_too_short")
+            if self.entry_mode == "close":
+                reasons.extend(self._execution_reasons(decision, bar, feat["prev_close"]))
             elif stock in self.positions:
-                reason = "already_held_no_add"
-            if reason:
-                self._reject(decision, reason)
+                reasons.append("already_held_no_add")
+            if reasons:
+                self._reject(decision, reasons)
+            elif self.entry_mode == "next_open":
+                decision["status"] = "PENDING_NEXT_OPEN"
+                self.pending_entries[decision["row_id"]] = dict(signal_date=day, signal_close=bar["close"])
             else:
                 candidates.append(decision["row_id"])
         sell_intents, close_exit_intents = {}, {}
@@ -354,9 +402,9 @@ class TradingPlanR1:
                         order=False, fill=False, cancel=False, exit=False, cost=0.0,
                         corporate_action=ca, truncated=True, status="TRUNCATED", reason=reason,
                         quantity=pos.quantity, holding_sessions=self.sessions.index(day) - pos.entry_index,
-                        price_semantics="OWNER_CLOSE_FILL_SIMULATION")
+                        price_semantics="OWNER_CLOSE_FILL_SIMULATION" if self.entry_mode == "close" else "OWNER_NEXT_OPEN_SIMULATION")
 
-    def _sell(self, pos: Position, bar: dict, day: str, observed_at: str) -> None:
+    def _sell(self, pos: Position, bar: dict, day: str, observed_at: str, *, open_only: bool = False) -> None:
         problem = self._bar_problem(bar)
         locked_down = (_finite(bar.get("limit_down_price")) and
                        math.isclose(bar["open"], bar["high"], abs_tol=1e-8) and
@@ -388,7 +436,7 @@ class TradingPlanR1:
         elif pos.pending_exit:
             row = self.ledger.find("fills", pos.pending_exit)
             price, reason = bar["open"], "sma20_next_open"
-        elif bar["low"] <= pos.stop_price:
+        elif not open_only and bar["low"] <= pos.stop_price:
             observed = bar.get("stop_fill_price")
             price = float(observed) if _finite(observed) else pos.stop_price
             if not bar["low"] <= price <= bar["high"] or price > pos.stop_price:
@@ -429,36 +477,46 @@ class TradingPlanR1:
         blocked = []
         if not self.frozen:
             for pos in list(self.positions.values()):
-                self._sell(pos, today[pos.stock], day, observed_at)
+                self._sell(pos, today[pos.stock], day, observed_at, open_only=self.entry_mode == "next_open")
         candidates = [self.ledger.find("decisions", rid) for rid in plan["candidates"]]
         candidates.sort(key=lambda r: (-float(r["rs"]), r["stock"]))
-        # Close marks determine allocation; no future marks or independent cash per candidate.
-        budget_equity = self.cash + sum(pos.quantity * today[pos.stock]["close"]
+        # Allocation uses the execution-time mark, never a next-open day's future close.
+        price_field = "close" if self.entry_mode == "close" else "open"
+        budget_equity = self.cash + sum(pos.quantity * today[pos.stock][price_field]
                                        for pos in self.positions.values() if pos.stock in today)
         for decision in candidates:
             stock = decision["stock"]
             bar = today[stock]
-            reason = "portfolio_frozen" if self.frozen else ""
-            if not reason and stock in self.positions:
-                reason = "already_held_no_add"
-            if not reason and len(self.positions) >= 5:
-                reason = "max_positions"
+            reasons = []
+            if self.frozen:
+                reasons.append("portfolio_frozen")
+            if stock in self.positions:
+                reasons.append("already_held_no_add")
+            if len(self.positions) >= 5:
+                reasons.append("max_positions")
             target = min(budget_equity * 0.07, budget_equity * 0.25)
-            per_share = bar["close"] * (1 + COMMISSION + SLIPPAGE)
+            price = bar[price_field]
+            per_share = price * (1 + COMMISSION + SLIPPAGE)
             qty = int(math.floor(target / per_share))
-            if not reason and qty <= 0:
-                reason = "insufficient_size"
-            if not reason and qty * per_share > self.cash + 1e-8:
-                reason = "insufficient_cash"
-            if reason:
-                self._reject(decision, reason)
-                blocked.append(dict(stock=stock, trade_id=decision["trade_id"], rs=decision["rs"], reason=reason))
+            if qty <= 0:
+                reasons.append("insufficient_size")
+            if qty * per_share > self.cash + 1e-8:
+                reasons.append("insufficient_cash")
+            if reasons:
+                self._reject(decision, reasons)
+                blocked.append(dict(stock=stock, trade_id=decision["trade_id"], rs=decision["rs"],
+                                    reason=reasons[0], reject_reasons=reasons))
                 continue
             row = self.ledger.find("fills", decision["order_id"])
-            spent = -self._charge(row, price=bar["close"], quantity=qty, day=day, observed_at=observed_at)
-            self.positions[stock] = Position(stock, decision["trade_id"], qty, bar["close"], spent,
+            spent = -self._charge(row, price=price, quantity=qty, day=day, observed_at=observed_at)
+            self.positions[stock] = Position(stock, decision["trade_id"], qty, price, spent,
                                              day, self.sessions.index(day), decision["stop_price"])
             decision["status"] = "FILLED"
+        if self.entry_mode == "next_open" and not self.frozen:
+            # Newly opened holdings can stop intraday. Existing intraday stops must
+            # not release a slot or cash before the opening allocation above.
+            for pos in list(self.positions.values()):
+                self._sell(pos, today[pos.stock], day, observed_at)
         if not self.frozen:
             for stock, pos in list(self.positions.items()):
                 bar = today[stock]
@@ -469,6 +527,10 @@ class TradingPlanR1:
                         day=day, stock=stock, trade_id=pos.trade_id, side="sell",
                         reason="sma20_next_open", want_price=None, quantity=pos.quantity)
                     pos.pending_exit = row["row_id"]
+        else:
+            for rid in list(self.pending_entries):
+                self._reject(self.ledger.find("decisions", rid), "portfolio_frozen")
+                del self.pending_entries[rid]
         equity = None if self.frozen else self.cash + sum(pos.quantity * today[pos.stock]["close"] for pos in self.positions.values())
         if equity is not None:
             self.last_reliable_equity = equity
@@ -491,6 +553,7 @@ class TradingPlanR1:
         state = dict(sessions=self.sessions, initial_cash=self.initial_cash, cash=self.cash,
                      identity=self.ledger.identity, tables=self.ledger.rows,
                      positions={s: asdict(p) for s, p in self.positions.items()}, plans=self.plans,
+                     pending_entries=self.pending_entries,
                      completed=self.completed, frozen=self.frozen, freeze_reason=self.freeze_reason,
                      last_reliable_equity=self.last_reliable_equity)
         Path(path).write_text(json.dumps(_plain(state), ensure_ascii=False, allow_nan=False), encoding="utf-8")
@@ -502,10 +565,10 @@ class TradingPlanR1:
         if identity["source_kind"] != "synthetic" or identity["rule_version"] != RULE_VERSION:
             raise ValueError("unsupported saved source or rule version")
         engine = cls(run_id=identity["run_id"], mode=identity["mode"], sessions=state["sessions"],
-                     initial_cash=state["initial_cash"], portfolio_id=identity["portfolio_id"])
+                     initial_cash=state["initial_cash"], portfolio_id=identity["portfolio_id"], entry_mode=identity["entry_mode"])
         engine.ledger.rows = state["tables"]
         engine.positions = {s: Position(**p) for s, p in state["positions"].items()}
-        for key in ("cash", "plans", "completed", "frozen", "freeze_reason", "last_reliable_equity"):
+        for key in ("cash", "plans", "pending_entries", "completed", "frozen", "freeze_reason", "last_reliable_equity"):
             setattr(engine, key, state[key])
         validate_tables(engine.ledger.tables())
         return engine
@@ -549,15 +612,30 @@ def load_tables(directory: str | Path, *, prefix: str = "synthetic_") -> dict[st
     return tables
 
 
+def load_r1_config(path: str | Path) -> dict:
+    import yaml
+    config = yaml.safe_load(Path(path).read_text(encoding="utf-8"))
+    if not isinstance(config, dict) or config.get("entry_mode") not in {"close", "next_open"}:
+        raise ValueError("config entry_mode must be close or next_open")
+    if config.get("bollinger") != {"window": 21, "stddev": 2.1, "ddof": 0}:
+        raise ValueError("owner's Bollinger 21/2.1/ddof=0 parameters are fixed")
+    return config
+
+
 def metrics(tables: dict[str, pd.DataFrame]) -> pd.DataFrame:
     """One metrics path for either mode or their concatenation; report each run."""
     validate_tables(tables)
-    fills, equity = tables["fills"], tables["equity"]
+    fills, equity, decisions = tables["fills"], tables["equity"], tables["decisions"]
     rows = []
     groups = sorted(set(zip(fills.run_id, fills.portfolio_id)) | set(zip(equity.run_id, equity.portfolio_id)))
     for run, portfolio in groups:
         f = fills[(fills.run_id == run) & (fills.portfolio_id == portfolio)]
         e = equity[(equity.run_id == run) & (equity.portfolio_id == portfolio)].sort_values("date")
+        d = decisions[(decisions.run_id == run) & (decisions.portfolio_id == portfolio)]
+        reason_counts = {}
+        for reasons in d.loc[d.status.eq("REJECTED"), "reject_reasons"]:
+            for reason in reasons:
+                reason_counts[reason] = reason_counts.get(reason, 0) + 1
         buys = f[f.side.eq("buy") & f.fill.fillna(False)]
         closed = f[f.side.eq("sell") & f.fill.fillna(False)]
         censored = set(f.loc[f.truncated.fillna(False), "trade_id"])
@@ -576,7 +654,9 @@ def metrics(tables: dict[str, pd.DataFrame]) -> pd.DataFrame:
                 entry_day = pos["entry_date"]
                 occupied_days += max(0, len(e) - 1 - day_index.get(entry_day, 0))
         frozen = bool(e.frozen.fillna(False).any()) if len(e) else False
-        rows.append(dict(run_id=run, portfolio_id=portfolio, closed_count=len(returns),
+        rows.append(dict(run_id=run, portfolio_id=portfolio,
+                         entry_mode=str(e.iloc[-1].entry_mode) if len(e) else str(f.iloc[0].entry_mode),
+                         closed_count=len(returns),
                          net_win_rate=float((returns > 0).mean()) if len(returns) else None,
                          avg_win=avg_win, avg_loss=avg_loss,
                          payoff_ratio=avg_win / avg_loss if avg_win is not None and avg_loss else None,
@@ -585,14 +665,16 @@ def metrics(tables: dict[str, pd.DataFrame]) -> pd.DataFrame:
                          capital_occupied_position_days=None if frozen else occupied_days,
                          open_count=len(open_ids), truncated_count=len(censored),
                          rejected_count=int(f.status.eq("REJECTED").sum()),
+                         pending_entry_count=int((f.side.eq("buy") & f.status.eq("INTENT")).sum()),
+                         reject_reason_counts=reason_counts,
                          portfolio_frozen=frozen,
                          final_equity=None if frozen or not len(e) else float(e.iloc[-1].equity),
-                         metrics_scope="synthetic_close_fill_simulation"))
+                         metrics_scope="synthetic_entry_mode_simulation"))
     return pd.DataFrame(rows)
 
 
-def run_backtest(bars: pd.DataFrame, *, run_id: str, sessions: list[str], start: str) -> TradingPlanR1:
-    engine = TradingPlanR1(run_id=run_id, mode="backtest", sessions=sessions)
+def run_backtest(bars: pd.DataFrame, *, run_id: str, sessions: list[str], start: str, entry_mode: str = "close") -> TradingPlanR1:
+    engine = TradingPlanR1(run_id=run_id, mode="backtest", sessions=sessions, entry_mode=entry_mode)
     for day in engine.sessions:
         if day >= _day(start):
             engine.prepare_session(bars, day)
@@ -601,8 +683,8 @@ def run_backtest(bars: pd.DataFrame, *, run_id: str, sessions: list[str], start:
     return engine
 
 
-def run_daily(bars: pd.DataFrame, *, run_id: str, sessions: list[str], start: str) -> TradingPlanR1:
-    engine = TradingPlanR1(run_id=run_id, mode="daily", sessions=sessions)
+def run_daily(bars: pd.DataFrame, *, run_id: str, sessions: list[str], start: str, entry_mode: str = "close") -> TradingPlanR1:
+    engine = TradingPlanR1(run_id=run_id, mode="daily", sessions=sessions, entry_mode=entry_mode)
     previous = None
     for day in engine.sessions:
         if day < _day(start):

@@ -8,7 +8,7 @@ import pandas as pd
 
 from astraquant.research.trading_plan_r1 import (
     COMMISSION, SLIPPAGE, TAX, SCHEMAS, TradingPlanR1,
-    concat_ledgers, load_tables, metrics, run_backtest, run_daily,
+    concat_ledgers, load_r1_config, load_tables, metrics, run_backtest, run_daily,
 )
 
 
@@ -31,9 +31,9 @@ def fixture(*, stocks=("1101",), closes=(104.0,), changes=None):
     return pd.DataFrame(rows), sessions
 
 
-def execute(bars, sessions, *, mode="backtest", run_id="test"):
+def execute(bars, sessions, *, mode="backtest", run_id="test", entry_mode="close"):
     runner = run_backtest if mode == "backtest" else run_daily
-    return runner(bars, run_id=run_id, sessions=sessions, start=sessions[80])
+    return runner(bars, run_id=run_id, sessions=sessions, start=sessions[80], entry_mode=entry_mode)
 
 
 def sold(engine):
@@ -304,6 +304,126 @@ class SharedSchemaAndContracts(unittest.TestCase):
                 frame.to_csv(Path(folder) / f"synthetic_{name}.csv", index=False)
             restored = load_tables(folder)
         pd.testing.assert_frame_equal(metrics(tables), metrics(restored))
+
+
+class EngineeringRevisions(unittest.TestCase):
+    def test_10_entry_modes_different_prices_and_correct_rejection_sessions(self):
+        p, days = fixture(closes=(104.0, 103.0), changes={
+            ("1101", 81): {"open": 102.0, "high": 104.0, "low": 101.0, "close": 103.0}})
+        close = execute(p, days, run_id="close")
+        opening = execute(p, days, run_id="open", entry_mode="next_open")
+        a = close.ledger.table("fills").query("side == 'buy' and fill == True").iloc[0]
+        b = opening.ledger.table("fills").query("side == 'buy' and fill == True").iloc[0]
+        self.assertEqual(a.fill_price, 104.0)
+        self.assertEqual(a.fill_date, days[80])
+        self.assertEqual(b.fill_price, 102.0)
+        self.assertEqual(b.date, days[80])
+        self.assertEqual(b.fill_date, days[81])
+        self.assertEqual(opening.positions["1101"].stop_price, 100.0)
+        scenarios = [
+            ({("1101", 80): {"open": 106.0, "high": 107.0}}, "gap_up_over_5pct", None),
+            ({("1101", 80): {"close": 106.0, "high": 107.0}}, "price_cap_exceeded", None),
+            ({("1101", 80): {"limit_up_price": 104.0}}, "limit_up", None),
+            ({("1101", 81): {"open": 110.0, "high": 111.0, "low": 108.0, "close": 109.0}}, None, "price_cap_exceeded"),
+            ({("1101", 81): {"open": 104.0, "high": 105.0, "low": 102.0, "close": 103.0, "limit_up_price": 104.0}}, None, "limit_up"),
+        ]
+        for patch, close_reason, open_reason in scenarios:
+            with self.subTest(patch=patch):
+                changes = {("1101", 81): {"open": 102.0, "high": 104.0, "low": 101.0, "close": 103.0}}
+                changes.update(patch)
+                bars, sessions = fixture(closes=(104.0, 103.0), changes=changes)
+                for mode, reason in (("close", close_reason), ("next_open", open_reason)):
+                    engine = execute(bars, sessions, entry_mode=mode)
+                    decision = engine.ledger.table("decisions").iloc[0]
+                    if reason:
+                        self.assertEqual(decision.status, "REJECTED")
+                        self.assertEqual(decision.reject_reason, reason)
+                    else:
+                        self.assertEqual(decision.status, "FILLED")
+        self.assertEqual(metrics(concat_ledgers(close.ledger.tables(), opening.ledger.tables())).entry_mode.tolist(), ["close", "next_open"])
+
+    def test_11_all_reject_reasons_primary_unchanged(self):
+        p, days = fixture(closes=(106.0,), changes={
+            ("1101", 80): {"open": 106.0, "high": 107.0, "low": 105.0, "close": 106.0}})
+        engine = execute(p, days)
+        row = engine.ledger.table("decisions").iloc[0]
+        self.assertEqual(row.reject_reason, "price_cap_exceeded")
+        self.assertEqual(row.reject_reasons, ["price_cap_exceeded", "gap_up_over_5pct"])
+        counts = metrics(engine.ledger.tables()).iloc[0].reject_reason_counts
+        self.assertEqual(counts, {"price_cap_exceeded": 1, "gap_up_over_5pct": 1})
+
+    def test_next_open_pending_state_save_restore_and_daily_parity(self):
+        p, days = fixture(closes=(104.0, 103.0), changes={
+            ("1101", 81): {"open": 102.0, "high": 104.0, "low": 101.0, "close": 103.0}})
+        engine = TradingPlanR1(run_id="saved", mode="daily", sessions=days, entry_mode="next_open")
+        engine.prepare_session(p, days[80])
+        engine.reconcile_session(days[80], observed_at=days[81])
+        self.assertEqual(engine.cash, 1_000_000)
+        self.assertEqual(metrics(engine.ledger.tables()).iloc[0].pending_entry_count, 1)
+        original = engine.ledger.table("fills").iloc[0].row_id
+        with tempfile.TemporaryDirectory() as folder:
+            path = Path(folder) / "pending.json"
+            engine.save(path)
+            engine = TradingPlanR1.load(path)
+        engine.prepare_session(p, days[81])
+        engine.reconcile_session(days[81], observed_at=pd.Timestamp(days[81]) + pd.offsets.BDay())
+        self.assertEqual(engine.ledger.table("fills").iloc[0].row_id, original)
+        self.assertEqual(engine.ledger.table("fills").iloc[0].fill_price, 102.0)
+        back = execute(p, days, run_id="back", entry_mode="next_open")
+        self.assertEqual(engine.cash, back.cash)
+        self.assertEqual(engine.positions["1101"].entry_price, back.positions["1101"].entry_price)
+
+    def test_next_open_new_holding_can_stop_same_session(self):
+        p, days = fixture(closes=(104.0, 99.0), changes={
+            ("1101", 81): {"open": 102.0, "high": 103.0, "low": 98.0, "close": 99.0}})
+        engine = execute(p, days, entry_mode="next_open")
+        exit_row = sold(engine).iloc[0]
+        self.assertEqual(exit_row.fill_price, 100.0)
+        self.assertEqual(exit_row.fill_date, days[81])
+        self.assertEqual(exit_row.holding_sessions, 0)
+
+    def test_next_open_intraday_stop_does_not_release_opening_capacity(self):
+        stocks = tuple(f"110{i}" for i in range(1, 7))
+        changes = {("1106", 80): {"open": 100.0, "high": 101.0, "low": 99.0, "close": 100.0}}
+        changes.update({(s, 81): {"open": 103.0, "high": 104.0, "low": 102.0, "close": 103.0} for s in stocks})
+        changes[("1106", 81)].update(close=104.0, high=105.0)
+        changes.update({(s, 82): {"open": 103.0, "high": 104.0, "low": 102.0, "close": 103.0} for s in stocks})
+        changes[("1101", 82)]["low"] = 99.0
+        p, days = fixture(stocks=stocks, closes=(104.0, 103.0, 103.0), changes=changes)
+        engine = execute(p, days, entry_mode="next_open")
+        d = engine.ledger.table("decisions")
+        last = d[d.stock.eq("1106")].iloc[0]
+        self.assertEqual(last.reject_reason, "max_positions")
+        self.assertEqual(len(engine.positions), 4)
+        self.assertNotIn("1106", engine.positions)
+
+    def test_next_open_last_signal_is_pending_no_future_fill(self):
+        p, days = fixture()
+        engine = execute(p, days, entry_mode="next_open")
+        m = metrics(engine.ledger.tables()).iloc[0]
+        self.assertEqual(m.pending_entry_count, 1)
+        self.assertEqual(m.open_count, 0)
+        self.assertEqual(engine.cash, 1_000_000)
+        self.assertFalse(engine.ledger.table("fills").fill.any())
+
+    def test_config_fixed_bollinger_and_invalid_entry_mode(self):
+        root = Path(__file__).resolve().parents[1]
+        config = load_r1_config(root / "configs/research/trading_plan_r1.yaml")
+        self.assertEqual(config["bollinger"]["ddof"], 0)
+        p, days = fixture()
+        with self.assertRaisesRegex(ValueError, "entry_mode"):
+            execute(p, days, entry_mode="invalid")
+
+    def test_stop_anchor_is_raw_fill_price_not_fee_inclusive_basis(self):
+        p, days = fixture(closes=(104.0, 103.0), changes={
+            ("1101", 25): {"open": 99.0, "high": 101.0, "low": 89.0, "close": 90.0},
+            ("1101", 81): {"open": 102.0, "high": 104.0, "low": 101.0, "close": 103.0}})
+        for mode, raw_price in (("close", 104.0), ("next_open", 102.0)):
+            with self.subTest(entry_mode=mode):
+                engine = execute(p, days, entry_mode=mode)
+                pos = engine.positions["1101"]
+                self.assertAlmostEqual(pos.stop_price, raw_price * 0.93)
+                self.assertGreater(pos.entry_cash / pos.quantity, raw_price)
 
 
 if __name__ == "__main__":

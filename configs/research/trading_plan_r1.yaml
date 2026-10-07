@@ -1,0 +1,6 @@
+entry_mode: close  # close | next_open
+bollinger:
+  window: 21
+  stddev: 2.1
+  ddof: 0  # 所有布林計算統一採母體標準差。
+# 停損錨在成交價本身，不含手續費後的成本基礎；刻意如此，因為下單掛的是價格。

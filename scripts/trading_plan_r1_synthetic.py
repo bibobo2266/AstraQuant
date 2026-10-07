@@ -12,7 +12,7 @@ import pandas as pd
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
-from astraquant.research.trading_plan_r1 import concat_ledgers, metrics  # noqa: E402
+from astraquant.research.trading_plan_r1 import concat_ledgers, load_r1_config, metrics  # noqa: E402
 
 
 CASES = {
@@ -26,6 +26,8 @@ CASES = {
     "test_07_missing_held_bar_truncates_and_freezes_portfolio": "7 資料中斷截尾並凍結權益",
     "test_08_open_end_position_excluded_from_closed_win_rate": "8 未平倉不併入closed勝率",
     "test_09_close_exit_signal_effective_next_open_only": "9 收盤出場次日開盤生效",
+    "test_10_entry_modes_different_prices_and_correct_rejection_sessions": "10 進場模式價格及拒絕檢查點",
+    "test_11_all_reject_reasons_primary_unchanged": "11 多重拒絕原因保留主因",
 }
 
 
@@ -53,7 +55,11 @@ def export_table(frame: pd.DataFrame, path: Path) -> None:
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--out", type=Path, default=ROOT / "results" / "trading_plan_r1")
+    parser.add_argument("--config", type=Path, default=ROOT / "configs/research/trading_plan_r1.yaml")
+    parser.add_argument("--entry-mode", choices=("close", "next_open"))
     args = parser.parse_args()
+    config = load_r1_config(args.config)
+    entry_mode = args.entry_mode or config["entry_mode"]
     args.out.mkdir(parents=True, exist_ok=True)
     spec = importlib.util.spec_from_file_location("r1_synthetic_tests", ROOT / "tests" / "test_trading_plan_r1.py")
     module = importlib.util.module_from_spec(spec)
@@ -70,12 +76,27 @@ def main() -> int:
     bars, sessions = module.fixture(closes=(104.0, 90.0), changes={
         ("1101", 81): {"open": 103.0, "high": 104.0, "low": 80.0,
                        "close": 90.0, "stop_fill_price": 85.0}})
-    backtest = module.execute(bars, sessions, run_id="synthetic-backtest")
-    daily = module.execute(bars, sessions, mode="daily", run_id="synthetic-daily")
+    backtest = module.execute(bars, sessions, run_id="synthetic-backtest", entry_mode=entry_mode)
+    daily = module.execute(bars, sessions, mode="daily", run_id="synthetic-daily", entry_mode=entry_mode)
     joined = concat_ledgers(backtest.ledger.tables(), daily.ledger.tables())
     for name, frame in joined.items():
         export_table(frame, args.out / f"synthetic_{name}.csv")
     export_table(metrics(joined), args.out / "synthetic_metrics.csv")
+    double, calendar = module.fixture(closes=(106.0,), changes={
+        ("1101", 80): {"open": 106.0, "high": 107.0, "low": 105.0, "close": 106.0}})
+    rejected = module.execute(double, calendar, run_id="synthetic-double-reject")
+    export_table(rejected.ledger.table("decisions"), args.out / "synthetic_reject_example.csv")
+    price_bars, price_calendar = module.fixture(closes=(104.0, 103.0), changes={
+        ("1101", 81): {"open": 102.0, "high": 104.0, "low": 101.0, "close": 103.0}})
+    comparison = []
+    for entry in ("close", "next_open"):
+        engine = module.execute(price_bars, price_calendar, run_id=f"synthetic-{entry}", entry_mode=entry)
+        row = engine.ledger.table("fills").query("side == 'buy' and fill == True").iloc[0]
+        decision = engine.ledger.table("decisions").iloc[0]
+        comparison.append(dict(entry_mode=entry, signal_date=decision.date, fill_date=row.fill_date,
+                               fill_price=row.fill_price, stop_price=decision.stop_price,
+                               reject_reasons=decision.reject_reasons, source_kind="synthetic"))
+    export_table(pd.DataFrame(comparison), args.out / "synthetic_entry_modes.csv")
     return 0
 
 
