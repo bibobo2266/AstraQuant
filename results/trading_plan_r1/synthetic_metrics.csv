@@ -1,0 +1,3 @@
+﻿run_id,portfolio_id,closed_count,net_win_rate,avg_win,avg_loss,payoff_ratio,expectancy,median_holding_sessions,capital_occupied_position_days,open_count,truncated_count,rejected_count,portfolio_frozen,final_equity,metrics_scope
+synthetic-backtest,synthetic-r1,1,0.0,,0.18979079152097678,,-0.18979079152097678,1.0,1.0,0,0,0,False,986717.826755,synthetic_close_fill_simulation
+synthetic-daily,synthetic-r1,1,0.0,,0.18979079152097678,,-0.18979079152097678,1.0,1.0,0,0,0,False,986717.826755,synthetic_close_fill_simulation

@@ -1,0 +1,11 @@
+﻿case,test,result,source_kind
+1 訊號日收盤超過樞紐×1.05,test_01_signal_close_over_pivot_cap,PASS,synthetic
+2 訊號日跳空開高>5%,test_02_signal_day_gap_over_five_percent,PASS,synthetic
+2b 訊號日漲停,test_02b_signal_day_limit_up,PASS,synthetic
+3 停牌／無量不得正常平倉,test_03_suspension_or_no_volume_is_not_a_close,PASS,synthetic
+4 同日停損優先,test_04_stop_has_priority_over_same_day_close_exit_signal,PASS,synthetic
+5 停損跳價記實際成交,test_05_intraday_stop_observed_gap_fill_not_clipped,PASS,synthetic
+6 RS排序與超額阻擋,test_06_capacity_rs_desc_stock_asc_and_blocked_opportunities,PASS,synthetic
+7 資料中斷截尾並凍結權益,test_07_missing_held_bar_truncates_and_freezes_portfolio,PASS,synthetic
+8 未平倉不併入closed勝率,test_08_open_end_position_excluded_from_closed_win_rate,PASS,synthetic
+9 收盤出場次日開盤生效,test_09_close_exit_signal_effective_next_open_only,PASS,synthetic
