@@ -2,18 +2,13 @@ name: Source normalized corporate action view audit
 
 on:
   workflow_dispatch:
-  push:
-    branches: [main]
-    paths:
-      - ".github/workflows/source_normalized_ca_view_audit.yml"
-      - "scripts/source_normalized_ca_view_audit.py"
-      - "src/astraquant/data/corporate_actions.py"
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   audit:
+    if: ${{ false }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:

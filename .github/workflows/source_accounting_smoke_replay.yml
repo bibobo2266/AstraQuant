@@ -2,25 +2,13 @@ name: Source accounting smoke replay
 
 on:
   workflow_dispatch:
-  push:
-    branches: [main]
-    paths:
-      - ".github/workflows/source_accounting_smoke_replay.yml"
-      - "scripts/source_accounting_smoke_replay.py"
-      - "src/astraquant/data/market_coordinates.py"
-      - "src/astraquant/data/source_adapter.py"
-      - "src/astraquant/execution/market_data.py"
-      - "src/astraquant/execution/fills.py"
-      - "src/astraquant/portfolio/engine.py"
-      - "src/astraquant/portfolio/ledger.py"
-      - "src/astraquant/portfolio/replay.py"
-      - "src/astraquant/portfolio/valuation.py"
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   replay:
+    if: ${{ false }}
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:

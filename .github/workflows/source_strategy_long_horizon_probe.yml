@@ -2,20 +2,13 @@ name: Source strategy long-horizon accounting probe
 
 on:
   workflow_dispatch:
-  push:
-    branches: [main]
-    paths:
-      - ".github/workflows/source_strategy_long_horizon_probe.yml"
-      - "scripts/source_strategy_integration_smoke.py"
-      - "src/astraquant/portfolio/strategy_simulator.py"
-      - "src/astraquant/execution/market_data.py"
-      - "src/astraquant/portfolio/valuation.py"
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   probe:
+    if: ${{ false }}
     runs-on: ubuntu-latest
     timeout-minutes: 120
 

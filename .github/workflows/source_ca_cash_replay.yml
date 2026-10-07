@@ -2,22 +2,13 @@ name: Source cash dividend replay
 
 on:
   workflow_dispatch:
-  push:
-    branches: [main]
-    paths:
-      - ".github/workflows/source_ca_cash_replay.yml"
-      - "scripts/source_ca_cash_replay.py"
-      - "src/astraquant/portfolio/corporate_actions.py"
-      - "src/astraquant/portfolio/engine.py"
-      - "src/astraquant/portfolio/valuation.py"
-      - "src/astraquant/execution/market_data.py"
-      - "src/astraquant/execution/fills.py"
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   replay:
+    if: ${{ false }}
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:

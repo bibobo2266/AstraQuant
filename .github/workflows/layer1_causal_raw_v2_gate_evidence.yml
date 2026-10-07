@@ -2,18 +2,13 @@ name: Layer1 causal RAW v2 gate evidence
 
 on:
   workflow_dispatch:
-  push:
-    branches: [main]
-    paths:
-      - "scripts/layer1_causal_raw_v2_gate_evidence.py"
-      - "src/astraquant/data/corporate_actions.py"
-      - "tests/test_normalized_corporate_actions.py"
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   audit:
+    if: ${{ false }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:

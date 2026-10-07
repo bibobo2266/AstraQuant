@@ -6,13 +6,10 @@ name: Watchdog
 # 要準時的話從 cron-job.org 打 dispatch API 觸發。
 
 on:
-  schedule:
-    - cron: "*/30 * * * *"
   workflow_dispatch:
 
 permissions:
-  contents: write
-  issues: write
+  contents: read
 
 concurrency:
   group: watchdog
@@ -20,6 +17,7 @@ concurrency:
 
 jobs:
   check:
+    if: ${{ false }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

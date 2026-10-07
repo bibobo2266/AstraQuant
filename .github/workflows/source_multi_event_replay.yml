@@ -2,22 +2,13 @@ name: Source multi-event canonical replay
 
 on:
   workflow_dispatch:
-  push:
-    branches: [main]
-    paths:
-      - ".github/workflows/source_multi_event_replay.yml"
-      - "scripts/source_multi_event_replay.py"
-      - "src/astraquant/execution/service.py"
-      - "src/astraquant/portfolio/replay_runner.py"
-      - "src/astraquant/portfolio/corporate_actions.py"
-      - "src/astraquant/portfolio/ledger.py"
-      - "src/astraquant/portfolio/valuation.py"
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   replay:
+    if: ${{ false }}
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:

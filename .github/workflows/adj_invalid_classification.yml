@@ -2,17 +2,13 @@ name: Adjusted invalid classification
 
 on:
   workflow_dispatch:
-  push:
-    branches: [main]
-    paths:
-      - ".github/workflows/adj_invalid_classification.yml"
-      - "scripts/adj_invalid_classification.py"
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   audit:
+    if: ${{ false }}
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:

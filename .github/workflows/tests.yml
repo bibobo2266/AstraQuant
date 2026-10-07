@@ -1,15 +1,14 @@
 name: tests
 
 on:
-  push:
-    branches: [main]
-  pull_request:
+  workflow_dispatch:
 
 permissions:
   contents: read
 
 jobs:
   pytest:
+    if: ${{ false }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout AstraQuant

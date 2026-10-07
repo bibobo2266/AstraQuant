@@ -2,22 +2,15 @@ name: Date-count-matched random control
 
 on:
   workflow_dispatch:
-  push:
-    branches: [main]
-    paths:
-      - ".github/workflows/source_matched_placebo.yml"
-      - "scripts/source_matched_placebo.py"
-      - "scripts/source_strategy_integration_smoke.py"
-      - "src/astraquant/**"
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   report:
+    if: ${{ false }}
     # Software/data-only maintenance may opt out of strategy-effect execution.
     # workflow_dispatch remains explicit and is never blocked by this marker.
-    if: github.event_name == 'workflow_dispatch' || !contains(github.event.head_commit.message, '[no-effects]')
     runs-on: ubuntu-latest
     timeout-minutes: 90
     steps:

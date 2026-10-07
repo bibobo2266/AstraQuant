@@ -1,16 +1,14 @@
 name: PIT feature matrix integration QA
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - "run/pit_feature_matrix_layer1_integration_v1.trigger"
+  workflow_dispatch:
 
 permissions:
   contents: read
 
 jobs:
   test:
+    if: ${{ false }}
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:

@@ -7,15 +7,17 @@ on:
         description: "Effect epoch: E1 (default) or E2. E3 is blocked by governance."
         required: false
         default: "E1"
+
 concurrency:
   group: source-rsi-candidate-path-diagnostic-manual
   cancel-in-progress: false
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   report:
+    if: ${{ false }}
     runs-on: ubuntu-latest
     timeout-minutes: 180
     steps:

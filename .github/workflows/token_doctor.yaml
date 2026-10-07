@@ -7,8 +7,12 @@ name: token_doctor
 on:
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
   doctor:
+    if: ${{ false }}
     runs-on: ubuntu-latest
     steps:
       - name: 1. secret 存在嗎

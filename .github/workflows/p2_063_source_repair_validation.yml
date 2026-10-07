@@ -2,18 +2,13 @@ name: P2-063 source repair validation
 
 on:
   workflow_dispatch:
-  push:
-    branches: [main]
-    paths:
-      - "scripts/p2_063_source_repair_validation.py"
-      - ".github/workflows/p2_063_source_repair_validation.yml"
-      - "docs/SOURCE_CA_PIT_EXCLUSIONS.csv"
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   validate:
+    if: ${{ false }}
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:

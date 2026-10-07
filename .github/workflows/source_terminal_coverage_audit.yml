@@ -2,19 +2,13 @@ name: Source terminal coverage audit
 
 on:
   workflow_dispatch:
-  push:
-    branches: [main]
-    paths:
-      - ".github/workflows/source_terminal_coverage_audit.yml"
-      - "scripts/source_terminal_coverage_audit.py"
-      - "tests/test_terminal_coverage_audit.py"
-      - "docs/SOURCE_CA_PIT_EXCLUSIONS.csv"
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   audit:
+    if: ${{ false }}
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:

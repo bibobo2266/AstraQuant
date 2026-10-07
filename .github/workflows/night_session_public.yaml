@@ -18,11 +18,9 @@ name: Night session public mirror (台指夜盤公開版)
 
 on:
   workflow_dispatch:
-  schedule:
-    - cron: "55 23 * * 1-5"
 
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
   group: night-session-public
@@ -30,6 +28,7 @@ concurrency:
 
 jobs:
   mirror:
+    if: ${{ false }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:

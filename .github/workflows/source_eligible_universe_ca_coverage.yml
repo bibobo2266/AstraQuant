@@ -2,19 +2,13 @@ name: Eligible-universe CA coverage audit
 
 on:
   workflow_dispatch:
-  push:
-    branches: [main]
-    paths:
-      - ".github/workflows/source_eligible_universe_ca_coverage.yml"
-      - "scripts/source_eligible_universe_ca_coverage.py"
-      - "scripts/source_strategy_integration_smoke.py"
-      - "src/astraquant/data/corporate_actions.py"
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   report:
+    if: ${{ false }}
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:

@@ -7,40 +7,19 @@ on:
         description: "Effect epoch: E1 (default) or E2. E3 is blocked by governance."
         required: false
         default: "E1"
-  push:
-    branches: [main]
-    paths:
-      - ".github/workflows/source_observation_sweeps.yml"
-      - "scripts/source_path_diagnostics.py"
-      - "src/astraquant/research/path_diagnostics.py"
-      - "src/astraquant/research/epoch_governance.py"
-      - "scripts/source_strategy_integration_smoke.py"
-      - "data/research/terminal_events.csv"
-      - "src/astraquant/research/technical_components.py"
-      - "src/astraquant/research/signal_engine.py"
-      - "configs/research/observations/**"
-      - "configs/examples/signals/bollinger_compression_rsi.yaml"
-      - "configs/examples/signals/vcp_breakout.yaml"
-      - "configs/examples/signals/anchor_up_reversal.yaml"
-      - "configs/examples/signals/anchor_down_reversal.yaml"
-      - "configs/research/observations/rsi_daily_surface.yaml"
-      - "configs/examples/signals/rsi_pullback_reclaim.yaml"
-      - "configs/examples/universes/all_liquid.yaml"
-      - "configs/examples/exits/stop12_time250_executable.yaml"
-      - "docs/SOURCE_CA_PIT_EXCLUSIONS.csv"
 
 concurrency:
   group: source-five-candidate-path-diagnostics
   cancel-in-progress: true
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   report:
+    if: ${{ false }}
     # Software-only integration commits may opt out of real-data effect sweeps.
     # Explicit workflow_dispatch remains available for authorized research runs.
-    if: github.event_name == 'workflow_dispatch' || !contains(github.event.head_commit.message, '[no-effects]')
     runs-on: ubuntu-latest
     timeout-minutes: 180
     steps:

@@ -2,13 +2,9 @@ name: VCP Round 1 amplitude3 diagnostic
 
 on:
   workflow_dispatch:
-  push:
-    branches: [main]
-    paths:
-      - "run/vcp_round1_amp3_diagnostic.trigger"
 
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
   group: vcp-round1-amp3-diagnostic
@@ -16,6 +12,7 @@ concurrency:
 
 jobs:
   diagnostic:
+    if: ${{ false }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout AstraQuant

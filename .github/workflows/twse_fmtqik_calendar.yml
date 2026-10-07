@@ -36,10 +36,11 @@ on:
         default: "4"
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   fetch:
+    if: ${{ false }}
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:

@@ -2,17 +2,13 @@ name: Source 2823 conversion audit
 
 on:
   workflow_dispatch:
-  push:
-    branches: [main]
-    paths:
-      - ".github/workflows/source_2823_conversion_audit.yml"
-      - "scripts/source_2823_conversion_audit.py"
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   audit:
+    if: ${{ false }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:

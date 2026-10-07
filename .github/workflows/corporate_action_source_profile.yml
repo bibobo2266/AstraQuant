@@ -2,17 +2,13 @@ name: Corporate action source profile
 
 on:
   workflow_dispatch:
-  push:
-    branches: [main]
-    paths:
-      - ".github/workflows/corporate_action_source_profile.yml"
-      - "scripts/corporate_action_source_profile.py"
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   profile:
+    if: ${{ false }}
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:

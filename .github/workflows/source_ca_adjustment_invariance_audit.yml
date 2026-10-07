@@ -2,16 +2,13 @@ name: CA adjustment invariance audit
 
 on:
   workflow_dispatch:
-  push:
-    branches: [main]
-    paths:
-      - "run/ca_adjustment_invariance_audit.trigger"
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   audit:
+    if: ${{ false }}
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:

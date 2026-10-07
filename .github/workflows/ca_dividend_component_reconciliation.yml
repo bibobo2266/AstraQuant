@@ -1,20 +1,14 @@
 name: CA dividend reconciliation contract checks
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - ".github/workflows/ca_dividend_component_reconciliation.yml"
-      - "src/astraquant/data/dividend_reconciliation.py"
-      - "tests/test_dividend_reconciliation.py"
-      - "scripts/source_dividend_component_reconciliation.py"
-      - "scripts/ca_dividend_component_scope_aggregate.py"
+  workflow_dispatch:
 
 permissions:
   contents: read
 
 jobs:
   test:
+    if: ${{ false }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:

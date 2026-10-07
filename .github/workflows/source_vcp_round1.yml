@@ -2,13 +2,9 @@ name: VCP Round 1 full-trade sweep
 
 on:
   workflow_dispatch:
-  push:
-    branches: [main]
-    paths:
-      - "run/vcp_round1.trigger"
 
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
   group: research-effect-publication
@@ -16,6 +12,7 @@ concurrency:
 
 jobs:
   sweep:
+    if: ${{ false }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout AstraQuant
