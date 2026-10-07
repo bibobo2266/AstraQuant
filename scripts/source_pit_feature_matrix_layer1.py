@@ -738,5 +738,333 @@ def main() -> None:
     )
 
 
+S1_VERSION = "trading-plan-r1-eligibility-v1"
+S1_FLAGS = ["liq_ok", "size_ok", "wk_trend_ok", "rs_ok", "rev_ok", "eps_ok", "eps_acc_ok", "excl_ok"]
+
+
+def _s1_normalize(frame):
+    out = frame.copy()
+    out["date"] = pd.to_datetime(out["date"], errors="raise").dt.normalize()
+    out["stock_id"] = out["stock_id"].astype(str)
+    return out
+
+
+def _s1_prepare(prices, tape):
+    prices, tape = _s1_normalize(prices), _s1_normalize(tape)
+    tape = tape[tape["stock_id"].str.fullmatch(r"[1-9]\d{3}")].copy()
+    tape["market"] = tape["market"].astype(str).str.upper()
+    official = tape[tape["market"].isin(["TWSE", "TPEX"]) & tape["observed_trade"].eq(True)]
+    if official.empty:
+        raise SystemExit("BLOCKED: no dated TWSE/TPEx official observations")
+    calendar = pd.DatetimeIndex(sorted(official["date"].unique()), name="date")
+    first = official.groupby("stock_id")["date"].min()
+    keys = ["date", "stock_id"]
+    if tape.duplicated(keys).any() or prices.duplicated(keys).any():
+        raise SystemExit("BLOCKED: duplicate source price/tape keys")
+    active = prices.merge(official[keys + ["market", "valid_ohlc"]],
+                          on=keys, how="inner", validate="one_to_one").sort_values(keys).reset_index(drop=True)
+    if active.empty:
+        raise SystemExit("BLOCKED: no adjusted/official listed-stock matches")
+    def matrix(field):
+        return active.pivot(index="date", columns="stock_id", values=field).reindex(calendar)
+    close = matrix("close")
+    close = close.where(matrix("valid_ohlc").eq(True) & close.gt(0))
+    return active, calendar, first, calendar.min(), close, matrix("Trading_Volume") / 1000, matrix("Trading_money")
+
+
+def _s1_short_percentiles(ret120, full, short):
+    donor = ret120.where(full).stack().rename("value").reset_index()
+    donor["donor"] = 1
+    target = ret120.where(short).stack().rename("value").reset_index()
+    target["donor"] = 0
+    empty = pd.DataFrame(np.nan, index=ret120.index, columns=ret120.columns)
+    if target.empty or donor.empty:
+        return empty
+    counts = pd.concat([donor, target]).groupby(["date", "value"], as_index=False)["donor"].sum()
+    counts = counts.sort_values(["date", "value"])
+    counts["below"] = counts.groupby("date")["donor"].cumsum() - counts["donor"]
+    counts["denominator"] = counts.groupby("date")["donor"].transform("sum")
+    counts["score"] = 100 * (counts["below"] + counts["donor"] / 2) / counts["denominator"]
+    ranked = target.merge(counts[["date", "value", "score"]], on=["date", "value"],
+                          how="left", validate="many_to_one")
+    return ranked.pivot(index="date", columns="stock_id", values="score").reindex(
+        index=ret120.index, columns=ret120.columns)
+
+
+def _s1_technical(prices, tape):
+    active, calendar, first, origin, close, volume, amount = _s1_prepare(prices, tape)
+    full = close.rolling(251, min_periods=251).count().eq(251)
+    valid120 = close.rolling(121, min_periods=121).count().eq(121)
+    ret250 = (close / close.shift(250) - 1).where(full)
+    ret120 = (close / close.shift(120) - 1).where(valid120)
+    first_position = calendar.get_indexer(first.reindex(close.columns))
+    age = pd.DataFrame(np.arange(len(calendar))[:, None] - first_position[None, :],
+                       index=calendar, columns=close.columns)
+    short = age.ge(120) & age.lt(250) & valid120 & first.reindex(close.columns).gt(origin)
+    rs = (ret250.rank(axis=1, method="average", pct=True) * 100).where(
+        ~short, _s1_short_percentiles(ret120, full, short))
+    weekly = close.resample("W-FRI").last()
+    ma6, ma20 = weekly.rolling(6, min_periods=6).mean(), weekly.rolling(20, min_periods=20).mean()
+    # Shift the entire weekly input set. Never expose any current-week bar.
+    weekly_inputs = {"wk_close": weekly.shift(1), "wk_ma6": ma6.shift(1),
+                     "wk_ma20": ma20.shift(1), "wk_ma6_prev": ma6.shift(2), "wk_ma20_prev": ma20.shift(2)}
+    date_idx, stock_idx = calendar.get_indexer(active["date"]), close.columns.get_indexer(active["stock_id"])
+    def take(matrix):
+        return matrix.to_numpy()[date_idx, stock_idx]
+    out = active[["date", "stock_id"]].rename(columns={"stock_id": "stock"}).copy()
+    out["volume5_lots"] = take(volume.rolling(5, min_periods=5).mean())
+    out["size_proxy_turnover20_twd"] = take(amount.rolling(20, min_periods=20).mean())
+    for name, matrix in weekly_inputs.items():
+        daily = matrix.reindex(calendar.to_period("W-FRI").end_time.normalize())
+        daily.index = calendar
+        out[name] = take(daily)
+    out["wk_available_date"] = out["date"].dt.to_period("W-FRI").dt.start_time - pd.Timedelta(days=1)
+    out["return250"], out["return120"] = take(ret250), take(ret120)
+    out["rs_denominator"] = full.sum(axis=1).reindex(out["date"]).to_numpy()
+    out["rs"], out["rs_short"] = take(rs), take(short).astype(bool)
+    out["liq_ok"], out["size_ok"] = out["volume5_lots"].ge(1000), out["size_proxy_turnover20_twd"].ge(50_000_000)
+    out["wk_trend_ok"] = (
+        out["wk_close"].gt(out["wk_ma6"]) & out["wk_ma6"].gt(out["wk_ma20"])
+        & out["wk_ma6"].gt(out["wk_ma6_prev"]) & out["wk_ma20"].gt(out["wk_ma20_prev"]))
+    out["rs_ok"] = out["rs"].ge(80)
+    return out
+
+
+def _s1_growth_events(frame, kind):
+    frame = _s1_normalize(frame)
+    frame["available_date"] = pd.to_datetime(frame["available_date"], errors="raise").dt.normalize()
+    if frame["available_date"].isna().any() or frame["date"].isna().any():
+        raise SystemExit("BLOCKED: missing fundamental available_date/period")
+    if kind == "eps":
+        frame = frame[frame["type"].eq("EPS")].copy()
+        value_col, freq, lag = "value", "Q", 4
+    else:
+        value_col, freq, lag = "revenue", "M", 12
+    if value_col not in frame or frame.empty:
+        raise SystemExit(f"BLOCKED: missing/empty {kind} values")
+    frame["period"] = frame["date"].dt.to_period(freq).astype("int64")
+    frame["raw"] = pd.to_numeric(frame[value_col], errors="raise")
+    if frame.duplicated(["stock_id", "period"]).any():
+        raise SystemExit(f"BLOCKED: duplicate {kind} periods; no silent revision selection")
+    base = frame[["stock_id", "period", "date", "available_date", "raw"]].copy()
+    prior = base[["stock_id", "period", "available_date", "raw"]].copy()
+    prior["period"] += lag
+    prior = prior.rename(columns={"available_date": "prior_available_date", "raw": "prior_raw"})
+    event = base.merge(prior, on=["stock_id", "period"], how="left", validate="one_to_one")
+    event["yoy"] = 100 * (event["raw"] - event["prior_raw"]) / event["prior_raw"].abs().replace(0, np.nan)
+    event["available_date"] = event[["available_date", "prior_available_date"]].max(axis=1)
+    if kind == "eps":
+        # Freeze the per-quarter YoY publication dates before joining previous quarters.
+        yoy_events = event[["stock_id", "period", "available_date", "yoy"]].copy()
+        for step in (1, 2):
+            prev = yoy_events.copy()
+            prev["period"] += step
+            prev = prev.rename(columns={"yoy": f"yoy_prev{step}", "available_date": f"prev{step}_available_date"})
+            event = event.merge(prev, on=["stock_id", "period"], how="left", validate="one_to_one")
+        event["available_date"] = event[["available_date", "prev1_available_date", "prev2_available_date"]].max(axis=1)
+    names = {"raw": f"{kind}_value", "prior_raw": f"{kind}_prior_year_value",
+             "yoy": f"{kind}_yoy", "date": f"{kind}_period_date", "available_date": f"{kind}_available_date"}
+    if kind == "eps":
+        names.update({"yoy_prev1": "eps_yoy_prev1", "yoy_prev2": "eps_yoy_prev2"})
+    return event[["stock_id", *names.keys()]].rename(columns=names)
+
+
+def _s1_asof(panel, events, kind):
+    events = events.rename(columns={"stock_id": "stock"})
+    key = f"{kind}_available_date"
+    events = events.sort_values([key, f"{kind}_period_date"]).drop_duplicates(["stock", key], keep="last")
+    return pd.merge_asof(panel.sort_values("date"), events.sort_values(key), by="stock",
+                         left_on="date", right_on=key, direction="backward", allow_exact_matches=True)
+
+
+def _s1_panel(prices, tape, revenue, financials):
+    out = _s1_technical(prices, tape)
+    out = _s1_asof(out, _s1_growth_events(revenue, "rev"), "rev")
+    out = _s1_asof(out, _s1_growth_events(financials, "eps"), "eps")
+    out["rev_ok"], out["eps_ok"] = out["rev_yoy"].gt(20), out["eps_yoy"].gt(30)
+    out["eps_acc_ok"] = out["eps_yoy"].gt(out["eps_yoy_prev1"]) & out["eps_yoy_prev1"].gt(out["eps_yoy_prev2"])
+    out["excl_ok"] = True
+    out["eligibility"] = out[S1_FLAGS].all(axis=1)
+    out["source"], out["available_date"], out["rule_version"] = SOURCE_REVISION, out["date"], S1_VERSION
+    return out.sort_values(["date", "stock"]).set_index(["date", "stock"])
+
+
+def _s1_reference_fund(frame, stock, date, kind):
+    source = _s1_normalize(frame)
+    source["available_date"] = pd.to_datetime(source["available_date"]).dt.normalize()
+    source = source[source["stock_id"].eq(stock) & source["available_date"].le(date)]
+    if kind == "eps":
+        source = source[source["type"].eq("EPS")]
+        value, freq, lag = "value", "Q", 4
+    else:
+        value, freq, lag = "revenue", "M", 12
+    names = [f"{kind}_value", f"{kind}_prior_year_value", f"{kind}_yoy",
+             f"{kind}_period_date", f"{kind}_available_date"]
+    if kind == "eps":
+        names += ["eps_yoy_prev1", "eps_yoy_prev2"]
+    if source.empty:
+        return dict.fromkeys(names, np.nan)
+    source["period"] = source["date"].dt.to_period(freq).astype("int64")
+    source = source.sort_values(["date", "available_date"]).set_index("period")
+    current, p = source.iloc[-1], source.index[-1]
+    def growth(period):
+        if period not in source.index or period-lag not in source.index:
+            return np.nan
+        now, prev = float(source.at[period, value]), float(source.at[period-lag, value])
+        return 100 * (now-prev) / abs(prev) if prev != 0 else np.nan
+    prior = float(source.at[p-lag, value]) if p-lag in source.index else np.nan
+    used = [p, p-lag] + ([p-1, p-2, p-1-lag, p-2-lag] if kind == "eps" else [])
+    available = source.loc[source.index.isin(used), "available_date"].max()
+    result = dict(zip(names[:5], [float(current[value]), prior, growth(p), current["date"], available]))
+    if kind == "eps":
+        result.update(eps_yoy_prev1=growth(p-1), eps_yoy_prev2=growth(p-2))
+    return result
+
+
+def _s1_reference_technical(active, tape, date, stock):
+    official = _s1_normalize(tape)
+    official = official[official["stock_id"].str.fullmatch(r"[1-9]\d{3}")
+                        & official["market"].astype(str).str.upper().isin(["TWSE", "TPEX"])
+                        & official["observed_trade"].eq(True)]
+    cal = pd.DatetimeIndex(sorted(official.loc[official["date"].le(date), "date"].unique()))
+    history = active[active["date"].le(date)].copy()
+    c = history.pivot(index="date", columns="stock_id", values="close").reindex(cal)
+    valid = history.pivot(index="date", columns="stock_id", values="valid_ohlc").reindex(
+        index=cal, columns=c.columns).eq(True)
+    c = c.where(valid & c.gt(0))
+    def returns(n):
+        tail = c.tail(n+1)
+        if len(tail) != n+1:
+            return pd.Series(np.nan, index=c.columns)
+        return (tail.iloc[-1] / tail.iloc[0]-1).where(tail.notna().all(axis=0))
+    r250, r120 = returns(250), returns(120)
+    donors = r250.dropna()
+    first = official.loc[official["stock_id"].eq(stock), "date"].min()
+    age = len(cal[cal >= first])-1
+    short = bool(first > official["date"].min() and 120 <= age < 250 and pd.notna(r120.get(stock)))
+    if short:
+        group, x = r120.reindex(donors.index).dropna(), r120[stock]
+        score = 100 * ((group < x).sum() + (group == x).sum()/2) / len(donors) if len(donors) else np.nan
+    elif pd.notna(r250.get(stock)):
+        x = r250[stock]
+        score = 100 * ((donors < x).sum() + ((donors == x).sum()+1)/2) / len(donors)
+    else:
+        score = np.nan
+    single = history[history["stock_id"].eq(stock)].set_index("date").reindex(cal)
+    def mean(column, n, scale=1):
+        values = single[column].tail(n)
+        return values.mean()/scale if len(values) == n and values.notna().all() else np.nan
+    weeks = c[stock].groupby(c.index.to_period("W-FRI")).last()
+    weeks = weeks[weeks.index < date.to_period("W-FRI")]
+    def weekly_mean(n, offset=0):
+        values = weeks.iloc[:len(weeks)-offset] if offset else weeks
+        values = values.tail(n)
+        return values.mean() if len(values) == n and values.notna().all() else np.nan
+    ref = dict(volume5_lots=mean("Trading_Volume", 5, 1000),
+               size_proxy_turnover20_twd=mean("Trading_money", 20),
+               wk_close=weeks.iloc[-1] if len(weeks) else np.nan,
+               wk_ma6=weekly_mean(6), wk_ma20=weekly_mean(20),
+               wk_ma6_prev=weekly_mean(6, 1), wk_ma20_prev=weekly_mean(20, 1),
+               wk_available_date=date.to_period("W-FRI").start_time - pd.Timedelta(days=1),
+               return250=r250.get(stock, np.nan), return120=r120.get(stock, np.nan),
+               rs_denominator=len(donors), rs=score, rs_short=short)
+    ref.update(liq_ok=ref["volume5_lots"] >= 1000, size_ok=ref["size_proxy_turnover20_twd"] >= 50_000_000,
+               rs_ok=score >= 80, wk_trend_ok=(ref["wk_close"] > ref["wk_ma6"] > ref["wk_ma20"]
+               and ref["wk_ma6"] > ref["wk_ma6_prev"] and ref["wk_ma20"] > ref["wk_ma20_prev"]))
+    return ref
+
+
+def _s1_audit(panel, prices, tape, revenue, financials):
+    # Only these ten source comparisons; no full-population audit.
+    if len(panel) < 10:
+        raise SystemExit("BLOCKED: fewer than ten panel rows")
+    sample = panel.sample(n=10, random_state=20261008).sort_index()
+    active, *_ = _s1_prepare(prices, tape)
+    checks, summaries = [], []
+    for (date, stock), row in sample.iterrows():
+        ref = _s1_reference_technical(active, tape, date, stock)
+        ref.update(_s1_reference_fund(revenue, stock, date, "rev"))
+        ref.update(_s1_reference_fund(financials, stock, date, "eps"))
+        ref.update(rev_ok=ref["rev_yoy"] > 20, eps_ok=ref["eps_yoy"] > 30,
+                   eps_acc_ok=ref["eps_yoy"] > ref["eps_yoy_prev1"] > ref["eps_yoy_prev2"],
+                   excl_ok=True, source=SOURCE_REVISION, available_date=date, rule_version=S1_VERSION)
+        ref["eligibility"] = all(ref[key] for key in S1_FLAGS)
+        matched = 0
+        for field in panel.columns:
+            actual, expected = row[field], ref[field]
+            if pd.isna(actual) and pd.isna(expected):
+                ok = True
+            elif isinstance(actual, (float, np.floating)) and isinstance(expected, (int, float, np.number)):
+                ok = bool(np.isclose(actual, expected, rtol=1e-10, atol=1e-8, equal_nan=True))
+            else:
+                ok = bool(actual == expected) if pd.notna(actual) and pd.notna(expected) else False
+            matched += int(ok)
+            checks.append(dict(date=date, stock=stock, field=field, actual=actual, source_value=expected, match=ok))
+        summaries.append(dict(date=date, stock=stock, fields=len(panel.columns), matched=matched,
+                              result="PASS" if matched == len(panel.columns) else "FAIL"))
+    return pd.DataFrame(checks), pd.DataFrame(summaries), sample
+
+
+def _s1_main():
+    if not SOURCE_REVISION:
+        raise SystemExit("BLOCKED: SOURCE_REVISION is required")
+    cfg, _ = _load_cfg()
+    settings = cfg["eligibility_panel"]
+    prices = _load_adjusted(pd.Timestamp(cfg["warmup_start"]))
+    paths = dict(tape=SOURCE_ROOT / "reference/tradability.parquet",
+                 revenue=SOURCE_ROOT / "fundamentals/month_revenue.parquet",
+                 financials=SOURCE_ROOT / "fundamentals/financials.parquet")
+    for name, path in paths.items():
+        if not path.exists():
+            raise SystemExit(f"BLOCKED: missing {name} runtime source {path}")
+    tape = pd.read_parquet(paths["tape"], columns=["date", "stock_id", "market", "observed_trade", "valid_ohlc"])
+    tape = _s1_normalize(tape)
+    tape = tape[tape["date"].le(E1_END)]
+    revenue, financials = pd.read_parquet(paths["revenue"]), pd.read_parquet(paths["financials"])
+    for name, frame in [("revenue", revenue), ("financials", financials)]:
+        if {"date", "stock_id", "available_date"} - set(frame):
+            raise SystemExit(f"BLOCKED: {name} missing PIT keys")
+    if "revenue" not in revenue or {"type", "value"} - set(financials):
+        raise SystemExit("BLOCKED: runtime missing revenue/EPS value columns")
+    revenue = revenue[pd.to_datetime(revenue["available_date"]).le(E1_END)].copy()
+    financials = financials[pd.to_datetime(financials["available_date"]).le(E1_END)].copy()
+    panel = _s1_panel(prices, tape, revenue, financials)
+    dates = panel.index.get_level_values("date")
+    panel = panel[(dates >= E1_START) & (dates <= E1_END)]
+    dates = panel.index.get_level_values("date")
+    checks, summary, sample = _s1_audit(panel, prices, tape, revenue, financials)
+    Path("out").mkdir(exist_ok=True)
+    checks.to_csv(settings["checks"], index=False)
+    summary.to_csv(settings["sample_results"], index=False)
+    sample.to_csv(settings["samples"])
+    if not summary["result"].eq("PASS").all():
+        failures = checks[~checks["match"]][["date", "stock", "field"]].to_dict("records")
+        raise SystemExit("BLOCKED: ten-row comparison failed " + json.dumps(failures, default=str))
+    target = Path(settings["path"])
+    target.parent.mkdir(parents=True, exist_ok=True)
+    panel.to_parquet(target, index=True, compression="zstd")
+    manifest = dict(rows=len(panel), date_start=str(dates.min().date()), date_end=str(dates.max().date()),
+                    source_revision=SOURCE_REVISION, rule_version=S1_VERSION, epoch="E1",
+                    no_effect_metrics=True, exclusion_skipped=True, sample_pass=10,
+                    path=str(target), panel_sha256=_sha256(target),
+                    source_paths={key: str(path.relative_to(SOURCE_ROOT)) for key, path in paths.items()},
+                    field_notes=settings["field_notes"])
+    Path(settings["manifest"]).write_text(json.dumps(manifest, ensure_ascii=False, indent=2) + "\n")
+    print("S1_REPORT 檔案：data/panel/eligibility_panel.parquet（Actions artifact）")
+    print(f"S1_REPORT 列數：{len(panel):,}；日期：{manifest['date_start']}～{manifest['date_end']}；抽驗 10/10 PASS。")
+    print("S1_REPORT 每筆每欄均已對原始來源；逐欄 actual/source_value CSV 隨 artifact 保存。")
+    print("S1_REPORT | date | stock | 原始值對照：量／額／RS／營收YoY／EPSYoY | 每欄核對 |")
+    print("S1_REPORT |---|---|---|---|")
+    for (_, r), ((_, _), v) in zip(summary.iterrows(), sample.iterrows()):
+        fields = ["volume5_lots", "size_proxy_turnover20_twd", "rs", "rev_yoy", "eps_yoy"]
+        values = "/".join("NA" if pd.isna(v[f]) else f"{v[f]:.6g}" for f in fields)
+        print(f"S1_REPORT | {r['date'].date()} | {r['stock']} | {values}（均=來源） | {r['matched']}/{r['fields']} PASS |")
+    print("S1_REPORT 註：excl_ok=True，跳過產業排除；rs_short 用首次官方行情日，資料起點已存在者不算新上市。")
+    print("S1_REPORT 基本面可用日沿用 runtime 的保守估計，並非原始公告／修訂版本證明。")
+
+
 if __name__ == "__main__":
-    main()
+    if os.environ.get("BUILD_ELIGIBILITY_PANEL") == "1":
+        _s1_main()
+    else:
+        main()
