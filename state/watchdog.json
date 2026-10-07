@@ -1,6 +1,6 @@
 {
  "branches": {
-  "main": "6d0932f481a873241517d37c86502e2fb932cbc4",
+  "main": "b857e8be4c81cf45d2f0c4eb60556862c3887130",
   "sol4/aq-exp-data-001-r2": "2bc6925cf7313cc56045bf01507f4f0034bd4c63",
   "sol-ab-v2-b-20261004": "f56ec5a145d5edab8192229e1fa4ccdb42fc2cc6",
   "solb/baseline-60d-exit-state": "584bf75f5de556f86dcc665def33d65af0843b14",
@@ -13,16 +13,33 @@
   "solc/aq-exp-cal-001": "c070040c27d862d994de46cbe5f1cb3ae3d2e7c6",
   "solc/aq-exp-cal-002": "1db9ddc85217bd6038ebf9164e286b7f787223a1",
   "solc/aq-exp-cal-003": "773d4709406a34a76c0447baff251790126f7e1c",
-  "solc/aq-exp-cal-004": "a81235ddffd72fc906f95af7ec2ef70208eb7c6a",
+  "solc/aq-exp-cal-004": "45dd4dae40d9bb1ffe6d3ef5447365038a592a35",
   "solc/aq-exp-geom-001": "2ccc65ed875cf0ea33aa0b6670bf053dfa7bd660",
   "solc/aq-exp-geom-002": "0826a66f23731f01424a035ea00c2c30b6f07392",
+  "solc/aq-exp-geom-003": "c2cc58059ab4cb9f3b6c50d05096a44ff7425f57",
   "solc/aq-exp-merge-prep-001": "600ffd14df77b8c52895305c0846bf7fc53a99ae",
   "solc/aq-exp-survivor-002": "24950f38284d3aef46199d17b32e907fbe0c6207",
   "solc/aq-exp-survivor-003": "353c393b7d667d904472c6eac45bf7b4091c82eb",
   "solc/aq-exp-survivor-004": "311165eca39914cc8399cbec88fca8b4ecee20fa"
  },
- "prs": {},
- "last_comment": 6027192582,
+ "prs": {
+  "21": {
+   "sha": "c2cc58059ab4cb9f3b6c50d05096a44ff7425f57",
+   "draft": false,
+   "title": "AQ-EXP-GEOM-003: 幾何閘門套進 producer 的狀態紀錄 [no-effects]"
+  },
+  "20": {
+   "sha": "45dd4dae40d9bb1ffe6d3ef5447365038a592a35",
+   "draft": true,
+   "title": "AQ-EXP-CAL-004: 2017-10 補取成功，覆蓋 72/72、真缺日 0 [no-effects]"
+  },
+  "19": {
+   "sha": "0826a66f23731f01424a035ea00c2c30b6f07392",
+   "draft": true,
+   "title": "AQ-EXP-GEOM-002: producer 的獨立 OHLC 幾何閘門（規格＋測試＋patch，不套用）[no-effects]"
+  }
+ },
+ "last_comment": 6030927386,
  "flags": [],
- "checked_at": "2026-10-07T01:19:26Z"
+ "checked_at": "2026-10-07T07:38:12Z"
 }
