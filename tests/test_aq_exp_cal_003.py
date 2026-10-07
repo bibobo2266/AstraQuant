@@ -234,9 +234,12 @@ def test_fetch_log_records_the_corrected_block_policy():
     for banned in ("retry", "retries", "fallback_endpoint", "alt_url"):
         assert banned not in src.lower().replace("without retrying", "")
     log = json.loads((ROOT / "out" / "aq_exp_cal_003_fetch_log.json").read_text(encoding="utf-8"))
-    # 本輪實際只發生 1 次阻擋，兩個門檻都未觸發。
-    assert log["months_unknown_list"] == ["201710"]
+    # CAL-003 當輪只發生 1 次阻擋（201710），兩個門檻都未觸發，整趟沒有提早停止。
     assert log["stopped_early"] is False
+    # 該月其後由 AQ-EXP-CAL-004 的單次授權補取補齊，所以現在沒有 UNKNOWN 月份。
+    # 這一條改成「不得有任何月份停在非 OK」，比釘死某個月份更不易因後續補取而失真。
+    assert log["months_unknown_list"] == []
+    assert all(v["status"] == "OK" for v in log["months"].values())
 
 
 def test_panel_session_list_is_an_aggregate_with_no_row_level_content():
