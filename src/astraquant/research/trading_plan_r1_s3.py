@@ -6,7 +6,7 @@ import json
 import math
 import subprocess
 from copy import deepcopy
-from dataclasses import asdict, fields
+from dataclasses import asdict, dataclass, fields
 from datetime import datetime
 from pathlib import Path
 
@@ -33,7 +33,7 @@ S1_SHA = "2fc9680a3cbb74b15d690edbeb02ed03457b26c74dd682a877b1c6e93f8dc38e"
 LIMIT_SHA = "a38f5d63726df1daf4982067b7ce592dc6893f6768af8908e5dae1302b5c0a0a"
 SOURCE_REVISION = "3e7c4b6d9cde3b18942710fa977db02f89bffa0d"
 LIMIT_REVISION = "67e069e962e365b4f4c09fa466decd66bb70fc82"
-VERSION = "s3-canonical-wiring-v1"
+VERSION = "s3-canonical-wiring-v2"
 EXIT_MODES = {"sma20", "sma20_or_rsi13_lt50"}
 S3_SCHEMAS = {name: cols + ("input_binding", "exit_mode", "execution_version")
               for name, cols in SCHEMAS.items()}
@@ -84,6 +84,18 @@ def write_source_manifest(root, *, source_root, panel, supplement, output):
     return manifest
 
 
+def _frame_digest(frame):
+    return _digest(dict(columns=list(frame.columns), dtypes=[str(t) for t in frame.dtypes],
+        values=hashlib.sha256(pd.util.hash_pandas_object(frame, index=True).values.tobytes()).hexdigest()))
+
+
+@dataclass(frozen=True)
+class _InputSnapshot:
+    input_binding: str
+    bars_sha: str
+    panel_keys: frozenset
+
+
 class S3Inputs:
     """Verified file inventory plus an input-bound existing accounting gate.
 
@@ -131,8 +143,10 @@ class S3Inputs:
         self.binding_id = _digest(dict(input=self.input_digest, receipt=self._receipt_sha))
         self.source_root = _inside(self.root, m["source_root"])
         self._seal = _SEAL
-        self.verify()
+        self._verify_files()
         self._bars = self._read_bars()
+        self._snapshot = _InputSnapshot(self.binding_id, _frame_digest(self._bars), self._panel_keys)
+        self.verify()
         return self
 
     def role(self, name):
@@ -142,6 +156,13 @@ class S3Inputs:
         return _inside(self.root, entries[0]["path"])
 
     def verify(self):
+        self._verify_files()
+        if (self._snapshot.input_binding != self.binding_id
+                or _frame_digest(self._bars) != self._snapshot.bars_sha
+                or self._panel_keys != self._snapshot.panel_keys):
+            raise ValueError("changed verified S3 input snapshot/keys")
+
+    def _verify_files(self):
         if getattr(self, "_seal", None) is not _SEAL:
             raise ValueError("unverified S3 binding")
         if (_digest(self.manifest) != self.input_digest or self.inventory != self.manifest["files"]
@@ -256,7 +277,7 @@ class S3TradingPlanR1(TradingPlanR1):
             raise ValueError("unapproved S3 cell")
         self.inputs = inputs
         self._bound_bars = inputs._bars.copy(deep=True)
-        self._bars_sha = hashlib.sha256(pd.util.hash_pandas_object(self._bound_bars, index=True).values.tobytes()).hexdigest()
+        self._bars_sha = inputs._snapshot.bars_sha
         sessions = sorted(self._bound_bars.date.map(_day).unique())
         super().__init__(run_id=run_id, mode="backtest", sessions=sessions, initial_cash=initial_cash,
                          portfolio_id="s3-r1", entry_mode=entry_mode)
@@ -271,13 +292,24 @@ class S3TradingPlanR1(TradingPlanR1):
         self.signal = SignalDeclaration(source=inputs.binding_id, price_semantics=SignalPriceSemantics.RAW_REQUIRED)
         self.journal = []
         self.close_exit_reasons = {}
+        self._declared_identity = deepcopy(self.ledger.identity)
+        self._declared_cell = (entry_mode, exit_mode)
+        self._declared_sessions = tuple(self.sessions)
+
+    def _verify_run(self):
+        self.inputs.verify()
+        if ((self.entry_mode, self.exit_mode) != self._declared_cell
+                or self.ledger.identity != self._declared_identity
+                or self.inputs.binding_id != self._declared_identity["input_binding"]
+                or tuple(self.sessions) != self._declared_sessions):
+            raise ValueError("changed S3 execution cell/identity/calendar")
+        if _frame_digest(self._bound_bars) != self._bars_sha or self._bars_sha != self.inputs._snapshot.bars_sha:
+            raise ValueError("changed verified S3 prices/eligibility")
 
     def _prices(self, bars):
-        self.inputs.verify()
+        self._verify_run()
         if bars is not self._bound_bars:
             raise ValueError("external bars cannot enter scoped S3")
-        if hashlib.sha256(pd.util.hash_pandas_object(bars, index=True).values.tobytes()).hexdigest() != self._bars_sha:
-            raise ValueError("changed verified S3 prices/eligibility")
         p = bars.copy()
         p["date"] = p.date.map(_day)
         return p
@@ -286,7 +318,7 @@ class S3TradingPlanR1(TradingPlanR1):
         raise ValueError("external bars/legacy session entry cannot enter scoped S3; use prepare")
 
     def prepare(self, day):
-        self.inputs.verify()
+        self._verify_run()
         day = _day(day)
         if not self.inputs.manifest["period"]["start"] <= day <= self.inputs.manifest["period"]["end"]:
             raise ValueError("S3 execution outside E1")
@@ -339,6 +371,7 @@ class S3TradingPlanR1(TradingPlanR1):
         return reasons
 
     def _execute(self, event):
+        self._verify_run()
         day, side = event["day"], event["side"]
         at = datetime.fromisoformat(day + ("T09:00:00" if event["field"] == "open" else "T13:30:00"))
         kwargs = dict(ticker=event["stock"], session_date=day, side=side)
@@ -361,7 +394,7 @@ class S3TradingPlanR1(TradingPlanR1):
         return result
 
     def _charge(self, row, *, price, quantity, day, observed_at):
-        self.inputs.verify()
+        self._verify_run()
         side = row["side"]
         reason = row["reason"] or ""
         stop = side == "sell" and reason in {"stop_observed", "stop_price_assumption"}
@@ -375,7 +408,7 @@ class S3TradingPlanR1(TradingPlanR1):
         return super()._charge(row, price=price, quantity=quantity, day=day, observed_at=observed_at)
 
     def reconcile_session(self, day, *, observed_at):
-        self.inputs.verify()
+        self._verify_run()
         self._prices(self._bound_bars)
         result = super().reconcile_session(day, observed_at=observed_at)
         self._check_accounts()
@@ -419,7 +452,7 @@ class S3TradingPlanR1(TradingPlanR1):
                 raise ValueError("canonical/R1 RAW NAV mismatch")
 
     def validate_tables(self, tables=None):
-        self.inputs.verify()
+        self._verify_run()
         frames = self.ledger.tables() if tables is None else tables
         if set(frames) != set(S3_SCHEMAS):
             raise ValueError("exactly four S3 ledger tables required")
@@ -436,6 +469,7 @@ class S3TradingPlanR1(TradingPlanR1):
         self.validate_tables()
         self._check_accounts()
         state = dict(version=VERSION, input_binding=self.inputs.binding_id, identity=self.ledger.identity,
+                     declared_cell=self._declared_cell,
                      initial_cash=self.initial_cash, sessions=self.sessions, cash=self.cash,
                      tables=self.ledger.rows, positions={s: asdict(p) for s,p in self.positions.items()},
                      plans=self.plans, pending_entries=self.pending_entries, completed=self.completed,
@@ -454,7 +488,8 @@ class S3TradingPlanR1(TradingPlanR1):
         identity = state["identity"]
         engine = cls(inputs=inputs, run_id=identity["run_id"], entry_mode=identity["entry_mode"],
                      exit_mode=identity["exit_mode"], initial_cash=state["initial_cash"])
-        if identity != engine.ledger.identity or state["sessions"] != engine.sessions:
+        if (identity != engine.ledger.identity or state["sessions"] != engine.sessions
+                or tuple(state.get("declared_cell", [])) != engine._declared_cell):
             raise ValueError("saved S3 source/cell/calendar mismatch")
         for event in state["journal"]:
             if event["kind"] == "fill":

@@ -298,3 +298,84 @@ def test_delayed_rsi_exit_retains_trigger_after_save_load(tmp_path):
     sale = filled(e, "sell").iloc[0]
     assert sale.reason == "rsi13_lt50_next_open" and sale.fill_price == 101
     assert sale.fill_date == str(days[83].date())
+
+
+@pytest.mark.parametrize("column,value", [("close", 100.), ("eligible", False), ("rs", 0.)])
+def test_input_snapshot_changed_before_engine_cannot_rebind_identity(tmp_path, column, value):
+    root, days = bundle(tmp_path)
+    bound = inputs(root)
+    original_binding = bound.binding_id
+    bound._bars.loc[80, column] = value
+    with pytest.raises(ValueError, match="input snapshot/keys"):
+        bound.verify()
+    with pytest.raises(ValueError, match="input snapshot/keys"):
+        S3TradingPlanR1(inputs=bound, run_id="changed", entry_mode="close", exit_mode="sma20")
+    assert bound.binding_id == original_binding
+    control = execute(engine(root), days)
+    assert len(filled(control, "buy")) == 1
+
+
+@pytest.mark.parametrize("boundary", ["prepare", "reconcile"])
+def test_changed_s1_keys_reject_before_session_economic_mutation(tmp_path, boundary):
+    root, days = bundle(tmp_path)
+    e = engine(root)
+    if boundary == "reconcile":
+        e.prepare(days[80])
+    before = {name: frame.copy(deep=True) for name, frame in e.ledger.tables().items()}
+    e.inputs._panel_keys = e.inputs._panel_keys - {(str(days[80].date()), "1101")}
+    with pytest.raises(ValueError, match="input snapshot/keys"):
+        if boundary == "prepare":
+            e.prepare(days[80])
+        else:
+            e.reconcile_session(days[80], observed_at=days[80])
+    assert not e.positions and e.cash == 1_000_000 and not e.journal
+    assert not e.canonical.portfolio.orders.orders
+    for name, frame in before.items():
+        pd.testing.assert_frame_equal(frame, e.ledger.table(name))
+
+
+@pytest.mark.parametrize("mode", ["entry_mode", "exit_mode"])
+@pytest.mark.parametrize("boundary", ["prepare", "reconcile", "validate", "save", "metrics"])
+def test_actual_execution_mode_must_match_declared_cell_before_work(tmp_path, mode, boundary):
+    root, days = bundle(tmp_path, tail=(104., 103., 102.), rsi_seed=True)
+    e = engine(root, exit="sma20_or_rsi13_lt50")
+    for day in days[80:82]:
+        e.prepare(day); e.reconcile_session(day, observed_at=day)
+    if boundary == "reconcile":
+        e.prepare(days[82])
+    before = {name: frame.copy(deep=True) for name, frame in e.ledger.tables().items()}
+    cash, quantity, journal_length = e.cash, e.positions["1101"].quantity, len(e.journal)
+    setattr(e, mode, "sma20" if mode == "exit_mode" else "next_open")
+    with pytest.raises(ValueError, match="execution cell/identity"):
+        if boundary == "prepare":
+            e.prepare(days[82])
+        elif boundary == "reconcile":
+            e.reconcile_session(days[82], observed_at=days[82])
+        elif boundary == "validate":
+            e.validate_tables()
+        elif boundary == "save":
+            e.save(tmp_path / "changed.json")
+        else:
+            e.metrics()
+    assert e.cash == cash and e.positions["1101"].quantity == quantity
+    assert len(e.journal) == journal_length and filled(e, "sell").empty
+    for name, frame in before.items():
+        pd.testing.assert_frame_equal(frame, e.ledger.table(name))
+    # Original cell still exits at the governed next-session opening price.
+    setattr(e, mode, "sma20_or_rsi13_lt50" if mode == "exit_mode" else "close")
+    e.prepare(days[82]); e.reconcile_session(days[82], observed_at=days[82])
+    assert filled(e, "sell").iloc[0].fill_price == 102
+    assert not e.positions
+
+
+def test_saved_cell_cannot_change_together_with_identity(tmp_path):
+    root, days = bundle(tmp_path, tail=(104., 103., 102.), rsi_seed=True)
+    e = engine(root, exit="sma20_or_rsi13_lt50")
+    e.prepare(days[80]); e.reconcile_session(days[80], observed_at=days[80])
+    path = tmp_path / "cell.json"; e.save(path)
+    state = json.loads(path.read_text())
+    state["identity"]["exit_mode"] = "sma20"
+    state.pop("state_digest"); state["state_digest"] = _digest(state)
+    path.write_text(json.dumps(state))
+    with pytest.raises(ValueError, match="source/cell/calendar mismatch"):
+        S3TradingPlanR1.load(path, inputs=inputs(root))

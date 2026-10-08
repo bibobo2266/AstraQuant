@@ -2,7 +2,7 @@
   "schema_version": "s3-wiring-review-inputs-v1",
   "status": "ENGINEERING_REVIEW_ONLY",
   "baseline_commit": "26e2c3c337f038918b57627d72182cf43f4d44b8",
-  "execution_version": "s3-canonical-wiring-v1",
+  "execution_version": "s3-canonical-wiring-v2",
   "period": {
     "epoch": "E1",
     "start": "2016-01-04",
