@@ -181,7 +181,7 @@ class LimitRuleTests(unittest.TestCase):
         path = Path(__file__).resolve().parents[1] / "scripts/source_pit_feature_matrix_layer1.py"
         tree = ast.parse(path.read_text())
         nodes = [n for n in tree.body if isinstance(n, ast.FunctionDef)
-                 and n.name in {"_s3_limit_tick", "_s3_limit_bounds"}]
+                 and n.name in {"_s3_limit_tick", "_s3_limit_bounds", "_s3_limit_no_close_reference", "_s3_limit_quote_number"}]
         cls.rules = {}
         exec(compile(ast.Module(body=nodes, type_ignores=[]), str(path), "exec"), cls.rules)
 
@@ -210,6 +210,34 @@ class LimitRuleTests(unittest.TestCase):
         for value in [None, "NaN", "0", "-1"]:
             with self.assertRaises((ValueError, ArithmeticError)):
                 self.limits(value)
+
+    def test_no_close_uses_bid_above_base_or_ask_below_base(self):
+        reference = self.rules["_s3_limit_no_close_reference"]
+        self.assertEqual(str(reference("1.95", "1.92", "1.98")), "1.95")
+        self.assertEqual(str(reference("1.95", "1.96", "1.98")), "1.96")
+        self.assertEqual(str(reference("1.95", "1.90", "1.92")), "1.92")
+
+    def test_no_close_retains_verified_base_with_no_or_one_quote(self):
+        reference = self.rules["_s3_limit_no_close_reference"]
+        self.assertEqual(str(reference("1.95")), "1.95")
+        self.assertEqual(str(reference("1.95", last_bid="1.92")), "1.95")
+        self.assertEqual(str(reference("1.95", last_ask="1.98")), "1.95")
+        self.assertEqual(str(reference("1.95", last_ask="1.92")), "1.92")
+
+    def test_no_close_rejects_invalid_base_and_crossed_quotes(self):
+        reference = self.rules["_s3_limit_no_close_reference"]
+        for args in [(None,), ("NaN",), ("0",), ("1", "1.2", "1.1"), ("1", "0")]:
+            with self.assertRaises((ValueError, ArithmeticError)):
+                reference(*args)
+
+    def test_zero_bid_ask_sentinel_is_absence_but_zero_close_is_invalid(self):
+        number = self.rules["_s3_limit_quote_number"]
+        self.assertIsNone(number("0.00", bid_ask=True))
+        self.assertIsNone(number("----"))
+        self.assertEqual(str(number("1,200.00", bid_ask=True)), "1200.00")
+        for value in ["0.00", "-1", "NaN"]:
+            with self.assertRaises((ValueError, ArithmeticError)):
+                number(value)
 
 
 if __name__ == "__main__":

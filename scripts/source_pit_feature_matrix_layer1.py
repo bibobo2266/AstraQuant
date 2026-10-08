@@ -1104,6 +1104,42 @@ def _s3_limit_bounds(reference, dividend_reference=None, *, no_limit=False):
             (lower / down_tick).to_integral_value(rounding=ROUND_CEILING) * down_tick)
 
 
+def _s3_limit_quote_number(value, *, bid_ask=False):
+    """TPEx quote payload: dashes, or zero bid/ask, denote absent quotes."""
+    from decimal import Decimal
+    value = str(value).strip().replace(",", "")
+    if value in {"", "----", "---", "--", "-"}:
+        return None
+    result = Decimal(value)
+    if bid_ask and result == 0:
+        return None
+    if not result.is_finite() or result <= 0:
+        raise ValueError("invalid_official_closing_quote")
+    return result
+
+
+def _s3_limit_no_close_reference(auction_base, last_bid=None, last_ask=None):
+    """Next-session ordinary reference when no regular-lot trade closed."""
+    from decimal import Decimal
+    base = Decimal(str(auction_base))
+    if not base.is_finite() or base <= 0:
+        raise ValueError("unverified_previous_auction_base")
+    quotes = []
+    for value in [last_bid, last_ask]:
+        quote = None if value is None else Decimal(str(value))
+        if quote is not None and (not quote.is_finite() or quote <= 0):
+            raise ValueError("invalid_closing_quote")
+        quotes.append(quote)
+    bid, ask = quotes
+    if bid is not None and ask is not None and bid >= ask:
+        raise ValueError("crossed_unexecuted_closing_quotes")
+    if bid is not None and bid > base:
+        return bid
+    if ask is not None and ask < base:
+        return ask
+    return base
+
+
 def _s3_limit_probe(output):
     """Reuse the owner's fixed ten official stock-days; no new API queries."""
     import re
@@ -1176,8 +1212,6 @@ def _s3_limit_supplement():
         if _sha256(inputs / entry["path"]) != entry["sha256"]:
             raise SystemExit("STOP: fixed limit input hash changed")
     token = os.environ.get("FINMIND_TOKEN", "")
-    if not token:
-        raise SystemExit("BLOCKED: runtime FinMind credential absent")
     panel = pd.read_parquet(panel_path, columns=[]).reset_index()[["date", "stock"]]
     panel["date"] = pd.to_datetime(panel["date"])
     panel = panel[panel["date"].between("2019-01-01", "2021-12-31")]
@@ -1202,7 +1236,7 @@ def _s3_limit_supplement():
     events["event_date"] = pd.to_datetime(events["event_date"], errors="raise")
     event_index = {(date, sid): group for (date, sid), group in
                    events.groupby(["event_date", "stock_id"], sort=False)}
-    specials = {}
+    specials, auction_bases = {}, {}
     evidence = ROOT / "results/trading_plan_r1/limit_source_probe"
     for market in ["twse", "tpex"]:
         for year in range(2019, 2022):
@@ -1215,9 +1249,88 @@ def _s3_limit_supplement():
                 if key in specials:
                     raise SystemExit("STOP: official event reference duplicated")
                 specials[key] = (str(row[4]).strip(), str(row[dividend_col]).strip())
+                auction_col = 9 if market == "twse" else 11
+                auction_bases[key] = str(row[auction_col]).strip().replace(",", "")
     output = OUT_ROOT / "limit_supplement"
     responses = output / "finmind_responses"
     responses.mkdir(parents=True, exist_ok=True)
+    quote_inputs = output / "official_quote_inputs"
+    quote_inputs.mkdir(exist_ok=True)
+    quote_cache, reference_cache, quote_traces = {}, {}, {}
+    def closing_quotes(day, stock):
+        # This is the same TPEx regular-lot quote source that produced RAW.
+        # Published next-day bounds in the payload are NOT calculation inputs.
+        date = str(day.date())
+        if date not in quote_cache:
+            path = quote_inputs / f"tpex_{date}.json"
+            if not path.exists():
+                roc = f"{day.year-1911}/{day.month:02d}/{day.day:02d}"
+                url = ("https://www.tpex.org.tw/web/stock/aftertrading/otc_quotes_no1430/"
+                       "stk_wn1430_result.php?" + urllib.parse.urlencode(dict(l="zh-tw", d=roc, se="EW")))
+                req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0 (compatible; AstraQuant/1.0)"})
+                with urllib.request.urlopen(req, timeout=45) as response:
+                    body = response.read()
+                payload = json.loads(body)
+                if str(payload.get("stat", "")).lower() != "ok":
+                    raise ValueError("official_quote_status_failure")
+                path.write_bytes(body)
+            payload = json.loads(path.read_text())
+            if str(payload.get("stat", "")).lower() != "ok" or payload.get("date") != day.strftime("%Y%m%d"):
+                raise ValueError("official_quote_date_status_failure")
+            quotes = {}
+            for table in payload.get("tables", []):
+                fields = [str(field).strip() for field in table.get("fields", [])]
+                if not {"代號", "收盤", "最後買價", "最後賣價"}.issubset(fields):
+                    continue
+                for values in table["data"]:
+                    item = dict(zip(fields, values))
+                    sid = str(item["代號"]).strip()
+                    if sid in quotes:
+                        raise ValueError("official_quote_duplicate_stock")
+                    quotes[sid] = item
+            quote_cache[date] = (quotes, _sha256(path))
+        quotes, digest = quote_cache[date]
+        if stock not in quotes:
+            raise ValueError("official_closing_quote_missing")
+        item = quotes[stock]
+        return (_s3_limit_quote_number(item["收盤"]),
+                _s3_limit_quote_number(item["最後買價"], bid_ask=True),
+                _s3_limit_quote_number(item["最後賣價"], bid_ask=True), digest)
+    def ordinary_reference(key):
+        if key in reference_cache:
+            return reference_cache[key]
+        day, stock = key
+        current = raw_index.loc[key]
+        if current["observation_number"] <= 5:
+            raise ValueError("ipo_no_limit_status_unverified")
+        previous = previous_market_day.get(day)
+        if current["previous_stock_date"] != previous:
+            raise ValueError("previous_session_quote_missing")
+        if str(current["previous_market"]).lower() != str(current["market"]).lower():
+            raise ValueError("market_transfer_reference_unverified")
+        close = current["previous_close"]
+        if pd.notna(close) and float(close) > 0:
+            result = (str(close), "previous_session_raw_close")
+        else:
+            if str(current["market"]).upper() != "TPEX":
+                raise ValueError("non_tpex_no_close_quote_inputs_unavailable")
+            official_close, bid, ask, digest = closing_quotes(previous, stock)
+            if official_close is not None:
+                raise ValueError("raw_official_close_disagreement")
+            prev_key = (previous, stock)
+            if prev_key in auction_bases:
+                base = Decimal(auction_bases[prev_key])
+            elif prev_key in event_index:
+                raise ValueError("special_no_close_auction_base_unverified")
+            else:
+                base = Decimal(ordinary_reference(prev_key)[0])
+            ref = _s3_limit_no_close_reference(base, bid, ask)
+            quote_traces[prev_key] = dict(quote_date=previous, stock_id=stock,
+                previous_auction_base=str(base), last_bid=None if bid is None else str(bid),
+                last_ask=None if ask is None else str(ask), next_reference=str(ref), payload_sha256=digest)
+            result = (str(ref), "official_no_close_bid_ask_rule")
+        reference_cache[key] = result
+        return result
     started = datetime.datetime.now(datetime.timezone.utc).isoformat()
     response_records, supplied = [], []
     def fetch(day):
@@ -1226,6 +1339,8 @@ def _s3_limit_supplement():
         if path.exists():
             body = gzip.decompress(path.read_bytes())
         else:
+            if not token:
+                raise ValueError("runtime FinMind credential absent for uncached date")
             query = urllib.parse.urlencode(dict(dataset="TaiwanStockPriceLimit", start_date=date))
             req = urllib.request.Request("https://api.finmindtrade.com/api/v4/data?" + query,
                                          headers={"Authorization": "Bearer " + token})
@@ -1308,14 +1423,8 @@ def _s3_limit_supplement():
                     ref = dividend_ref = references.pop()
                     rule = "official_resumption_reference"
                 else:
-                    if raw_row["observation_number"] <= 5:
-                        raise ValueError("ipo_no_limit_status_unverified")
-                    if raw_row["previous_stock_date"] != previous_market_day.get(date):
-                        raise ValueError("previous_session_quote_missing")
-                    if str(raw_row["previous_market"]).lower() != str(raw_row["market"]).lower():
-                        raise ValueError("market_transfer_reference_unverified")
-                    ref = dividend_ref = raw_row["previous_close"]
-                    rule = "previous_session_raw_close"
+                    ref, rule = ordinary_reference(key)
+                    dividend_ref = ref
                 ref = str(ref).replace(",", "")
                 dividend_ref = str(dividend_ref).replace(",", "")
                 up, down = _s3_limit_bounds(ref, dividend_ref)
@@ -1334,6 +1443,11 @@ def _s3_limit_supplement():
     result[result["derived"]].to_csv(output / "derived_rows.csv", index=False)
     pd.DataFrame(unresolved, columns=["date", "stock_id", "reason"]).to_csv(output / "unresolved.csv", index=False)
     pd.DataFrame(response_records).to_csv(output / "response_manifest.csv", index=False)
+    pd.DataFrame(list(quote_traces.values()), columns=["quote_date", "stock_id", "previous_auction_base",
+        "last_bid", "last_ask", "next_reference", "payload_sha256"]).sort_values(["quote_date", "stock_id"]).to_csv(
+            output / "no_close_reference_trace.csv", index=False)
+    pd.DataFrame([dict(path=p.name, sha256=_sha256(p), bytes=p.stat().st_size)
+        for p in sorted(quote_inputs.glob("*.json"))]).to_csv(output / "official_quote_manifest.csv", index=False)
     coverage = []
     for year in range(2019, 2022):
         part = result[result["date"].dt.year.eq(year)]
@@ -1345,6 +1459,7 @@ def _s3_limit_supplement():
     manifest = dict(schema_version="limit_supplement_v1", source_revision=source_manifest["source_revision"],
                     fixed_input_manifest_sha256=_sha256(inputs / "input_manifest.json"),
                     fixed_inputs=source_manifest["files"],
+                    implementation_sha256=_sha256(ROOT / "scripts/source_pit_feature_matrix_layer1.py"),
                     provider_snapshot_version="not supplied by API; individual response hashes frozen",
                     s1_panel_sha256=expected_panel_hash, fetched_start_utc=started,
                     frozen_at_utc=datetime.datetime.now(datetime.timezone.utc).isoformat(),
