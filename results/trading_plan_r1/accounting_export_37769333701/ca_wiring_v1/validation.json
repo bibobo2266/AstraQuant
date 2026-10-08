@@ -1,0 +1,25 @@
+{
+  "base_head": "345b59571f725f07e67bfc4dcf7048d122fb9caa",
+  "tests": {
+    "passed": 718,
+    "skipped": 10,
+    "subtests_passed": 13,
+    "seconds": 83.62,
+    "command": "python3 -m pytest -q",
+    "pytest": "9.1.1",
+    "pyarrow": "25.0.1"
+  },
+  "engineering_source_and_official_originals_separate": true,
+  "readiness_items": 18,
+  "real_case_exercised_only": 11,
+  "not_exercised": 7,
+  "accounting_gate_passed": false,
+  "s3_effects_executed": false,
+  "workflow_dispatches": 0,
+  "files": {
+    "src/astraquant/portfolio/reviewed_ca.py": "4bb8c9fb05090082aa9fdd61d5f55039297ead4ca07942fbcca74414d165cd15",
+    "src/astraquant/research/trading_plan_r1_s3.py": "d7a7a71c3ec5a0bff05bcff6f78c720086ba0e709bb48ead1f176cbd9c16115d",
+    "scripts/source_accounting_smoke_replay.py": "e55be434fe528b0bae28cbd4885f280e340b021965889244e180c0593bf34e76",
+    "tests/test_reviewed_ca_wiring.py": "9e57bcb53248ea234bb62b11f07cad5a6fb1ba077de0227492ee9bafadaed4d3"
+  }
+}

@@ -1,0 +1,136 @@
+{
+  "schema_version": "reviewed_ca_real_probe_v1",
+  "source_revision": "3e7c4b6d9cde3b18942710fa977db02f89bffa0d",
+  "review": "6061085838",
+  "overlay_sha256": "1c1917620f3f7fe7d266d488588b3872c540c8adfa27beb3b84b422009f2c4d4",
+  "source_inputs": [
+    {
+      "path": "raw/prices_raw_2020.parquet",
+      "sha256": "f206e28600e2303b001081119d0e112ee4117e4fea03b1db191773f41f415861"
+    },
+    {
+      "path": "reference/tradability.parquet",
+      "sha256": "3bba4a24ab289fe50165e121865e7bf6fd10a47993339b26fe6975878e6432d0"
+    },
+    {
+      "path": "reference/corporate_actions_official.csv",
+      "sha256": "78d481ef10a3e3e6691d803ecf2805a8096b1c4bec4f63ac4faf717c8785300c"
+    }
+  ],
+  "purpose": "controlled 1000-share accounting holding; not S1/strategy-generated trade",
+  "entry": {
+    "day": "2020-10-14",
+    "price": 52.7,
+    "quantity": 1000,
+    "cost": 150.45850000000002
+  },
+  "event": {
+    "kind": "reviewed_ca",
+    "ticker": "1315",
+    "day": "2020-10-26",
+    "binding": "c1d94e2e3659f0d406de9d7faed8808d7190064749a6e0a7213b6f100a5c9a47",
+    "old_quantity": 1000.0,
+    "new_quantity": 700.0,
+    "cash_receivable": 3000.0,
+    "old_stop": 49.011,
+    "new_stop": 65.73,
+    "event_id": "reviewed:1315:2020-10-26:capital_reduction"
+  },
+  "available_cash_before_payment": 947149.5415,
+  "receivable_before_payment": 3000,
+  "mark": {
+    "day": "2020-10-26",
+    "raw_price": 68.9,
+    "quantity": 700,
+    "nav_including_receivable": 998379.5415
+  },
+  "payment": [
+    {
+      "kind": "reviewed_ca_payment",
+      "event_id": "reviewed:1315:2020-10-26:capital_reduction",
+      "day": "2020-10-29",
+      "amount": 3000.0
+    }
+  ],
+  "available_cash_after_payment": 950149.5415,
+  "duplicate_event_rejected": true,
+  "duplicate_payment_count": 0,
+  "checks": {
+    "signal_source_declared": {
+      "status": "EXERCISED_CASE_ONLY",
+      "scope": "single real accounting case; not full E1 acceptance"
+    },
+    "entry_raw": {
+      "status": "EXERCISED_CASE_ONLY",
+      "scope": "single real accounting case; not full E1 acceptance"
+    },
+    "stop_observation_raw": {
+      "status": "NOT_EXERCISED",
+      "scope": "single real accounting case; not full E1 acceptance"
+    },
+    "exit_raw": {
+      "status": "NOT_EXERCISED",
+      "scope": "single real accounting case; not full E1 acceptance"
+    },
+    "sizing_raw": {
+      "status": "NOT_EXERCISED",
+      "scope": "single real accounting case; not full E1 acceptance"
+    },
+    "mark_raw": {
+      "status": "EXERCISED_CASE_ONLY",
+      "scope": "single real accounting case; not full E1 acceptance"
+    },
+    "share_count_reconciles": {
+      "status": "EXERCISED_CASE_ONLY",
+      "scope": "single real accounting case; not full E1 acceptance"
+    },
+    "cash_reconciles": {
+      "status": "EXERCISED_CASE_ONLY",
+      "scope": "single real accounting case; not full E1 acceptance"
+    },
+    "receivables_reconcile": {
+      "status": "EXERCISED_CASE_ONLY",
+      "scope": "single real accounting case; not full E1 acceptance"
+    },
+    "corporate_actions_reconcile": {
+      "status": "EXERCISED_CASE_ONLY",
+      "scope": "single real accounting case; not full E1 acceptance"
+    },
+    "nav_reconciles": {
+      "status": "EXERCISED_CASE_ONLY",
+      "scope": "single real accounting case; not full E1 acceptance"
+    },
+    "no_adjusted_execution_fallback": {
+      "status": "EXERCISED_CASE_ONLY",
+      "scope": "single real accounting case; not full E1 acceptance"
+    },
+    "canonical_execution_path_active": {
+      "status": "EXERCISED_CASE_ONLY",
+      "scope": "single real accounting case; not full E1 acceptance"
+    },
+    "normalized_ca_view_active": {
+      "status": "NOT_EXERCISED",
+      "scope": "single real accounting case; not full E1 acceptance"
+    },
+    "ca_payment_dates_settle": {
+      "status": "EXERCISED_CASE_ONLY",
+      "scope": "single real accounting case; not full E1 acceptance"
+    },
+    "pit_unsafe_ca_excluded": {
+      "status": "NOT_EXERCISED",
+      "scope": "single real accounting case; not full E1 acceptance"
+    },
+    "terminal_security_lifecycle_active": {
+      "status": "NOT_EXERCISED",
+      "scope": "single real accounting case; not full E1 acceptance"
+    },
+    "long_horizon_canonical_probe_passed": {
+      "status": "NOT_EXERCISED",
+      "scope": "single real accounting case; not full E1 acceptance"
+    }
+  },
+  "accounting_gate_passed": false,
+  "s3_effects_executed": false,
+  "fractional_settlement": "BLOCKED: five accepted fields do not establish fractional cash-out terms",
+  "remaining_gaps": "Source values, including missing or late announcement fields, are unchanged; this inventory is not a gate receipt."
+}

@@ -183,5 +183,84 @@ def main() -> None:
         raise SystemExit("FAIL: one or more accounting gates failed")
 
 
+def run_reviewed_reduction_probe(*, source_root, overlay, manifest_path, output):
+    """Controlled real RAW accounting case; no strategy cells or unlock receipt."""
+    import json
+    import math
+    from dataclasses import fields
+    from astraquant.execution.assumptions import FixedBpsSlippage
+    from astraquant.execution.fills import ExecutionFillFactory
+    from astraquant.execution.service import CanonicalExecutionService, SignalDeclaration
+    from astraquant.data.market_coordinates import SignalPriceSemantics
+    from astraquant.portfolio.engine import PortfolioEngine, SettlementInstruction
+    from astraquant.portfolio.models import OrderIntent
+    from astraquant.portfolio.reviewed_ca import ReviewedCA, sha
+    from astraquant.research.trading_plan_r1_s3 import _OwnerCosts
+    from astraquant.validation.accounting_gate import AccountingReadiness
+
+    source_root = Path(source_root)
+    if sha(manifest_path) != "e18b21dab018c04ae5f6d05979c9d601b035bde45338ed40c42544be9337a26c":
+        raise ValueError("unreviewed accounting export manifest")
+    manifest = json.loads(Path(manifest_path).read_text())
+    evidence = []
+    for item in manifest['files']:
+        if item['role'] not in {'official_events', 'tradability'} and not (item['role']=='raw' and '2020' in item['source_path']):
+            continue
+        path=source_root/item['source_path']
+        if sha(path)!=item['sha256'] or path.stat().st_size!=item['bytes']:
+            raise ValueError('changed frozen accounting probe input')
+        evidence.append(dict(path=item['source_path'],sha256=item['sha256']))
+    actions=ReviewedCA(overlay,source_root/'reference/corporate_actions_official.csv')
+    portfolio=PortfolioEngine(opening_cash=1_000_000)
+    service=CanonicalExecutionService(market_data=ExecutionMarketData(SourceDataAdapter(source_root)),
+        fill_factory=ExecutionFillFactory(_OwnerCosts(),FixedBpsSlippage(0)),portfolio=portfolio)
+    signal=SignalDeclaration(source=actions.binding,price_semantics=SignalPriceSemantics.RAW_REQUIRED)
+    at=datetime(2020,10,14,13,30)
+    buy=service.execute(intent=OrderIntent('ca-real-buy-intent','1315','buy',1000,at,'controlled accounting probe'),
+        signal=signal,order_id='ca-real-buy-order',fill_id='ca-real-buy-fill',submitted_at=at,
+        session_date='2020-10-14',use=PriceUse.ENTRY,field='close',
+        settlement=SettlementInstruction('ca-real-buy-settle',datetime(2020,10,16)))
+    portfolio.settlements.settle('ca-real-buy-settle',datetime(2020,10,16))
+    assert buy.fill.price==52.7 and buy.fill.fees>0
+    before_cash=portfolio.cash.settled_cash
+    old_stop=buy.fill.price*.93
+    record=actions.apply(portfolio=portfolio,ticker='1315',day='2020-10-26',stop_price=old_stop)
+    assert portfolio.positions.positions['1315'].quantity==700
+    assert portfolio.cash.pending_receivables==3000
+    assert portfolio.cash.settled_cash==before_cash
+    assert math.isclose(record['new_stop']*.7+3,old_stop)
+    assert not actions.pay_due(portfolio=portfolio,day='2020-10-28')
+    replay_rejected=False
+    try: actions.apply(portfolio=portfolio,ticker='1315',day='2020-10-26',stop_price=old_stop)
+    except ValueError as error:
+        assert 'duplicate' in str(error);replay_rejected=True
+    mark=service.mark(ticker='1315',session_date='2020-10-26')
+    assert mark.availability is ExecutionAvailability.EXECUTABLE and mark.price==68.9
+    nav=portfolio.cash.projected_cash+700*mark.price
+    paid=actions.pay_due(portfolio=portfolio,day='2020-10-29')
+    assert len(paid)==1 and portfolio.cash.pending_receivables==0
+    assert portfolio.cash.settled_cash==before_cash+3000
+    assert not actions.pay_due(portfolio=portfolio,day='2020-10-29')
+    checks={f.name:dict(status='NOT_EXERCISED',scope='single real accounting case; not full E1 acceptance')
+            for f in fields(AccountingReadiness)}
+    for name in ['signal_source_declared','entry_raw','mark_raw','share_count_reconciles','cash_reconciles',
+                 'receivables_reconcile','corporate_actions_reconcile','nav_reconciles',
+                 'no_adjusted_execution_fallback','canonical_execution_path_active','ca_payment_dates_settle']:
+        checks[name]['status']='EXERCISED_CASE_ONLY'
+    result=dict(schema_version='reviewed_ca_real_probe_v1',source_revision=manifest['source_revision'],
+        review='6061085838',overlay_sha256=sha(overlay),source_inputs=evidence,
+        purpose='controlled 1000-share accounting holding; not S1/strategy-generated trade',
+        entry=dict(day='2020-10-14',price=buy.fill.price,quantity=1000,cost=buy.fill.fees),
+        event=record,available_cash_before_payment=before_cash,receivable_before_payment=3000,
+        mark=dict(day='2020-10-26',raw_price=mark.price,quantity=700,nav_including_receivable=nav),
+        payment=paid,available_cash_after_payment=portfolio.cash.available_to_commit_cash,
+        duplicate_event_rejected=replay_rejected,duplicate_payment_count=0,
+        checks=checks,accounting_gate_passed=False,s3_effects_executed=False,
+        fractional_settlement='BLOCKED: five accepted fields do not establish fractional cash-out terms',
+        remaining_gaps=manifest.get('source_limits'))
+    Path(output).write_text(json.dumps(result,indent=2)+'\n')
+    return result
+
+
 if __name__ == "__main__":
     main()
