@@ -1,0 +1,703 @@
+{
+  "schema_version": "real_process_cases_v1",
+  "base_sha": "19e1b909c6dcacba69ffe7409708f62595a70f48",
+  "source_inputs": [
+    {
+      "path": "raw/prices_raw_2015.parquet",
+      "sha256": "9235f174a6021d11cacfe1901b9ace4445f01dbc595b369b845665aeb84de8c6"
+    },
+    {
+      "path": "raw/prices_raw_2016.parquet",
+      "sha256": "8c1d9ad7d1baae9117b6cb5caffe1ca71359673702af4889325274e4d5a0f5b2"
+    },
+    {
+      "path": "raw/prices_raw_2017.parquet",
+      "sha256": "1b51f311e7ca4e2ccf5d7fcf384ac2d274a8006d8d45bf7e84fc82436f40e2aa"
+    },
+    {
+      "path": "raw/prices_raw_2018.parquet",
+      "sha256": "06845ef8fb4bcde0869188e35d03d4c388776681c647bf96d8c58121767f68a3"
+    },
+    {
+      "path": "raw/prices_raw_2019.parquet",
+      "sha256": "08993f01cfa889d12600a6b50893fab83b87516ec99c9fe7e10c5621aab6e467"
+    },
+    {
+      "path": "raw/prices_raw_2020.parquet",
+      "sha256": "f206e28600e2303b001081119d0e112ee4117e4fea03b1db191773f41f415861"
+    },
+    {
+      "path": "raw/prices_raw_2021.parquet",
+      "sha256": "344585aa37b0e2255490bfdb11d83a0d1aee69439c0ae1fa3dffd2d39ff53f55"
+    },
+    {
+      "path": "reference/tradability.parquet",
+      "sha256": "3bba4a24ab289fe50165e121865e7bf6fd10a47993339b26fe6975878e6432d0"
+    },
+    {
+      "path": "fundamentals/dividend.parquet",
+      "sha256": "f0fa98a466923b25f15135aa7f67edf0633ff00720c034f79e1bfe3851f1a415"
+    },
+    {
+      "path": "reference/corporate_actions_official.csv",
+      "sha256": "78d481ef10a3e3e6691d803ecf2805a8096b1c4bec4f63ac4faf717c8785300c"
+    },
+    {
+      "path": "data/research/terminal_events.csv",
+      "sha256": "02d30cf5dc079a18b7ba7888568f1607e7152136aeca02b7ee06ada5ead58a5d"
+    }
+  ],
+  "s1_panel_sha256": "2fc9680a3cbb74b15d690edbeb02ed03457b26c74dd682a877b1c6e93f8dc38e",
+  "cases": [
+    {
+      "case": "raw_stop",
+      "stock": "2345",
+      "entry_day": "2019-09-18",
+      "signal_day": null,
+      "exit_day": "2019-09-23",
+      "s1_eligibility": true,
+      "entry_feature": {
+        "trigger": true,
+        "bb_upper": 176.91851285159314,
+        "sma20": 163.5,
+        "prev_close": 172.5,
+        "base_sessions": 25,
+        "base_valid": true,
+        "pivot": 172.5,
+        "structure_stop": 149.0
+      },
+      "stop": 165.07500000000002,
+      "budget": 70000,
+      "quantity": 393,
+      "buy": {
+        "fill_id": "raw_stop:buy:fill",
+        "order_id": "raw_stop:buy:order",
+        "ticker": "2345",
+        "side": "buy",
+        "quantity": 393,
+        "price": 177.5,
+        "filled_at": "2019-09-18 13:30:00",
+        "fees": 199.15766250000001
+      },
+      "sell": {
+        "fill_id": "raw_stop:sell:fill",
+        "order_id": "raw_stop:sell:order",
+        "ticker": "2345",
+        "side": "sell",
+        "quantity": 393,
+        "price": 165.07500000000002,
+        "filled_at": "2019-09-23 13:30:00",
+        "fees": 379.840051125
+      },
+      "entry_cash": 69956.6576625,
+      "exit_cash": 64494.634948875006,
+      "sell_settlement": "2019-09-25 00:00:00",
+      "pre_settlement_cash": 930043.3423375,
+      "final_cash": 994537.977286375,
+      "pnl": -5462.022713624996,
+      "path": [
+        {
+          "day": "2019-09-19",
+          "raw_open": 177.0,
+          "raw_low": 168.0,
+          "raw_close": 172.0,
+          "sma20": 164.3,
+          "stop": 165.07500000000002,
+          "stop_triggered": false,
+          "close_exit": ""
+        },
+        {
+          "day": "2019-09-20",
+          "raw_open": 170.0,
+          "raw_low": 168.0,
+          "raw_close": 169.0,
+          "sma20": 165.0,
+          "stop": 165.07500000000002,
+          "stop_triggered": false,
+          "close_exit": ""
+        },
+        {
+          "day": "2019-09-23",
+          "raw_open": 169.0,
+          "raw_low": 163.0,
+          "raw_close": 163.5,
+          "sma20": 165.5,
+          "stop": 165.07500000000002,
+          "stop_triggered": true,
+          "close_exit": "sma20_next_open"
+        }
+      ],
+      "fill_scope": "RAW OHLC stop-level simulation recorded at EOD observation; no intraday execution print"
+    },
+    {
+      "case": "sma20_next_open",
+      "stock": "2345",
+      "entry_day": "2019-08-07",
+      "signal_day": "2019-09-23",
+      "exit_day": "2019-09-24",
+      "s1_eligibility": true,
+      "entry_feature": {
+        "trigger": true,
+        "bb_upper": 143.70018473746367,
+        "sma20": 134.15,
+        "prev_close": 140.5,
+        "base_sessions": 25,
+        "base_valid": true,
+        "pivot": 140.5,
+        "structure_stop": 127.5
+      },
+      "stop": 137.175,
+      "budget": 70000,
+      "quantity": 473,
+      "buy": {
+        "fill_id": "sma20_next_open:buy:fill",
+        "order_id": "sma20_next_open:buy:order",
+        "ticker": "2345",
+        "side": "buy",
+        "quantity": 473,
+        "price": 147.5,
+        "filled_at": "2019-08-07 13:30:00",
+        "fees": 199.18621249999998
+      },
+      "sell": {
+        "fill_id": "sma20_next_open:sell:fill",
+        "order_id": "sma20_next_open:sell:order",
+        "ticker": "2345",
+        "side": "sell",
+        "quantity": 473,
+        "price": 165.0,
+        "filled_at": "2019-09-24 09:00:00",
+        "fees": 456.953475
+      },
+      "entry_cash": 69966.6862125,
+      "exit_cash": 77588.046525,
+      "sell_settlement": "2019-09-26 00:00:00",
+      "pre_settlement_cash": 930033.3137875,
+      "final_cash": 1007621.3603125,
+      "pnl": 7621.360312499994,
+      "path": [
+        {
+          "day": "2019-08-08",
+          "raw_open": 145.0,
+          "raw_low": 144.5,
+          "raw_close": 151.0,
+          "sma20": 135.25,
+          "stop": 137.175,
+          "stop_triggered": false,
+          "close_exit": ""
+        },
+        {
+          "day": "2019-08-12",
+          "raw_open": 146.0,
+          "raw_low": 143.0,
+          "raw_close": 156.0,
+          "sma20": 136.625,
+          "stop": 137.175,
+          "stop_triggered": false,
+          "close_exit": ""
+        },
+        {
+          "day": "2019-08-13",
+          "raw_open": 153.0,
+          "raw_low": 149.0,
+          "raw_close": 149.0,
+          "sma20": 137.625,
+          "stop": 137.175,
+          "stop_triggered": false,
+          "close_exit": ""
+        },
+        {
+          "day": "2019-08-14",
+          "raw_open": 153.0,
+          "raw_low": 149.0,
+          "raw_close": 150.5,
+          "sma20": 138.725,
+          "stop": 137.175,
+          "stop_triggered": false,
+          "close_exit": ""
+        },
+        {
+          "day": "2019-08-15",
+          "raw_open": 147.0,
+          "raw_low": 147.0,
+          "raw_close": 152.0,
+          "sma20": 139.825,
+          "stop": 137.175,
+          "stop_triggered": false,
+          "close_exit": ""
+        },
+        {
+          "day": "2019-08-16",
+          "raw_open": 153.0,
+          "raw_low": 151.0,
+          "raw_close": 153.0,
+          "sma20": 141.05,
+          "stop": 137.175,
+          "stop_triggered": false,
+          "close_exit": ""
+        },
+        {
+          "day": "2019-08-19",
+          "raw_open": 153.0,
+          "raw_low": 151.5,
+          "raw_close": 152.0,
+          "sma20": 142.05,
+          "stop": 137.175,
+          "stop_triggered": false,
+          "close_exit": ""
+        },
+        {
+          "day": "2019-08-20",
+          "raw_open": 153.0,
+          "raw_low": 151.5,
+          "raw_close": 153.0,
+          "sma20": 142.875,
+          "stop": 137.175,
+          "stop_triggered": false,
+          "close_exit": ""
+        },
+        {
+          "day": "2019-08-21",
+          "raw_open": 153.0,
+          "raw_low": 151.5,
+          "raw_close": 156.0,
+          "sma20": 143.975,
+          "stop": 137.175,
+          "stop_triggered": false,
+          "close_exit": ""
+        },
+        {
+          "day": "2019-08-22",
+          "raw_open": 158.0,
+          "raw_low": 154.0,
+          "raw_close": 155.0,
+          "sma20": 144.925,
+          "stop": 137.175,
+          "stop_triggered": false,
+          "close_exit": ""
+        },
+        {
+          "day": "2019-08-23",
+          "raw_open": 155.0,
+          "raw_low": 152.5,
+          "raw_close": 153.5,
+          "sma20": 145.875,
+          "stop": 137.175,
+          "stop_triggered": false,
+          "close_exit": ""
+        },
+        {
+          "day": "2019-08-26",
+          "raw_open": 151.5,
+          "raw_low": 151.0,
+          "raw_close": 153.0,
+          "sma20": 146.7,
+          "stop": 137.175,
+          "stop_triggered": false,
+          "close_exit": ""
+        },
+        {
+          "day": "2019-08-27",
+          "raw_open": 154.5,
+          "raw_low": 153.5,
+          "raw_close": 156.5,
+          "sma20": 147.65,
+          "stop": 137.175,
+          "stop_triggered": false,
+          "close_exit": ""
+        },
+        {
+          "day": "2019-08-28",
+          "raw_open": 156.5,
+          "raw_low": 155.5,
+          "raw_close": 161.5,
+          "sma20": 149.075,
+          "stop": 137.175,
+          "stop_triggered": false,
+          "close_exit": ""
+        },
+        {
+          "day": "2019-08-29",
+          "raw_open": 161.0,
+          "raw_low": 160.0,
+          "raw_close": 162.5,
+          "sma20": 150.5,
+          "stop": 137.175,
+          "stop_triggered": false,
+          "close_exit": ""
+        },
+        {
+          "day": "2019-08-30",
+          "raw_open": 164.5,
+          "raw_low": 162.0,
+          "raw_close": 165.5,
+          "sma20": 151.95,
+          "stop": 137.175,
+          "stop_triggered": false,
+          "close_exit": ""
+        },
+        {
+          "day": "2019-09-02",
+          "raw_open": 167.0,
+          "raw_low": 161.5,
+          "raw_close": 164.0,
+          "sma20": 153.5,
+          "stop": 137.175,
+          "stop_triggered": false,
+          "close_exit": ""
+        },
+        {
+          "day": "2019-09-03",
+          "raw_open": 164.5,
+          "raw_low": 159.5,
+          "raw_close": 161.5,
+          "sma20": 154.675,
+          "stop": 137.175,
+          "stop_triggered": false,
+          "close_exit": ""
+        },
+        {
+          "day": "2019-09-04",
+          "raw_open": 163.5,
+          "raw_low": 161.0,
+          "raw_close": 163.0,
+          "sma20": 155.8,
+          "stop": 137.175,
+          "stop_triggered": false,
+          "close_exit": ""
+        },
+        {
+          "day": "2019-09-05",
+          "raw_open": 164.0,
+          "raw_low": 159.5,
+          "raw_close": 162.5,
+          "sma20": 156.55,
+          "stop": 137.175,
+          "stop_triggered": false,
+          "close_exit": ""
+        },
+        {
+          "day": "2019-09-06",
+          "raw_open": 163.5,
+          "raw_low": 162.0,
+          "raw_close": 164.0,
+          "sma20": 157.2,
+          "stop": 137.175,
+          "stop_triggered": false,
+          "close_exit": ""
+        },
+        {
+          "day": "2019-09-09",
+          "raw_open": 168.0,
+          "raw_low": 163.0,
+          "raw_close": 166.0,
+          "sma20": 157.7,
+          "stop": 137.175,
+          "stop_triggered": false,
+          "close_exit": ""
+        },
+        {
+          "day": "2019-09-10",
+          "raw_open": 166.0,
+          "raw_low": 164.5,
+          "raw_close": 168.0,
+          "sma20": 158.65,
+          "stop": 137.175,
+          "stop_triggered": false,
+          "close_exit": ""
+        },
+        {
+          "day": "2019-09-11",
+          "raw_open": 168.0,
+          "raw_low": 165.5,
+          "raw_close": 166.0,
+          "sma20": 159.425,
+          "stop": 137.175,
+          "stop_triggered": false,
+          "close_exit": ""
+        },
+        {
+          "day": "2019-09-12",
+          "raw_open": 166.5,
+          "raw_low": 166.5,
+          "raw_close": 170.5,
+          "sma20": 160.35,
+          "stop": 137.175,
+          "stop_triggered": false,
+          "close_exit": ""
+        },
+        {
+          "day": "2019-09-16",
+          "raw_open": 170.5,
+          "raw_low": 169.0,
+          "raw_close": 171.0,
+          "sma20": 161.25,
+          "stop": 137.175,
+          "stop_triggered": false,
+          "close_exit": ""
+        },
+        {
+          "day": "2019-09-17",
+          "raw_open": 170.0,
+          "raw_low": 170.0,
+          "raw_close": 172.5,
+          "sma20": 162.275,
+          "stop": 137.175,
+          "stop_triggered": false,
+          "close_exit": ""
+        },
+        {
+          "day": "2019-09-18",
+          "raw_open": 173.0,
+          "raw_low": 172.5,
+          "raw_close": 177.5,
+          "sma20": 163.5,
+          "stop": 137.175,
+          "stop_triggered": false,
+          "close_exit": ""
+        },
+        {
+          "day": "2019-09-19",
+          "raw_open": 177.0,
+          "raw_low": 168.0,
+          "raw_close": 172.0,
+          "sma20": 164.3,
+          "stop": 137.175,
+          "stop_triggered": false,
+          "close_exit": ""
+        },
+        {
+          "day": "2019-09-20",
+          "raw_open": 170.0,
+          "raw_low": 168.0,
+          "raw_close": 169.0,
+          "sma20": 165.0,
+          "stop": 137.175,
+          "stop_triggered": false,
+          "close_exit": ""
+        },
+        {
+          "day": "2019-09-23",
+          "raw_open": 169.0,
+          "raw_low": 163.0,
+          "raw_close": 163.5,
+          "sma20": 165.5,
+          "stop": 137.175,
+          "stop_triggered": false,
+          "close_exit": "sma20_next_open"
+        },
+        {
+          "day": "2019-09-24",
+          "raw_open": 165.0,
+          "raw_low": 164.0,
+          "raw_close": 165.0,
+          "sma20": 166.1,
+          "stop": 137.175,
+          "stop_triggered": false,
+          "close_exit": "sma20_next_open"
+        }
+      ],
+      "fill_scope": "first SMA20 close breach, following source-session RAW open"
+    }
+  ],
+  "normalized_cash": {
+    "action": {
+      "ticker": "2330",
+      "effective_date": "2016-06-27",
+      "kind": "CASH_DIVIDEND",
+      "known_at": "2016-06-08 15:26:18",
+      "payment_at": "2016-07-21 00:00:00",
+      "cash_per_share": 6.0,
+      "share_multiplier": null,
+      "source_name": "FinMind TaiwanStockDividend",
+      "source_row": 3334,
+      "unit_semantics": "cash_per_pre_event_share"
+    },
+    "source_row": {
+      "date": "2016-07-03",
+      "stock_id": "2330",
+      "year": "104年",
+      "StockEarningsDistribution": 0.0,
+      "StockStatutorySurplus": 0.0,
+      "StockExDividendTradingDate": "",
+      "TotalEmployeeStockDividend": 0.0,
+      "TotalEmployeeStockDividendAmount": 0.0,
+      "RatioOfEmployeeStockDividendOfTotal": 0.0,
+      "RatioOfEmployeeStockDividend": 0.0,
+      "CashEarningsDistribution": 6.0,
+      "CashStatutorySurplus": 0.0,
+      "CashExDividendTradingDate": "2016-06-27",
+      "CashDividendPaymentDate": "2016-07-21",
+      "TotalEmployeeCashDividend": 0.0,
+      "TotalNumberOfCashCapitalIncrease": 0.0,
+      "CashIncreaseSubscriptionRate": 0.0,
+      "CashIncreaseSubscriptionpRrice": 0.0,
+      "RemunerationOfDirectorsAndSupervisors": 0.0,
+      "ParticipateDistributionOfTotalShares": 0.0,
+      "AnnouncementDate": "2016-06-08",
+      "AnnouncementTime": "15:26:18",
+      "available_date": "2016-06-08"
+    },
+    "controlled_quantity": 1000,
+    "buy": {
+      "fill_id": "normalized_cash:buy:fill",
+      "order_id": "normalized_cash:buy:order",
+      "ticker": "2330",
+      "side": "buy",
+      "quantity": 1000,
+      "price": 165.5,
+      "filled_at": "2016-06-23 09:00:00",
+      "fees": 472.50249999999994
+    },
+    "cash_before": 834027.4975,
+    "entitlement": {
+      "event_id": "normalized:2330:2016-06-27:CASH_DIVIDEND",
+      "ticker": "2330",
+      "shares_entitled": 1000.0,
+      "cash_per_share": 6.0,
+      "amount": 6000.0,
+      "accrued_at": "2016-06-27 09:00:00",
+      "payment_at": "2016-07-21 00:00:00",
+      "paid_at": "2016-07-21 00:00:00"
+    },
+    "cash_after_payment": 840027.4975,
+    "rejected": [
+      "duplicate_accrual",
+      "early_payment",
+      "duplicate_payment"
+    ],
+    "scope": "common canonical replay boundary; not a complete S3/E1 wiring acceptance"
+  },
+  "pit_rejections": [
+    {
+      "action": {
+        "ticker": "3234",
+        "effective_date": "2017-07-19",
+        "kind": "CASH_DIVIDEND",
+        "known_at": "2017-07-26 16:35:25",
+        "payment_at": "2017-07-31 00:00:00",
+        "cash_per_share": 1.00049094,
+        "share_multiplier": null,
+        "source_name": "FinMind TaiwanStockDividend",
+        "source_row": 7319,
+        "unit_semantics": "cash_per_pre_event_share"
+      },
+      "entry_day": "2017-07-18",
+      "buy": {
+        "fill_id": "pit:3234:buy:fill",
+        "order_id": "pit:3234:buy:order",
+        "ticker": "3234",
+        "side": "buy",
+        "quantity": 100,
+        "price": 39.7,
+        "filled_at": "2017-07-18 13:30:00",
+        "fees": 11.33435
+      },
+      "account_before": [
+        1000000,
+        0.0,
+        3981.3343500000005,
+        100.0
+      ],
+      "account_after": [
+        1000000,
+        0.0,
+        3981.3343500000005,
+        100.0
+      ],
+      "rejected_before_ca_mutation": true
+    },
+    {
+      "action": {
+        "ticker": "4550",
+        "effective_date": "2016-09-12",
+        "kind": "CASH_DIVIDEND",
+        "known_at": "2016-09-13 16:35:53",
+        "payment_at": "2016-10-05 00:00:00",
+        "cash_per_share": 1.26118879,
+        "share_multiplier": null,
+        "source_name": "FinMind TaiwanStockDividend",
+        "source_row": 10097,
+        "unit_semantics": "cash_per_pre_event_share"
+      },
+      "entry_day": "2016-09-10",
+      "buy": {
+        "fill_id": "pit:4550:buy:fill",
+        "order_id": "pit:4550:buy:order",
+        "ticker": "4550",
+        "side": "buy",
+        "quantity": 100,
+        "price": 25.65,
+        "filled_at": "2016-09-10 13:30:00",
+        "fees": 7.323074999999999
+      },
+      "account_before": [
+        1000000,
+        0.0,
+        2572.323075,
+        100.0
+      ],
+      "account_after": [
+        1000000,
+        0.0,
+        2572.323075,
+        100.0
+      ],
+      "rejected_before_ca_mutation": true
+    },
+    {
+      "action": {
+        "ticker": "5234",
+        "effective_date": "2019-06-13",
+        "kind": "CASH_DIVIDEND",
+        "known_at": "2019-06-14 09:02:42",
+        "payment_at": "2019-07-16 00:00:00",
+        "cash_per_share": 5.0,
+        "share_multiplier": null,
+        "source_name": "FinMind TaiwanStockDividend",
+        "source_row": 11514,
+        "unit_semantics": "cash_per_pre_event_share"
+      },
+      "entry_day": "2019-06-12",
+      "buy": {
+        "fill_id": "pit:5234:buy:fill",
+        "order_id": "pit:5234:buy:order",
+        "ticker": "5234",
+        "side": "buy",
+        "quantity": 100,
+        "price": 90.0,
+        "filled_at": "2019-06-12 13:30:00",
+        "fees": 25.695
+      },
+      "account_before": [
+        1000000,
+        0.0,
+        9025.695,
+        100.0
+      ],
+      "account_after": [
+        1000000,
+        0.0,
+        9025.695,
+        100.0
+      ],
+      "rejected_before_ca_mutation": true
+    }
+  ],
+  "scope": "bounded true-data canonical process cases; not four cells or full E1",
+  "checks": {
+    "sizing_raw": "EXERCISED_CASE_ONLY",
+    "stop_observation_raw": "EXERCISED_CASE_ONLY",
+    "exit_raw": "EXERCISED_CASE_ONLY",
+    "normalized_ca_view_active": "EXERCISED_CASE_ONLY",
+    "pit_unsafe_ca_excluded": "EXERCISED_CASE_ONLY"
+  },
+  "remaining": [
+    "Full S3 production wiring/restore/replay acceptance remains pending.",
+    "Terminal lifecycle/final rights, other nine official events and fractions unresolved.",
+    "Long-horizon E1 canonical run not executed."
+  ],
+  "accounting_gate_passed": false,
+  "four_cells_executed": false,
+  "workflow_dispatch_count": 0
+}

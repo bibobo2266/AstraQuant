@@ -1,0 +1,66 @@
+{
+  "base_sha": "19e1b909c6dcacba69ffe7409708f62595a70f48",
+  "evidence_scope": "bounded real-data process cases; not full S3/E1 acceptance",
+  "first_related_regression": {
+    "passed": 113,
+    "seconds": 50.52,
+    "tests": [
+      "test_real_accounting_flows",
+      "test_historical_portfolio_runner",
+      "test_accounting_replay",
+      "test_corporate_action_accounting",
+      "test_trading_plan_r1_s3",
+      "test_reviewed_ca_wiring",
+      "test_accounting_gate"
+    ]
+  },
+  "final_source_rerun": {
+    "passed": 14,
+    "seconds": 36.46,
+    "tests": [
+      "test_real_accounting_flows",
+      "test_normalized_corporate_actions"
+    ],
+    "overlap_with_first": 10,
+    "actual_data_tests": 3,
+    "skipped": 0
+  },
+  "full_724_suite_rerun": false,
+  "checks": {
+    "sizing_raw": "EXERCISED_CASE_ONLY",
+    "stop_observation_raw": "EXERCISED_CASE_ONLY",
+    "exit_raw": "EXERCISED_CASE_ONLY",
+    "normalized_ca_view_active": "EXERCISED_CASE_ONLY",
+    "pit_unsafe_ca_excluded": "EXERCISED_CASE_ONLY"
+  },
+  "production_s3_normalizer_wired": false,
+  "production_s3_execution_performed": false,
+  "accounting_gate_passed": false,
+  "four_cells_executed": false,
+  "workflow_dispatch_count": 0,
+  "reproduce": {
+    "source_root": "<workspace>/accounting-canonical-source",
+    "export_root": "<workspace>/accounting-export-37769333701",
+    "panel": "<workspace>/s1-37708776526/data/panel/eligibility_panel.parquet",
+    "environment": "ASTRAQUANT_REAL_CASE_ROOT=<workspace>",
+    "test_command": "python3 -m pytest -q tests/test_real_accounting_flows.py tests/test_normalized_corporate_actions.py"
+  },
+  "files": {
+    "scripts/source_accounting_smoke_replay.py": {
+      "bytes": 33837,
+      "sha256": "bb486ed7b7a9fc815e9a88b6af03b735d221cf6e0a01312c4dba9390fb6d0527"
+    },
+    "src/astraquant/portfolio/replay_runner.py": {
+      "bytes": 8295,
+      "sha256": "64ff135f6a690cb8a27925a04efd9be045e91a13f957b41a4b95f14d258e7228"
+    },
+    "tests/test_real_accounting_flows.py": {
+      "bytes": 7695,
+      "sha256": "edc3824f23543f26de5a223298a099c98b996454e16e8159ce4b9c669f33239f"
+    },
+    "results/trading_plan_r1/accounting_export_37769333701/real_flows_v1/cases.json": {
+      "bytes": 19685,
+      "sha256": "ae1491888cef2ff8dc98d282187429b428cd937ee697efdd1f6b985012f7a5b3"
+    }
+  }
+}

@@ -90,6 +90,51 @@ class CanonicalPortfolioReplay:
             accrued_at=accrued_at,
         )
 
+    def apply_normalized_action(self, action, *, applied_at: datetime):
+        """Apply a source-normalized dividend through the canonical account.
+
+        This opt-in boundary requires source knowledge by the application time
+        and the effective date. It supplies no research approval or S3 receipt.
+        """
+        from astraquant.data.corporate_actions import NormalizedCorporateActionKind
+        from astraquant.portfolio.corporate_actions import CorporateActionType
+        import math
+
+        if (action.known_at is None
+                or action.known_at > applied_at
+                or action.known_at.date() > action.effective_date):
+            raise ValueError("normalized action is not point-in-time safe")
+        if applied_at.date() < action.effective_date:
+            raise ValueError("normalized action cannot apply before effective date")
+        event_id = f"normalized:{action.ticker}:{action.effective_date}:{action.kind.value}"
+        event = CorporateActionEvent(
+            event_id=event_id, ticker=action.ticker,
+            event_type=(CorporateActionType.CASH_DIVIDEND
+                        if action.kind is NormalizedCorporateActionKind.CASH_DIVIDEND
+                        else CorporateActionType.STOCK_DIVIDEND),
+            effective_at=datetime.combine(action.effective_date, datetime.min.time()),
+            known_at=action.known_at, payment_at=action.payment_at,
+            cash_per_share=action.cash_per_share, share_multiplier=action.share_multiplier,
+            source=action.source_name, notes=action.unit_semantics)
+        if action.kind is NormalizedCorporateActionKind.CASH_DIVIDEND:
+            if (action.cash_per_share is None or not math.isfinite(action.cash_per_share)
+                    or action.cash_per_share <= 0 or action.share_multiplier is not None):
+                raise ValueError("incomplete normalized cash dividend")
+            if action.payment_at is not None and action.payment_at < event.effective_at:
+                raise ValueError("normalized payment precedes entitlement")
+            return self.accrue_cash_dividend(event=event, accrued_at=applied_at)
+        if action.kind is not NormalizedCorporateActionKind.STOCK_DIVIDEND:
+            raise ValueError("unsupported normalized action kind")
+        multiplier = action.share_multiplier
+        position = self.portfolio.positions.positions.get(action.ticker)
+        quantity = 0 if position is None else position.quantity
+        if (multiplier is None or not math.isfinite(multiplier) or multiplier <= 0
+                or action.cash_per_share is not None):
+            raise ValueError("incomplete normalized stock dividend")
+        if not math.isclose(quantity * multiplier, round(quantity * multiplier), abs_tol=1e-8, rel_tol=0):
+            raise ValueError("normalized fractional-share terms are UNKNOWN")
+        return self.apply_share_mutation(event=event, applied_at=applied_at)
+
     def pay_cash_dividend(self, event_id: str, paid_at: datetime):
         return self.portfolio.corporate_actions.pay_cash_dividend(
             event_id,

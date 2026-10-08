@@ -262,26 +262,11 @@ def run_reviewed_reduction_probe(*, source_root, overlay, manifest_path, output)
     return result
 
 
-def run_remaining_accounting_probe(*, source_root, overlay, manifest_path, archive, output):
-    """Evidence only: exercise frozen inputs without issuing an unlock receipt."""
+def _verify_frozen_probe_inputs(*, source_root, manifest_path, archive):
     import json
-    import math
     import zipfile
-    from dataclasses import asdict
-    from astraquant.data.corporate_actions import build_finmind_normalized_actions
-    from astraquant.data.market_coordinates import SignalPriceSemantics
-    from astraquant.execution.assumptions import FixedBpsSlippage
-    from astraquant.execution.fills import ExecutionFillFactory
-    from astraquant.execution.service import CanonicalExecutionService, SignalDeclaration
-    from astraquant.portfolio.engine import PortfolioEngine, SettlementInstruction
-    from astraquant.portfolio.models import OrderIntent
-    from astraquant.portfolio.reviewed_ca import ReviewedCA, sha
-    from astraquant.research.trading_plan_r1_s3 import _OwnerCosts
-    from astraquant.research.trading_plan_r1 import COMMISSION, SLIPPAGE
-    from astraquant.research.terminal_events import load_terminal_event_records
     import hashlib
-    from tempfile import TemporaryDirectory
-
+    from astraquant.portfolio.reviewed_ca import sha
     root = Path(source_root)
     if sha(manifest_path) != 'e18b21dab018c04ae5f6d05979c9d601b035bde45338ed40c42544be9337a26c':
         raise ValueError('unreviewed accounting export manifest')
@@ -302,6 +287,31 @@ def run_remaining_accounting_probe(*, source_root, overlay, manifest_path, archi
     if hashlib.sha256(terminal_bytes).hexdigest() != terms['sha256'] or len(terminal_bytes) != terms['bytes']:
         raise ValueError('changed terminal terms')
     evidence.append(dict(path=terms['source_path'], sha256=terms['sha256']))
+    return root, manifest, evidence, terminal_bytes
+
+
+def run_remaining_accounting_probe(*, source_root, overlay, manifest_path, archive, output):
+    """Evidence only: exercise frozen inputs without issuing an unlock receipt."""
+    import json
+    import math
+    import zipfile
+    from dataclasses import asdict
+    from astraquant.data.corporate_actions import build_finmind_normalized_actions
+    from astraquant.data.market_coordinates import SignalPriceSemantics
+    from astraquant.execution.assumptions import FixedBpsSlippage
+    from astraquant.execution.fills import ExecutionFillFactory
+    from astraquant.execution.service import CanonicalExecutionService, SignalDeclaration
+    from astraquant.portfolio.engine import PortfolioEngine, SettlementInstruction
+    from astraquant.portfolio.models import OrderIntent
+    from astraquant.portfolio.reviewed_ca import ReviewedCA, sha
+    from astraquant.research.trading_plan_r1_s3 import _OwnerCosts
+    from astraquant.research.trading_plan_r1 import COMMISSION, SLIPPAGE
+    from astraquant.research.terminal_events import load_terminal_event_records
+    import hashlib
+    from tempfile import TemporaryDirectory
+
+    root, manifest, evidence, terminal_bytes = _verify_frozen_probe_inputs(
+        source_root=source_root, manifest_path=manifest_path, archive=archive)
     actions = ReviewedCA(overlay, root/'reference/corporate_actions_official.csv')
     portfolio = PortfolioEngine(opening_cash=1_000_000)
     service = CanonicalExecutionService(
@@ -370,6 +380,204 @@ def run_remaining_accounting_probe(*, source_root, overlay, manifest_path, archi
                   'Full E1 canonical integration not executed: terminal announcement times and other nine event evidence gaps remain unresolved.'])
     Path(output).parent.mkdir(parents=True,exist_ok=True)
     Path(output).write_text(json.dumps(result,indent=2,default=str)+'\n')
+    return result
+
+
+def run_real_flow_probe(*, source_root, manifest_path, archive, panel, output):
+    """Bounded RAW/canonical process cases, never an S3 unlock or four-cell run."""
+    import json
+    import math
+    from dataclasses import asdict
+    from types import SimpleNamespace
+    from astraquant.portfolio.reviewed_ca import sha
+    from astraquant.data.corporate_actions import build_finmind_normalized_actions
+    from astraquant.data.market_coordinates import SignalPriceSemantics
+    from astraquant.execution.assumptions import FixedBpsSlippage
+    from astraquant.execution.fills import ExecutionFillFactory
+    from astraquant.execution.service import CanonicalExecutionService, SignalDeclaration
+    from astraquant.portfolio.engine import PortfolioEngine, SettlementInstruction
+    from astraquant.portfolio.models import OrderIntent
+    from astraquant.portfolio.replay_runner import CanonicalPortfolioReplay
+    from astraquant.research.trading_plan_r1 import TradingPlanR1, COMMISSION, SLIPPAGE
+    from astraquant.research.trading_plan_r1_s3 import _OwnerCosts
+
+    root, manifest, evidence, _ = _verify_frozen_probe_inputs(
+        source_root=source_root, manifest_path=manifest_path, archive=archive)
+    panel_sha = '2fc9680a3cbb74b15d690edbeb02ed03457b26c74dd682a877b1c6e93f8dc38e'
+    if sha(panel) != panel_sha:
+        raise ValueError('changed frozen S1 panel')
+    panel_frame = pd.read_parquet(panel).reset_index()
+    raw = pd.concat([pd.read_parquet(root/f'raw/prices_raw_{y}.parquet',
+                                   columns=['date','stock_id','open','max','min','close'])
+                     for y in range(2015, 2022)], ignore_index=True)
+    raw = raw.rename(columns={'stock_id':'stock','max':'high','min':'low'})
+    raw['date'] = raw.date.dt.strftime('%Y-%m-%d')
+    sessions = sorted(raw.date.unique())
+    features_owner = SimpleNamespace(sessions=sessions)
+    dividend = pd.read_parquet(root/'fundamentals/dividend.parquet')
+    normalized = build_finmind_normalized_actions(dividend)
+    official = pd.read_csv(root/'reference/corporate_actions_official.csv')
+
+    def context(ticker):
+        portfolio = PortfolioEngine(opening_cash=1_000_000)
+        service = CanonicalExecutionService(
+            market_data=ExecutionMarketData(SourceDataAdapter(root), ticker_scope={ticker}),
+            fill_factory=ExecutionFillFactory(_OwnerCosts(), FixedBpsSlippage(0)),
+            portfolio=portfolio)
+        replay = CanonicalPortfolioReplay(execution=service, portfolio=portfolio)
+        return portfolio, service, replay
+
+    signal = SignalDeclaration(source=f'frozen RAW process probe:{panel_sha}',
+                               price_semantics=SignalPriceSemantics.RAW_REQUIRED)
+
+    def trade(service, *, ticker, day, side, quantity, case, field='open', stop=None):
+        at = datetime.fromisoformat(day + ('T13:30:00' if field == 'close' or stop is not None else 'T09:00:00'))
+        key = f'{case}:{side}'
+        due = datetime.fromisoformat(sessions[sessions.index(day)+2])
+        args = dict(intent=OrderIntent(key,ticker,side,quantity,at,'bounded true-data accounting probe'),
+                    signal=signal,order_id=key+':order',fill_id=key+':fill',submitted_at=at,
+                    session_date=day,settlement=SettlementInstruction(key+':settlement',due))
+        if stop is not None:
+            executed = service.execute_stop(**args,stop_price=stop)
+        else:
+            executed = service.execute(**args,use=PriceUse.ENTRY if side=='buy' else PriceUse.EXIT,field=field)
+        return executed, key+':settlement', due
+
+    cases = []
+    for name, entry_day, signal_day, exit_day in [
+            ('raw_stop','2019-09-18',None,'2019-09-23'),
+            ('sma20_next_open','2019-08-07','2019-09-23','2019-09-24')]:
+        ticker = '2345'
+        prices = raw[raw.stock.eq(ticker)].sort_values('date')
+        rows = prices.set_index('date').to_dict('index')
+        eligibility = panel_frame[panel_frame.stock.eq(ticker) & panel_frame.date.eq(pd.Timestamp(entry_day))]
+        if len(eligibility) != 1 or not bool(eligibility.iloc[0].eligibility):
+            raise ValueError('probe entry is not in frozen S1 eligible panel')
+        assert eligibility.iloc[0].available_date <= pd.Timestamp(entry_day)
+        feature = TradingPlanR1._features(features_owner,prices,ticker,entry_day)
+        assert feature['trigger'] and feature['base_valid'] and feature['base_sessions'] >= 10
+        assert rows[entry_day]['close'] <= feature['pivot']*1.05
+        assert rows[entry_day]['open'] <= feature['prev_close']*1.05
+        stop = max(rows[entry_day]['close']*.93,feature['structure_stop'])
+        event_days = {str(a.effective_date) for a in normalized if a.ticker==ticker}
+        event_days |= set(official.loc[official.stock_id.astype(str).eq(ticker),'event_date'].astype(str))
+        if any(entry_day < d <= exit_day for d in event_days):
+            raise ValueError('probe window contains an unaccounted corporate action')
+        path = []
+        for day in sessions[sessions.index(entry_day)+1:sessions.index(exit_day)+1]:
+            bar = rows[day]
+            f = TradingPlanR1._features(features_owner,prices,ticker,day)
+            reason = TradingPlanR1._close_exit_reason(features_owner,bar,f)
+            path.append(dict(day=day,raw_open=bar['open'],raw_low=bar['low'],raw_close=bar['close'],
+                             sma20=f['sma20'],stop=stop,stop_triggered=bar['low']<=stop,close_exit=reason))
+            if day < exit_day:
+                assert bar['low'] > stop
+                assert not reason or (name=='sma20_next_open' and day==signal_day)
+        portfolio, service, replay = context(ticker)
+        sizing = service.sizing_price(ticker=ticker,session_date=entry_day,side='buy',field='close',signal=signal)
+        assert sizing.availability is ExecutionAvailability.EXECUTABLE
+        unit_cost = sizing.price*(1+COMMISSION+SLIPPAGE)
+        quantity = math.floor(min(1_000_000*.07,1_000_000*.25)/unit_cost)
+        assert quantity*unit_cost <= 70000 < (quantity+1)*unit_cost
+        buy, buy_settle, buy_due = trade(service,ticker=ticker,day=entry_day,side='buy',
+                                       quantity=quantity,case=name,field='close')
+        replay.settle(buy_settle,buy_due)
+        assert portfolio.positions.positions[ticker].quantity == quantity
+        if name=='raw_stop':
+            observation = service.stop_observation(ticker=ticker,session_date=exit_day,side='sell')
+            assert observation.price <= stop
+            sell, sell_settle, sell_due = trade(service,ticker=ticker,day=exit_day,side='sell',
+                                                quantity=quantity,case=name,stop=stop)
+            assert sell.fill.price == min(rows[exit_day]['open'],stop)
+        else:
+            assert signal_day == sessions[sessions.index(exit_day)-1]
+            assert path[-2]['close_exit']=='sma20_next_open'
+            assert rows[exit_day]['low'] > stop
+            sell, sell_settle, sell_due = trade(service,ticker=ticker,day=exit_day,side='sell',
+                                                quantity=quantity,case=name)
+            assert sell.fill.price == rows[exit_day]['open']
+        entry_cash = buy.fill.price*quantity+buy.fill.fees
+        exit_cash = sell.fill.price*quantity-sell.fill.fees
+        before_settle = portfolio.cash.settled_cash
+        assert math.isclose(before_settle,1_000_000-entry_cash,abs_tol=1e-8)
+        assert math.isclose(portfolio.cash.pending_receivables,exit_cash,abs_tol=1e-8)
+        replay.settle(sell_settle,sell_due)
+        assert portfolio.positions.positions[ticker].quantity == 0
+        assert portfolio.cash.pending_receivables == portfolio.cash.pending_payables == 0
+        assert math.isclose(portfolio.cash.settled_cash-1_000_000,exit_cash-entry_cash,abs_tol=1e-8)
+        cases.append(dict(case=name,stock=ticker,entry_day=entry_day,signal_day=signal_day,exit_day=exit_day,
+            s1_eligibility=True,entry_feature=feature,stop=stop,budget=70000,quantity=quantity,
+            buy=asdict(buy.fill),sell=asdict(sell.fill),entry_cash=entry_cash,exit_cash=exit_cash,
+            sell_settlement=sell_due,pre_settlement_cash=before_settle,final_cash=portfolio.cash.settled_cash,
+            pnl=exit_cash-entry_cash,path=path,
+            fill_scope='RAW OHLC stop-level simulation recorded at EOD observation; no intraday execution print' if name=='raw_stop'
+                       else 'first SMA20 close breach, following source-session RAW open'))
+
+    # Source-normalized cash entitlement over a controlled, actually bought holding.
+    action = next(a for a in normalized if a.ticker=='2330' and str(a.effective_date)=='2016-06-27')
+    portfolio, service, replay = context('2330')
+    buy, settle_id, due = trade(service,ticker='2330',day='2016-06-23',side='buy',quantity=1000,case='normalized_cash')
+    assert due <= datetime(2016,6,27,9)
+    replay.settle(settle_id,due)
+    cash_before = portfolio.cash.settled_cash
+    entitlement = replay.apply_normalized_action(action,applied_at=datetime(2016,6,27,9))
+    assert entitlement.amount==6000 and portfolio.cash.pending_receivables==6000
+    assert portfolio.cash.settled_cash == cash_before
+    failed = []
+    for label, operation in [
+            ('duplicate_accrual',lambda:replay.apply_normalized_action(action,applied_at=datetime(2016,6,27,9))),
+            ('early_payment',lambda:replay.pay_cash_dividend(entitlement.event_id,datetime(2016,7,20)))]:
+        try: operation()
+        except ValueError: failed.append(label)
+        else: raise AssertionError('normalized event accepted invalid replay/payment')
+        assert portfolio.cash.settled_cash==cash_before and portfolio.cash.pending_receivables==6000
+    replay.pay_cash_dividend(entitlement.event_id,action.payment_at)
+    assert portfolio.cash.settled_cash==cash_before+6000 and portfolio.cash.pending_receivables==0
+    try: replay.pay_cash_dividend(entitlement.event_id,action.payment_at)
+    except KeyError: failed.append('duplicate_payment')
+    else: raise AssertionError('duplicate normalized payment accepted')
+    source_row = {key:None if pd.isna(value) else value
+                  for key,value in dividend.iloc[action.source_row].to_dict().items()}
+    normalized_case = dict(action=asdict(action),source_row=source_row,
+        controlled_quantity=1000,buy=asdict(buy.fill),cash_before=cash_before,
+        entitlement=asdict(entitlement),cash_after_payment=portfolio.cash.settled_cash,rejected=failed,
+        scope='common canonical replay boundary; not a complete S3/E1 wiring acceptance')
+
+    # Attempt all three actual late announcements against held RAW positions.
+    unsafe_cases = []
+    for action in sorted([a for a in normalized if a.known_at and a.known_at.date()>a.effective_date
+                          and 2016<=a.effective_date.year<=2021],key=lambda a:a.ticker):
+        day = str(action.effective_date)
+        entry = sessions[sessions.index(day)-1]
+        portfolio, service, replay = context(action.ticker)
+        buy, settle_id, due = trade(service,ticker=action.ticker,day=entry,side='buy',quantity=100,
+                                   case='pit:'+action.ticker,field='close')
+        before = (portfolio.cash.settled_cash,portfolio.cash.pending_receivables,
+                  portfolio.cash.pending_payables,portfolio.positions.positions[action.ticker].quantity)
+        try: replay.apply_normalized_action(action,applied_at=datetime.fromisoformat(day+'T09:00:00'))
+        except ValueError as error:
+            assert 'point-in-time' in str(error)
+        else: raise AssertionError('late source action accepted against actual holding')
+        after = (portfolio.cash.settled_cash,portfolio.cash.pending_receivables,
+                 portfolio.cash.pending_payables,portfolio.positions.positions[action.ticker].quantity)
+        assert before == after
+        assert not portfolio.corporate_actions.dividend_receivables
+        assert not portfolio.corporate_actions.share_mutations
+        unsafe_cases.append(dict(action=asdict(action),entry_day=entry,buy=asdict(buy.fill),
+                                 account_before=before,account_after=after,rejected_before_ca_mutation=True))
+    assert len(unsafe_cases)==3
+    result = dict(schema_version='real_process_cases_v1',base_sha='19e1b909c6dcacba69ffe7409708f62595a70f48',
+        source_inputs=evidence,s1_panel_sha256=panel_sha,cases=cases,normalized_cash=normalized_case,
+        pit_rejections=unsafe_cases,
+        scope='bounded true-data canonical process cases; not four cells or full E1',
+        checks={name:'EXERCISED_CASE_ONLY' for name in ['sizing_raw','stop_observation_raw','exit_raw',
+                    'normalized_ca_view_active','pit_unsafe_ca_excluded']},
+        remaining=['Full S3 production wiring/restore/replay acceptance remains pending.',
+                   'Terminal lifecycle/final rights, other nine official events and fractions unresolved.',
+                   'Long-horizon E1 canonical run not executed.'],
+        accounting_gate_passed=False,four_cells_executed=False,workflow_dispatch_count=0)
+    Path(output).parent.mkdir(parents=True,exist_ok=True)
+    Path(output).write_text(json.dumps(result,ensure_ascii=False,indent=2,default=str)+'\n')
     return result
 
 
