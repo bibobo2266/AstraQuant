@@ -1,0 +1,5 @@
+runner,entry_mode,signal_close,opening,price_cap,gap_pct,status,reject_reason,buy_fills,source_kind
+run_backtest,next_open,104.0,110.0,111.30000000000001,5.769230769231,REJECTED,gap_up_over_5pct,0,synthetic
+run_daily,next_open,104.0,110.0,111.30000000000001,5.769230769231,REJECTED,gap_up_over_5pct,0,synthetic
+run_backtest,next_open,104.0,109.2,111.30000000000001,5.0,FILLED,,1,synthetic
+run_daily,next_open,104.0,109.2,111.30000000000001,5.0,FILLED,,1,synthetic

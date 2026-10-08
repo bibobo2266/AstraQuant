@@ -371,6 +371,54 @@ class SharedSchemaAndContracts(unittest.TestCase):
 
 
 class EngineeringRevisions(unittest.TestCase):
+    def _next_open_gap_fixture(self, opening):
+        # The older base high keeps cap above the gap-rejection threshold.
+        bars, sessions = fixture(closes=tuple([100.0]*20 + [104.0, opening]), changes={
+            ("1101", 21): {"open": 119.0, "high": 121.0, "low": 118.0, "close": 120.0},
+            ("1101", 22): {"open": 106.0, "high": 107.0, "low": 105.0, "close": 106.0},
+            ("1101", 23): {"open": 90.0, "high": 91.0, "low": 89.0, "close": 90.0},
+            ("1101", 101): {"open": opening, "high": opening+1, "low": opening-1, "close": opening}})
+        return bars, sessions
+
+    def test_next_open_gap_over_five_rejected_even_below_price_cap(self):
+        bars, sessions = self._next_open_gap_fixture(110.0)
+        for runner in [run_backtest, run_daily]:
+            with self.subTest(runner=runner.__name__):
+                engine = runner(bars, run_id="gap-only", sessions=sessions,
+                                start=sessions[100], entry_mode="next_open")
+                row = engine.ledger.table("decisions").iloc[0]
+                self.assertEqual(row.pivot, 106.0)
+                self.assertAlmostEqual(row.price_cap, 111.3)
+                self.assertLessEqual(row.want_price, row.price_cap)
+                self.assertGreater(110.0, 104.0 * 1.05)
+                self.assertEqual(row.status, "REJECTED")
+                self.assertEqual(row.reject_reason, "gap_up_over_5pct")
+                self.assertEqual(row.reject_reasons, ["gap_up_over_5pct"])
+                buys = engine.ledger.table("fills")
+                buys = buys[buys.side.eq("buy")]
+                self.assertFalse(buys.fill.any())
+                self.assertEqual(buys.iloc[0].status, "REJECTED")
+                self.assertEqual(len(engine.positions), 0)
+                self.assertEqual(engine.cash, 1_000_000)
+
+    def test_next_open_gap_exactly_five_percent_is_accepted(self):
+        opening = 104.0 * 1.05
+        bars, sessions = self._next_open_gap_fixture(opening)
+        for runner in [run_backtest, run_daily]:
+            with self.subTest(runner=runner.__name__):
+                engine = runner(bars, run_id="gap-boundary", sessions=sessions,
+                                start=sessions[100], entry_mode="next_open")
+                row = engine.ledger.table("decisions").iloc[0]
+                self.assertLessEqual(opening, row.price_cap)
+                self.assertEqual(row.status, "FILLED")
+                self.assertEqual(row.reject_reasons, [])
+                self.assertEqual(row.reject_reason, "")
+                buys = engine.ledger.table("fills")
+                buys = buys[buys.side.eq("buy") & buys.fill.fillna(False)]
+                self.assertEqual(len(buys), 1)
+                self.assertAlmostEqual(buys.iloc[0].fill_price, opening)
+                self.assertEqual(buys.iloc[0].fill_date, sessions[101])
+
     def test_10_entry_modes_different_prices_and_correct_rejection_sessions(self):
         p, days = fixture(closes=(104.0, 103.0), changes={
             ("1101", 81): {"open": 102.0, "high": 104.0, "low": 101.0, "close": 103.0}})
