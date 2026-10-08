@@ -1,0 +1,72 @@
+{
+  "code_commit": "e77e40df81ea0a2a1c629f8b690b8b6859f5ecfb",
+  "s1_panel_sha256": "2fc9680a3cbb74b15d690edbeb02ed03457b26c74dd682a877b1c6e93f8dc38e",
+  "source_revision": "3e7c4b6d9cde3b18942710fa977db02f89bffa0d",
+  "official_formula_matches": 10,
+  "expected_rows": 1323279,
+  "rows": 1323279,
+  "unresolved": 0,
+  "s3_run": false,
+  "files": [
+    {
+      "path": "coverage.csv",
+      "bytes": 200,
+      "sha256": "4679ef81d7b8bd2858c4257fe525e34bf746f772548f554cc1c52986978a6305"
+    },
+    {
+      "path": "derived_rows.csv",
+      "bytes": 139524,
+      "sha256": "aae6891eb5a483a51e937209d64351d159db5281182c500feef0775928fa71e6"
+    },
+    {
+      "path": "formula_official_samples.csv",
+      "bytes": 1284,
+      "sha256": "79da6b4a9085631259aa97828e543a2615bc1508242716b96ccf1a3cf23b615e"
+    },
+    {
+      "path": "manifest.json",
+      "bytes": 3821,
+      "sha256": "90a9b90b4b3a725f4a5e8b81dc1e190c846212ebae008d9c9bf59669b2700f4e"
+    },
+    {
+      "path": "no_close_input_probe.csv",
+      "bytes": 2885,
+      "sha256": "7b80f11ab251ad0deabd0a60bcd75de921542f33f31814e6d42a1304f947803f"
+    },
+    {
+      "path": "no_close_reference_trace.csv",
+      "bytes": 7197,
+      "sha256": "a5b53938a486948738104b780259cd886c8a87dd4afd56a0ad83837e60433ee5"
+    },
+    {
+      "path": "official_quote_manifest.csv",
+      "bytes": 6435,
+      "sha256": "40554a8322c6d144daf2f84aa7ea97692a43e1da230bcd88bdceb50335b06ef7"
+    },
+    {
+      "path": "partial_ordinary_input_gaps.csv",
+      "bytes": 3944,
+      "sha256": "11e7da4cef7b2be248746cdd307765860a5f0887d2274bf633a45eb111da4851"
+    },
+    {
+      "path": "price_limit_supplement_2019_2021.parquet",
+      "bytes": 8135060,
+      "sha256": "a38f5d63726df1daf4982067b7ce592dc6893f6768af8908e5dae1302b5c0a0a"
+    },
+    {
+      "path": "response_manifest.csv",
+      "bytes": 130896,
+      "sha256": "9561f0a3eaef148b6369efd7aecea7ca51f4520ff68f172f32cc037b72fcf378"
+    },
+    {
+      "path": "source_responses.zip",
+      "bytes": 20898870,
+      "sha256": "4417c56fc70c83142da48fbaf7e4cf424c12b432ab5c5e00efe935ad1fc8b675"
+    },
+    {
+      "path": "unresolved.csv",
+      "bytes": 21,
+      "sha256": "8f7558846326930e68063282d6ccb19022a064bcc0daa7e5837455a30e031b89"
+    }
+  ]
+}
