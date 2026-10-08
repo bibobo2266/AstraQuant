@@ -1,0 +1,10 @@
+{
+  "schema_version": "s3_accounting_archive_receipt_v1",
+  "path": "accounting_source_inputs.zip",
+  "bytes": 171502242,
+  "sha256": "79a45e098fb55f9c358c2c8a67e58365d07277b5ba706e2768d1842d11902867",
+  "input_manifest_sha256": "e18b21dab018c04ae5f6d05979c9d601b035bde45338ed40c42544be9337a26c",
+  "archived_input_files": 25,
+  "source_revision": "3e7c4b6d9cde3b18942710fa977db02f89bffa0d",
+  "research_revision": "206ccc54079db2c0aa26b1d0b81227070bf1429c"
+}

@@ -1,0 +1,22 @@
+[
+  {
+    "key": "truelight_major",
+    "url": "https://www.truelight.com.tw/Investor/?param=majorinternalpolicies",
+    "error": "HTTP Error 404: Not Found"
+  },
+  {
+    "key": "tahhsin_board2020",
+    "url": "https://www.tahhsin.com.tw/wp-content/uploads/pdf_file/%E8%91%A3%E4%BA%8B%E6%9C%83%E9%87%8D%E5%A4%A7%E8%A8%8A%E6%81%AF-2020-3.16.pdf",
+    "resolved_url": "https://www.tahhsin.com.tw/wp-content/uploads/pdf_file/%E8%91%A3%E4%BA%8B%E6%9C%83%E9%87%8D%E5%A4%A7%E8%A8%8A%E6%81%AF-2020-3.16.pdf",
+    "status": 200,
+    "bytes": 339429,
+    "sha256": "d9fe4408b12e3d2bbd63d71c74d841723d84f4216994b90f1d5f1370151c7fff",
+    "file": "tahhsin_board2020.pdf",
+    "content_type": "application/pdf"
+  },
+  {
+    "key": "daxin_dividend",
+    "url": "https://www.daxinmat.com/upload/media/IR/2019.Dec.11-IR%20Presentation_CN.pdf",
+    "error": "HTTP Error 404: Not Found"
+  }
+]

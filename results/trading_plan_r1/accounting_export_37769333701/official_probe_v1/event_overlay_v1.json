@@ -1,0 +1,428 @@
+{
+  "schema_version": "s3_official_event_probe_v1",
+  "base_source_revision": "3e7c4b6d9cde3b18942710fa977db02f89bffa0d",
+  "reviewed_engineering_head": "206ccc54079db2c0aa26b1d0b81227070bf1429c",
+  "event_cap": 10,
+  "selected_events": 10,
+  "selection": "required three late dividends; seven lowest distinct stock_id in E1 capital_reduction with missing share_multiplier, earliest missing event per stock",
+  "counts": {
+    "complete_candidate_pending_review": 1,
+    "partial": 7,
+    "unknown": 2,
+    "approved_for_engine": 0,
+    "base_events_modified": 0
+  },
+  "events": [
+    {
+      "stock_id": "4550",
+      "source_event_date": "2016-09-12",
+      "event_type": "cash_dividend",
+      "status": "UNKNOWN",
+      "verified_fields": {
+        "announcement_at": null,
+        "event_date": null,
+        "cash_per_share": null,
+        "share_multiplier": null,
+        "payment_date": null
+      },
+      "official_evidence": [],
+      "missing_required_fields": [
+        "announcement_at",
+        "event_date",
+        "cash_per_share",
+        "payment_date"
+      ],
+      "apply_to_engine": false,
+      "same_event_match": "stock_id + cash ex-dividend date + dividend fiscal year",
+      "base_untouched": true
+    },
+    {
+      "stock_id": "3234",
+      "source_event_date": "2017-07-19",
+      "event_type": "cash_dividend",
+      "status": "PARTIAL",
+      "verified_fields": {
+        "announcement_at": null,
+        "event_date": "2017-07-19",
+        "cash_per_share": 1.00049094,
+        "share_multiplier": null,
+        "payment_date": "2017-07-31"
+      },
+      "official_evidence": [
+        {
+          "file": "originals/truelight_dps.html",
+          "locator": "股利資訊 table 年度105, exact cash/ex-date/payment-date cells",
+          "covers": [
+            "event_date",
+            "cash_per_share",
+            "payment_date"
+          ],
+          "announcement_at_not_present": true
+        }
+      ],
+      "missing_required_fields": [
+        "announcement_at"
+      ],
+      "apply_to_engine": false,
+      "same_event_match": "stock_id + cash ex-dividend date + dividend fiscal year",
+      "base_untouched": true
+    },
+    {
+      "stock_id": "5234",
+      "source_event_date": "2019-06-13",
+      "event_type": "cash_dividend",
+      "status": "UNKNOWN",
+      "verified_fields": {
+        "announcement_at": null,
+        "event_date": null,
+        "cash_per_share": null,
+        "share_multiplier": null,
+        "payment_date": null
+      },
+      "official_evidence": [],
+      "missing_required_fields": [
+        "announcement_at",
+        "event_date",
+        "cash_per_share",
+        "payment_date"
+      ],
+      "apply_to_engine": false,
+      "same_event_match": "stock_id + cash ex-dividend date + dividend fiscal year",
+      "base_untouched": true
+    },
+    {
+      "stock_id": "1109",
+      "source_event_date": "2017-10-30",
+      "event_type": "capital_reduction",
+      "status": "PARTIAL",
+      "verified_fields": {
+        "announcement_at": null,
+        "event_date": "2017-10-30",
+        "cash_per_share": null,
+        "share_multiplier": null,
+        "payment_date": null
+      },
+      "official_evidence": [
+        {
+          "file": "originals/1109_20171030_twse_startend.json",
+          "locator": "data row where 股票代號 matches 1109 and 恢復買賣日期 matches source_event_date",
+          "covers": [
+            "event_date"
+          ],
+          "other_fields_not_in_endpoint": [
+            "announcement_at",
+            "share_multiplier",
+            "cash_per_share",
+            "payment_date"
+          ]
+        }
+      ],
+      "missing_required_fields": [
+        "announcement_at",
+        "share_multiplier",
+        "cash_per_share",
+        "payment_date"
+      ],
+      "same_event_match": "stock_id + RAW-source ledger event_date interpreted as restored/new-share trading date; exact TWSE row, not reference-price reverse inference",
+      "apply_to_engine": false,
+      "base_untouched": true
+    },
+    {
+      "stock_id": "1315",
+      "source_event_date": "2020-10-26",
+      "event_type": "capital_reduction",
+      "status": "COMPLETE_CANDIDATE_PENDING_REVIEW",
+      "verified_fields": {
+        "announcement_at": "2020-09-15T15:41:54+08:00",
+        "event_date": "2020-10-26",
+        "cash_per_share": 3.0,
+        "share_multiplier": 0.7,
+        "payment_date": "2020-10-29"
+      },
+      "official_evidence": [
+        {
+          "file": "originals/1315_20201026_twse_startend.json",
+          "locator": "data row where 股票代號 matches 1315 and 恢復買賣日期 matches source_event_date",
+          "covers": [
+            "event_date"
+          ],
+          "other_fields_not_in_endpoint": [
+            "announcement_at",
+            "share_multiplier",
+            "cash_per_share",
+            "payment_date"
+          ]
+        },
+        {
+          "file": "originals/tahhsin_board20200915.pdf",
+          "locator": "MOPS company1315 serial1: page1 發言日期109/09/15 時間15:41:54; 每仟股換發700股/每股退還3元; page2 新股票上市109/10/26 and 現金減資還股款發放109/10/29; page3 regulator approval references",
+          "covers": [
+            "announcement_at",
+            "share_multiplier",
+            "cash_per_share",
+            "payment_date",
+            "event_date"
+          ],
+          "read_method": "three rendered pages visually verified; no dates inferred from approval, base date or resume date"
+        }
+      ],
+      "missing_required_fields": [],
+      "same_event_match": "stock_id + RAW-source ledger event_date interpreted as restored/new-share trading date; exact TWSE row, not reference-price reverse inference",
+      "apply_to_engine": false,
+      "base_untouched": true
+    },
+    {
+      "stock_id": "1316",
+      "source_event_date": "2017-01-24",
+      "event_type": "capital_reduction",
+      "status": "PARTIAL",
+      "verified_fields": {
+        "announcement_at": null,
+        "event_date": "2017-01-24",
+        "cash_per_share": null,
+        "share_multiplier": null,
+        "payment_date": null
+      },
+      "official_evidence": [
+        {
+          "file": "originals/1316_20170124_twse_startend.json",
+          "locator": "data row where 股票代號 matches 1316 and 恢復買賣日期 matches source_event_date",
+          "covers": [
+            "event_date"
+          ],
+          "other_fields_not_in_endpoint": [
+            "announcement_at",
+            "share_multiplier",
+            "cash_per_share",
+            "payment_date"
+          ]
+        }
+      ],
+      "missing_required_fields": [
+        "announcement_at",
+        "share_multiplier",
+        "cash_per_share",
+        "payment_date"
+      ],
+      "same_event_match": "stock_id + RAW-source ledger event_date interpreted as restored/new-share trading date; exact TWSE row, not reference-price reverse inference",
+      "apply_to_engine": false,
+      "base_untouched": true
+    },
+    {
+      "stock_id": "1325",
+      "source_event_date": "2016-12-09",
+      "event_type": "capital_reduction",
+      "status": "PARTIAL",
+      "verified_fields": {
+        "announcement_at": null,
+        "event_date": "2016-12-09",
+        "cash_per_share": null,
+        "share_multiplier": null,
+        "payment_date": null
+      },
+      "official_evidence": [
+        {
+          "file": "originals/1325_20161209_twse_startend.json",
+          "locator": "data row where 股票代號 matches 1325 and 恢復買賣日期 matches source_event_date",
+          "covers": [
+            "event_date"
+          ],
+          "other_fields_not_in_endpoint": [
+            "announcement_at",
+            "share_multiplier",
+            "cash_per_share",
+            "payment_date"
+          ]
+        }
+      ],
+      "missing_required_fields": [
+        "announcement_at",
+        "share_multiplier",
+        "cash_per_share",
+        "payment_date"
+      ],
+      "same_event_match": "stock_id + RAW-source ledger event_date interpreted as restored/new-share trading date; exact TWSE row, not reference-price reverse inference",
+      "apply_to_engine": false,
+      "base_untouched": true
+    },
+    {
+      "stock_id": "1410",
+      "source_event_date": "2019-10-28",
+      "event_type": "capital_reduction",
+      "status": "PARTIAL",
+      "verified_fields": {
+        "announcement_at": null,
+        "event_date": "2019-10-28",
+        "cash_per_share": null,
+        "share_multiplier": null,
+        "payment_date": null
+      },
+      "official_evidence": [
+        {
+          "file": "originals/1410_20191028_twse_startend.json",
+          "locator": "data row where 股票代號 matches 1410 and 恢復買賣日期 matches source_event_date",
+          "covers": [
+            "event_date"
+          ],
+          "other_fields_not_in_endpoint": [
+            "announcement_at",
+            "share_multiplier",
+            "cash_per_share",
+            "payment_date"
+          ]
+        }
+      ],
+      "missing_required_fields": [
+        "announcement_at",
+        "share_multiplier",
+        "cash_per_share",
+        "payment_date"
+      ],
+      "same_event_match": "stock_id + RAW-source ledger event_date interpreted as restored/new-share trading date; exact TWSE row, not reference-price reverse inference",
+      "apply_to_engine": false,
+      "base_untouched": true
+    },
+    {
+      "stock_id": "1416",
+      "source_event_date": "2016-10-14",
+      "event_type": "capital_reduction",
+      "status": "PARTIAL",
+      "verified_fields": {
+        "announcement_at": null,
+        "event_date": "2016-10-14",
+        "cash_per_share": null,
+        "share_multiplier": null,
+        "payment_date": null
+      },
+      "official_evidence": [
+        {
+          "file": "originals/1416_20161014_twse_startend.json",
+          "locator": "data row where 股票代號 matches 1416 and 恢復買賣日期 matches source_event_date",
+          "covers": [
+            "event_date"
+          ],
+          "other_fields_not_in_endpoint": [
+            "announcement_at",
+            "share_multiplier",
+            "cash_per_share",
+            "payment_date"
+          ]
+        }
+      ],
+      "missing_required_fields": [
+        "announcement_at",
+        "share_multiplier",
+        "cash_per_share",
+        "payment_date"
+      ],
+      "same_event_match": "stock_id + RAW-source ledger event_date interpreted as restored/new-share trading date; exact TWSE row, not reference-price reverse inference",
+      "apply_to_engine": false,
+      "base_untouched": true
+    },
+    {
+      "stock_id": "1417",
+      "source_event_date": "2019-09-09",
+      "event_type": "capital_reduction",
+      "status": "PARTIAL",
+      "verified_fields": {
+        "announcement_at": null,
+        "event_date": "2019-09-09",
+        "cash_per_share": null,
+        "share_multiplier": null,
+        "payment_date": null
+      },
+      "official_evidence": [
+        {
+          "file": "originals/1417_20190909_twse_startend.json",
+          "locator": "data row where 股票代號 matches 1417 and 恢復買賣日期 matches source_event_date",
+          "covers": [
+            "event_date"
+          ],
+          "other_fields_not_in_endpoint": [
+            "announcement_at",
+            "share_multiplier",
+            "cash_per_share",
+            "payment_date"
+          ]
+        }
+      ],
+      "missing_required_fields": [
+        "announcement_at",
+        "share_multiplier",
+        "cash_per_share",
+        "payment_date"
+      ],
+      "same_event_match": "stock_id + RAW-source ledger event_date interpreted as restored/new-share trading date; exact TWSE row, not reference-price reverse inference",
+      "apply_to_engine": false,
+      "base_untouched": true
+    }
+  ],
+  "originals": [
+    {
+      "path": "originals/1109_20171030_twse_startend.json",
+      "bytes": 1448,
+      "sha256": "c23e2129ed5bd059d3a847942b665940c15ac90c2f76afcc70df0a71e0c6e7b1"
+    },
+    {
+      "path": "originals/1416_20161014_twse_startend.json",
+      "bytes": 1334,
+      "sha256": "c4ea0af646b3d43304011ac22d4228bac8b17bfe4c550698d783da181deeffc9"
+    },
+    {
+      "path": "originals/1325_20161209_twse_startend.json",
+      "bytes": 1334,
+      "sha256": "a0e1795a05f1409be3ecf6fd9dd3ea9d2a90aafa455c185f16df05031e08b741"
+    },
+    {
+      "path": "originals/1410_20191028_twse_startend.json",
+      "bytes": 1226,
+      "sha256": "a24a4f4d345d4c9a57fb87a0c221d78a1917ee675cf9590794acbb5b010a2c6b"
+    },
+    {
+      "path": "originals/1315_20201026_twse_startend.json",
+      "bytes": 1334,
+      "sha256": "1a8fd7262944f6ea3743f4919af24451e00304a0512ff6a4a0a057f8c3336c5a"
+    },
+    {
+      "path": "originals/1417_20190909_twse_startend.json",
+      "bytes": 1222,
+      "sha256": "61f326777cdffaba5323f6533934571fc1433e74863344f5042bd1277bc01cd7"
+    },
+    {
+      "path": "originals/1316_20170124_twse_startend.json",
+      "bytes": 1226,
+      "sha256": "5627d39ae0409bf8b6624939a8046f38079ab1c91ddd19ce058275054cb95cdc"
+    },
+    {
+      "path": "originals/truelight_dps.html",
+      "bytes": 143760,
+      "sha256": "3b7ccea4e70bfe2bc88ea4db7f1bc972bf72e72f1758fd647ae9db492ce5d011"
+    },
+    {
+      "path": "originals/tahhsin_board2020.pdf",
+      "bytes": 339429,
+      "sha256": "d9fe4408b12e3d2bbd63d71c74d841723d84f4216994b90f1d5f1370151c7fff"
+    },
+    {
+      "path": "originals/tahhsin_board20200915.pdf",
+      "bytes": 2073455,
+      "sha256": "cada1dbfc82b1125389c55953e4732fbbffdfd28a1a1b27992430d4f701771b2"
+    }
+  ],
+  "retrieval_limitations": [
+    "TWTAUU date parameter ignored (served 2026); strDate parameter ignored; startDate+endDate produced seven exact historical matches. Only matching rows serve as event evidence.",
+    "TWSE TWT48U did not return requested 5234 event; TWT49U returned HTTP307. TPEx exDailyQ returned no4550 row. These responses are not event proofs.",
+    "Old TrueLight announcement archive404; replacement official DPS table lacks publication timestamp.",
+    "Changjia official shareholder page502; Daxin old official presentation URL404. Search cache and third-party reposts are leads only, not official originals or announcement proof."
+  ],
+  "remaining_base_gaps": {
+    "missing_known_date_events": 342,
+    "missing_share_multiplier_capital_reductions": 185,
+    "late_dividend_events": 3,
+    "distinct_pending_stocks": 284
+  },
+  "all_base_gaps_remain_pending_review": true,
+  "s1_panel_changed": false,
+  "accounting_gate_passed": false,
+  "s3_effects_executed": false
+}

@@ -1,0 +1,18 @@
+{
+  "run_id": 37769333701,
+  "job_id": 113284710996,
+  "artifact_id": 11547312869,
+  "reviewed_head": "206ccc54079db2c0aa26b1d0b81227070bf1429c",
+  "workflow": "source_pit_feature_matrix_layer1.yml",
+  "stage": "s3_accounting_inputs",
+  "conclusion": "success",
+  "artifact_bytes": 148859336,
+  "artifact_sha256": "1376fbf3c8d5df38abb52d54ac9cc952d6afa9e3d407f654bc9975442a2e9393",
+  "original_artifact_url": "https://github.com/bibobo2266/AstraQuant/actions/runs/37769333701/artifacts/11547312869",
+  "run_url": "https://github.com/bibobo2266/AstraQuant/actions/runs/37769333701",
+  "download_api": "https://api.github.com/repos/bibobo2266/AstraQuant/actions/artifacts/11547312869/zip",
+  "expires_at": "2027-01-06T11:19:58Z",
+  "downloaded_original_zip_verified": true,
+  "source_export_review": "PENDING_SOL_R",
+  "s3_effects_executed": false
+}

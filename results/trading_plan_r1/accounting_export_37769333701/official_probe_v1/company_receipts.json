@@ -1,0 +1,25 @@
+[
+  {
+    "key": "truelight_dps",
+    "url": "https://www.truelight.com.tw/investor-detail/DPS/",
+    "resolved_url": "https://www.truelight.com.tw/investor-detail/DPS/",
+    "status": 200,
+    "file": "truelight_dps.html",
+    "bytes": 143760,
+    "sha256": "3b7ccea4e70bfe2bc88ea4db7f1bc972bf72e72f1758fd647ae9db492ce5d011"
+  },
+  {
+    "key": "changjia_shareholder",
+    "url": "https://www.changjia.com.tw/zh_TW/stakeholder/id/26/",
+    "error": "HTTP Error 502: Bad Gateway"
+  },
+  {
+    "key": "tahhsin_governance",
+    "url": "https://www.tahhsin.com.tw/corporate-governance/",
+    "resolved_url": "https://www.tahhsin.com.tw/corporate-governance/",
+    "status": 200,
+    "file": "tahhsin_governance.html",
+    "bytes": 101798,
+    "sha256": "6c316bbe21364a96fbfb76fa981d7c4fae038c51cd39ed668f56a3b5fb269ccd"
+  }
+]

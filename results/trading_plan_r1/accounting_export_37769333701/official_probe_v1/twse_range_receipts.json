@@ -1,0 +1,86 @@
+[
+  {
+    "stock_id": "1109",
+    "event_date": "20171030",
+    "url": "https://www.twse.com.tw/rwd/zh/reducation/TWTAUU?strDate=20171030&endDate=20171030&response=json",
+    "http_status": 200,
+    "file": "1109_20171030_twse_range.json",
+    "bytes": 72,
+    "sha256": "a6f24afa6d41dc02991ca10911f709e2752beeb46fec17b40fa6a0b6172da334",
+    "fields": null,
+    "title": null,
+    "matching_rows": []
+  },
+  {
+    "stock_id": "1315",
+    "event_date": "20201026",
+    "url": "https://www.twse.com.tw/rwd/zh/reducation/TWTAUU?strDate=20201026&endDate=20201026&response=json",
+    "http_status": 200,
+    "file": "1315_20201026_twse_range.json",
+    "bytes": 72,
+    "sha256": "a6f24afa6d41dc02991ca10911f709e2752beeb46fec17b40fa6a0b6172da334",
+    "fields": null,
+    "title": null,
+    "matching_rows": []
+  },
+  {
+    "stock_id": "1316",
+    "event_date": "20170124",
+    "url": "https://www.twse.com.tw/rwd/zh/reducation/TWTAUU?strDate=20170124&endDate=20170124&response=json",
+    "http_status": 200,
+    "file": "1316_20170124_twse_range.json",
+    "bytes": 72,
+    "sha256": "a6f24afa6d41dc02991ca10911f709e2752beeb46fec17b40fa6a0b6172da334",
+    "fields": null,
+    "title": null,
+    "matching_rows": []
+  },
+  {
+    "stock_id": "1325",
+    "event_date": "20161209",
+    "url": "https://www.twse.com.tw/rwd/zh/reducation/TWTAUU?strDate=20161209&endDate=20161209&response=json",
+    "http_status": 200,
+    "file": "1325_20161209_twse_range.json",
+    "bytes": 72,
+    "sha256": "a6f24afa6d41dc02991ca10911f709e2752beeb46fec17b40fa6a0b6172da334",
+    "fields": null,
+    "title": null,
+    "matching_rows": []
+  },
+  {
+    "stock_id": "1410",
+    "event_date": "20191028",
+    "url": "https://www.twse.com.tw/rwd/zh/reducation/TWTAUU?strDate=20191028&endDate=20191028&response=json",
+    "http_status": 200,
+    "file": "1410_20191028_twse_range.json",
+    "bytes": 72,
+    "sha256": "a6f24afa6d41dc02991ca10911f709e2752beeb46fec17b40fa6a0b6172da334",
+    "fields": null,
+    "title": null,
+    "matching_rows": []
+  },
+  {
+    "stock_id": "1416",
+    "event_date": "20161014",
+    "url": "https://www.twse.com.tw/rwd/zh/reducation/TWTAUU?strDate=20161014&endDate=20161014&response=json",
+    "http_status": 200,
+    "file": "1416_20161014_twse_range.json",
+    "bytes": 72,
+    "sha256": "a6f24afa6d41dc02991ca10911f709e2752beeb46fec17b40fa6a0b6172da334",
+    "fields": null,
+    "title": null,
+    "matching_rows": []
+  },
+  {
+    "stock_id": "1417",
+    "event_date": "20190909",
+    "url": "https://www.twse.com.tw/rwd/zh/reducation/TWTAUU?strDate=20190909&endDate=20190909&response=json",
+    "http_status": 200,
+    "file": "1417_20190909_twse_range.json",
+    "bytes": 72,
+    "sha256": "a6f24afa6d41dc02991ca10911f709e2752beeb46fec17b40fa6a0b6172da334",
+    "fields": null,
+    "title": null,
+    "matching_rows": []
+  }
+]

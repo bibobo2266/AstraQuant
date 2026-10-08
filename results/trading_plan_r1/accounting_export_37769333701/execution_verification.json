@@ -1,0 +1,56 @@
+{
+  "run_id": 37769333701,
+  "job_id": 113284710996,
+  "artifact_id": 11547312869,
+  "head_sha": "206ccc54079db2c0aa26b1d0b81227070bf1429c",
+  "files_sha_bytes_gitblob": 25,
+  "parquet_metadata_verified": 16,
+  "raw": [
+    {
+      "path": "source/raw/prices_raw_2015.parquet",
+      "rows": 413367,
+      "start": "2015-01-05",
+      "end": "2015-12-31"
+    },
+    {
+      "path": "source/raw/prices_raw_2016.parquet",
+      "rows": 436698,
+      "start": "2016-01-04",
+      "end": "2016-12-30"
+    },
+    {
+      "path": "source/raw/prices_raw_2017.parquet",
+      "rows": 457479,
+      "start": "2017-01-03",
+      "end": "2017-12-29"
+    },
+    {
+      "path": "source/raw/prices_raw_2018.parquet",
+      "rows": 477096,
+      "start": "2018-01-02",
+      "end": "2018-12-28"
+    },
+    {
+      "path": "source/raw/prices_raw_2019.parquet",
+      "rows": 490775,
+      "start": "2019-01-02",
+      "end": "2019-12-31"
+    },
+    {
+      "path": "source/raw/prices_raw_2020.parquet",
+      "rows": 511972,
+      "start": "2020-01-02",
+      "end": "2020-12-31"
+    },
+    {
+      "path": "source/raw/prices_raw_2021.parquet",
+      "rows": 518635,
+      "start": "2021-01-04",
+      "end": "2021-12-30"
+    }
+  ],
+  "total_raw_rows": 3306022,
+  "closed_trades_run": false,
+  "official_events_verified": 0,
+  "accounting_gate_passed": false
+}

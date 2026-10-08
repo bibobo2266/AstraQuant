@@ -1,0 +1,42 @@
+[
+  {
+    "stock_id": "4550",
+    "url": "https://www.tpex.org.tw/www/zh-tw/bulletin/exDailyQ?date=2016/09/12&response=json",
+    "file": "4550_exdiv_actual.json",
+    "bytes": 697,
+    "sha256": "3973641a7693d23045da2aedbd27d295e05872393e6501da68941445c2afe779",
+    "fields": null,
+    "rows": [],
+    "stat": "ok",
+    "tables_fields": [
+      [
+        "除權息日期",
+        "代號",
+        "名稱",
+        "除權息前收盤價",
+        "除權息參考價",
+        "權值",
+        "息值",
+        "權值+息值",
+        "權/息",
+        "漲停價",
+        "跌停價",
+        "開始交易基準價",
+        "減除股利參考價",
+        "現金股利",
+        "每仟股無償配股",
+        "現金增資股數",
+        "現金增資認購價",
+        "公開承銷股數",
+        "員工認購股數",
+        "原股東認購股數",
+        "按持股比例仟股認購"
+      ]
+    ]
+  },
+  {
+    "stock_id": "5234",
+    "url": "https://www.twse.com.tw/rwd/zh/exRight/TWT49U?startDate=20190613&endDate=20190613&response=json",
+    "error": "HTTP Error 307: Temporary Redirect"
+  }
+]
