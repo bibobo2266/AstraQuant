@@ -4,13 +4,14 @@ on:
   workflow_dispatch:
     inputs:
       stage:
-        description: "S1 panel build or S3 source-only preflight (no effects)"
+        description: "S1 panel, source preflight or frozen limit-rule inputs (no effects)"
         required: false
         default: s1
         type: choice
         options:
           - s1
           - s3_source_preflight
+          - s3_limit_inputs
 
 permissions:
   contents: read
@@ -74,7 +75,7 @@ jobs:
           python -m unittest discover -s tests -p test_trading_plan_r1.py -v
 
       - name: Build E1 eligibility panel and ten source comparisons
-        if: ${{ inputs.stage != 's3_source_preflight' }}
+        if: ${{ inputs.stage == 's1' }}
         working-directory: AstraQuant
         env:
           SOURCE_ROOT: ${{ github.workspace }}/source_runtime/minervini_picks/data
@@ -91,6 +92,16 @@ jobs:
           S3_SOURCE_PREFLIGHT: "1"
         run: python scripts/source_pit_feature_matrix_layer1.py
 
+      - name: Verify limit formulas and export frozen inputs (no effects)
+        if: ${{ inputs.stage == 's3_limit_inputs' }}
+        working-directory: AstraQuant
+        env:
+          SOURCE_ROOT: ${{ github.workspace }}/source_runtime/minervini_picks/data
+          SOURCE_REVISION: ${{ env.SOURCE_REVISION }}
+          S3_LIMIT_INPUTS: "1"
+          FINMIND_TOKEN: ${{ secrets.FINMIND_TOKEN }}
+        run: python scripts/source_pit_feature_matrix_layer1.py
+
       - name: Upload panel and source comparisons
         if: ${{ always() }}
         uses: actions/upload-artifact@v4
@@ -101,6 +112,7 @@ jobs:
             AstraQuant/out/eligibility_panel_*.csv
             AstraQuant/out/eligibility_panel_manifest.json
             AstraQuant/out/trading_plan_r1_s3_source_preflight.csv
+            AstraQuant/out/limit_rule_inputs/
             AstraQuant/configs/research/pit_feature_matrix_layer1_v1.yaml
           if-no-files-found: warn
           retention-days: 90

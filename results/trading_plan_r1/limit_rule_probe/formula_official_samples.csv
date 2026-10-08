@@ -1,0 +1,11 @@
+date,stock_id,market,reference_input,dividend_reference_input,upper_base,lower_base,computed_limit_up,computed_limit_down,official_limit_up,official_limit_down,match,derived,formula_version
+2019-06-24,2330,TWSE,240.50,240.50,240.50,240.50,264.5,216.5,264.50,216.50,True,True,common_stock_limit_rules_v1
+2020-03-19,2330,TWSE,257.50,257.50,257.50,257.50,283.0,232.0,283.00,232.00,True,True,common_stock_limit_rules_v1
+2021-03-17,2330,TWSE,610.50,610.50,610.50,610.50,671,550,671.00,550.00,True,True,common_stock_limit_rules_v1
+2019-07-17,6488,TPEX,327.50,327.50,327.50,327.50,360.0,295.0,360.00,295.00,True,True,common_stock_limit_rules_v1
+2020-07-16,6488,TPEX,401.00,401.00,401.00,401.00,441.0,361.0,441.00,361.00,True,True,common_stock_limit_rules_v1
+2021-01-21,6488,TPEX,646.00,646.00,646.00,646.00,710,582,710.00,582.00,True,True,common_stock_limit_rules_v1
+2019-01-02,8473,TWSE,56.09,56.20,56.20,56.09,61.8,50.5,61.80,50.50,True,True,common_stock_limit_rules_v1
+2019-01-07,1786,TWSE,67.19,69.00,69.00,67.19,75.9,60.5,75.90,60.50,True,True,common_stock_limit_rules_v1
+2019-02-18,2613,TWSE,13.33,13.65,13.65,13.33,15.00,12.00,15.00,12.00,True,True,common_stock_limit_rules_v1
+2019-01-10,4556,TPEX,34.39,35.20,35.20,34.39,38.70,31.00,38.70,31.00,True,True,common_stock_limit_rules_v1

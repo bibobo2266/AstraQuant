@@ -175,5 +175,42 @@ class S1Tests(unittest.TestCase):
         self.assertTrue(panel.excl_ok.all())
 
 
+class LimitRuleTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        path = Path(__file__).resolve().parents[1] / "scripts/source_pit_feature_matrix_layer1.py"
+        tree = ast.parse(path.read_text())
+        nodes = [n for n in tree.body if isinstance(n, ast.FunctionDef)
+                 and n.name in {"_s3_limit_tick", "_s3_limit_bounds"}]
+        cls.rules = {}
+        exec(compile(ast.Module(body=nodes, type_ignores=[]), str(path), "exec"), cls.rules)
+
+    def limits(self, *args, **kwargs):
+        return tuple(str(v) for v in self.rules["_s3_limit_bounds"](*args, **kwargs))
+
+    def test_ordinary_prices_round_inwards_across_tick_bands(self):
+        self.assertEqual(self.limits("40.60"), ("44.65", "36.55"))
+        self.assertEqual(self.limits("95"), ("104.5", "85.5"))
+
+    def test_ex_dividend_uses_unrounded_reference_not_auction_base(self):
+        self.assertEqual(self.limits("610.50"), ("671", "550"))
+
+    def test_discount_rights_have_separate_upper_lower_bases(self):
+        self.assertEqual(self.limits("67.19", "69"), ("75.9", "60.5"))
+
+    def test_premium_rights_reverse_the_two_bases(self):
+        self.assertEqual(self.limits("32", "30"), ("35.20", "27.0"))
+
+    def test_no_limit_requires_explicit_status_and_minimum_cent_is_preserved(self):
+        self.assertEqual(self.limits(None, no_limit=True), ("0", "0"))
+        self.assertEqual(self.limits(".05"), ("0.06", "0.04"))
+        self.assertEqual(self.limits(".01"), ("0.02", "0.01"))
+
+    def test_invalid_reference_is_not_filled(self):
+        for value in [None, "NaN", "0", "-1"]:
+            with self.assertRaises((ValueError, ArithmeticError)):
+                self.limits(value)
+
+
 if __name__ == "__main__":
     unittest.main()

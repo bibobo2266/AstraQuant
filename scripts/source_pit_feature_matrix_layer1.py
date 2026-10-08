@@ -1070,6 +1070,331 @@ def _s1_main():
     print("S1_REPORT 基本面可用日沿用 runtime 的保守估計，並非原始公告／修訂版本證明。")
 
 
+def _s3_limit_tick(price):
+    """Ordinary TWSE/TPEx common-stock ticks; not an ETF/warrant table."""
+    from decimal import Decimal
+    price = Decimal(str(price))
+    for ceiling, tick in [(10, ".01"), (50, ".05"), (100, ".1"),
+                          (500, ".5"), (1000, "1")]:
+        if price < ceiling:
+            return Decimal(tick)
+    return Decimal("5")
+
+
+def _s3_limit_bounds(reference, dividend_reference=None, *, no_limit=False):
+    """Unrounded official reference inputs, article 67 asymmetric bases.
+
+    The opening auction base is deliberately NOT an input for ex-right days.
+    Missing quotes, IPO status and resumption references must be resolved by
+    the caller; this helper never infers them from a price jump.
+    """
+    from decimal import Decimal, ROUND_CEILING, ROUND_FLOOR
+    if no_limit:
+        return Decimal("0"), Decimal("0")
+    ref = Decimal(str(reference))
+    other = ref if dividend_reference is None else Decimal(str(dividend_reference))
+    if not ref.is_finite() or not other.is_finite() or min(ref, other) <= 0:
+        raise ValueError("missing or nonpositive verified reference")
+    upper_base, lower_base = max(ref, other), min(ref, other)
+    cent = Decimal(".01")
+    upper = max(upper_base * Decimal("1.1"), upper_base + cent)
+    lower = max(cent, min(lower_base * Decimal(".9"), lower_base - cent))
+    up_tick, down_tick = _s3_limit_tick(upper), _s3_limit_tick(lower)
+    return ((upper / up_tick).to_integral_value(rounding=ROUND_FLOOR) * up_tick,
+            (lower / down_tick).to_integral_value(rounding=ROUND_CEILING) * down_tick)
+
+
+def _s3_limit_probe(output):
+    """Reuse the owner's fixed ten official stock-days; no new API queries."""
+    import re
+    from decimal import Decimal
+    evidence = ROOT / "results/trading_plan_r1/limit_source_probe"
+    plan = json.loads((evidence / "sample_plan.json").read_text())
+    if len(plan) != 10 or len({(p["date"], p["stock_id"]) for p in plan}) != 10:
+        raise SystemExit("STOP: official stock-day budget/identity changed")
+    checks = []
+    for p in plan:
+        source = evidence / p["official_file"]
+        if _sha256(source) != p["official_sha256"]:
+            raise SystemExit("STOP: frozen official response changed")
+        payload = json.loads(source.read_text())
+        rows = payload["data"] if p["market"] == "TWSE" else payload["tables"][0]["data"]
+        candidates = []
+        for row in rows:
+            numbers = list(map(int, re.findall(r"\d+", row[0])))
+            day = f"{numbers[0] + 1911:04d}-{numbers[1]:02d}-{numbers[2]:02d}"
+            if day == p["date"] and str(row[1]).strip() == p["stock_id"]:
+                candidates.append(row)
+        if len(candidates) != 1:
+            raise SystemExit("STOP: official stock-day not unique")
+        row = candidates[0]
+        dividend_col = 10 if p["market"] == "TWSE" else 12
+        ref = Decimal(str(row[4]).strip().replace(",", ""))
+        dividend_ref = Decimal(str(row[dividend_col]).strip().replace(",", ""))
+        up, down = _s3_limit_bounds(ref, dividend_ref)
+        expected_up = Decimal(p["official_limit_up"].replace(",", ""))
+        expected_down = Decimal(p["official_limit_down"].replace(",", ""))
+        checks.append(dict(date=p["date"], stock_id=p["stock_id"], market=p["market"],
+                           reference_input=str(ref), dividend_reference_input=str(dividend_ref),
+                           upper_base=str(max(ref, dividend_ref)), lower_base=str(min(ref, dividend_ref)),
+                           computed_limit_up=str(up), computed_limit_down=str(down),
+                           official_limit_up=str(expected_up), official_limit_down=str(expected_down),
+                           match=up == expected_up and down == expected_down,
+                           derived=True, formula_version="common_stock_limit_rules_v1"))
+    output.mkdir(parents=True, exist_ok=True)
+    result = pd.DataFrame(checks)
+    result.to_csv(output / "formula_official_samples.csv", index=False)
+    print(f"LIMIT_RULE_PROBE {int(result['match'].sum())}/10; inputs are official unrounded references")
+    if not result["match"].all():
+        raise SystemExit("STOP: full-rule official probe is not 10/10")
+    return result
+
+
+def _s3_limit_supplement():
+    """FinMind primary rows plus explicitly audited rule-derived missing rows.
+
+    Works from the fixed input export and the already accepted S1 artifact.
+    No eligibility rebuild, executions or effect metrics are performed.
+    """
+    import concurrent.futures
+    import datetime
+    from decimal import Decimal
+    import gzip
+    import re
+    import urllib.parse
+    import urllib.request
+    inputs = Path(os.environ["LIMIT_INPUT_ROOT"])
+    panel_path = Path(os.environ["S1_PANEL_PATH"])
+    expected_panel_hash = "2fc9680a3cbb74b15d690edbeb02ed03457b26c74dd682a877b1c6e93f8dc38e"
+    if _sha256(panel_path) != expected_panel_hash:
+        raise SystemExit("STOP: accepted S1 panel hash changed")
+    _s3_limit_probe(OUT_ROOT / "limit_supplement")
+    source_manifest = json.loads((inputs / "input_manifest.json").read_text())
+    if source_manifest["source_revision"] != "3e7c4b6d9cde3b18942710fa977db02f89bffa0d":
+        raise SystemExit("STOP: source revision changed")
+    for entry in source_manifest["files"]:
+        if _sha256(inputs / entry["path"]) != entry["sha256"]:
+            raise SystemExit("STOP: fixed limit input hash changed")
+    token = os.environ.get("FINMIND_TOKEN", "")
+    if not token:
+        raise SystemExit("BLOCKED: runtime FinMind credential absent")
+    panel = pd.read_parquet(panel_path, columns=[]).reset_index()[["date", "stock"]]
+    panel["date"] = pd.to_datetime(panel["date"])
+    panel = panel[panel["date"].between("2019-01-01", "2021-12-31")]
+    if panel.duplicated(["date", "stock"]).any():
+        raise SystemExit("STOP: S1 expected keys duplicated")
+    raw = pd.concat([pd.read_parquet(inputs / f"prices_raw_{y}.parquet")
+                     for y in range(2018, 2022)], ignore_index=True)
+    raw["date"] = pd.to_datetime(raw["date"])
+    raw["stock_id"] = raw["stock_id"].astype(str)
+    if raw.duplicated(["date", "stock_id"]).any():
+        raise SystemExit("STOP: raw input keys duplicated")
+    raw = raw.sort_values(["stock_id", "date"])
+    grouped = raw.groupby("stock_id", sort=False)
+    raw["previous_stock_date"] = grouped["date"].shift()
+    raw["previous_close"] = grouped["close"].shift()
+    raw["previous_market"] = grouped["market"].shift()
+    raw["observation_number"] = grouped.cumcount() + 1
+    market_days = sorted(pd.Timestamp(day) for day in raw["date"].unique())
+    previous_market_day = dict(zip(market_days[1:], market_days[:-1]))
+    raw_index = raw.set_index(["date", "stock_id"])
+    events = pd.read_csv(inputs / "corporate_actions_official.csv", dtype=str).fillna("")
+    events["event_date"] = pd.to_datetime(events["event_date"], errors="raise")
+    event_index = {(date, sid): group for (date, sid), group in
+                   events.groupby(["event_date", "stock_id"], sort=False)}
+    specials = {}
+    evidence = ROOT / "results/trading_plan_r1/limit_source_probe"
+    for market in ["twse", "tpex"]:
+        for year in range(2019, 2022):
+            payload = json.loads((evidence / f"official-{market}-{year}.json").read_text())
+            rows = payload["data"] if market == "twse" else payload["tables"][0]["data"]
+            dividend_col = 10 if market == "twse" else 12
+            for row in rows:
+                y, m, d = map(int, re.findall(r"\d+", row[0]))
+                key = (pd.Timestamp(y + 1911, m, d), str(row[1]).strip())
+                if key in specials:
+                    raise SystemExit("STOP: official event reference duplicated")
+                specials[key] = (str(row[4]).strip(), str(row[dividend_col]).strip())
+    output = OUT_ROOT / "limit_supplement"
+    responses = output / "finmind_responses"
+    responses.mkdir(parents=True, exist_ok=True)
+    started = datetime.datetime.now(datetime.timezone.utc).isoformat()
+    response_records, supplied = [], []
+    def fetch(day):
+        date = str(pd.Timestamp(day).date())
+        path = responses / f"{date}.json.gz"
+        if path.exists():
+            body = gzip.decompress(path.read_bytes())
+        else:
+            query = urllib.parse.urlencode(dict(dataset="TaiwanStockPriceLimit", start_date=date))
+            req = urllib.request.Request("https://api.finmindtrade.com/api/v4/data?" + query,
+                                         headers={"Authorization": "Bearer " + token})
+            with urllib.request.urlopen(req, timeout=60) as response:
+                body = response.read()
+            payload = json.loads(body)
+            if payload.get("status") != 200:
+                raise ValueError(f"API status failure on {date}")
+            path.write_bytes(gzip.compress(body, mtime=0))
+        payload = json.loads(body)
+        rows = payload.get("data", [])
+        frame = pd.DataFrame(rows)
+        required = {"date", "stock_id", "reference_price", "limit_up", "limit_down"}
+        if payload.get("status") != 200 or not required.issubset(frame.columns):
+            raise ValueError(f"API schema/status failure on {date}")
+        if not frame["date"].eq(date).all() or frame.duplicated(["date", "stock_id"]).any():
+            raise ValueError(f"API date/duplicate failure on {date}")
+        return frame[list(sorted(required))], dict(date=date, rows=len(frame),
+                    body_sha256=hashlib.sha256(body).hexdigest(), gzip_sha256=_sha256(path),
+                    saved_at_utc=datetime.datetime.fromtimestamp(path.stat().st_mtime, datetime.timezone.utc).isoformat())
+    days = sorted(panel["date"].unique())
+    try:
+        # The complete E1 request budget is <1600; no retries on quota/auth errors.
+        with concurrent.futures.ThreadPoolExecutor(max_workers=4) as pool:
+            pending = {}
+            iterator = iter(days)
+            for day in list(days[:4]):
+                pending[pool.submit(fetch, next(iterator))] = day
+            number = 0
+            while pending:
+                done, _ = concurrent.futures.wait(pending, return_when=concurrent.futures.FIRST_COMPLETED)
+                for future in done:
+                    pending.pop(future)
+                    frame, record = future.result()
+                    number += 1
+                    supplied.append(frame)
+                    response_records.append(record)
+                    if number % 10 == 0 or number == len(days):
+                        print(f"LIMIT_FETCH {number}/{len(days)}", flush=True)
+                    day = next(iterator, None)
+                    if day is not None:
+                        pending[pool.submit(fetch, day)] = day
+    except Exception as error:
+        pd.DataFrame(response_records).to_csv(output / "response_manifest_partial.csv", index=False)
+        raise SystemExit(f"STOP: FinMind backfill request failed ({type(error).__name__}); cached responses retained")
+    supplied = pd.concat(supplied, ignore_index=True)
+    supplied["date"] = pd.to_datetime(supplied["date"])
+    supplied["stock_id"] = supplied["stock_id"].astype(str)
+    supplied = supplied.set_index(["date", "stock_id"])
+    records, unresolved = [], []
+    for date, stock in panel.itertuples(index=False, name=None):
+        key = (date, stock)
+        row = dict(date=date, stock_id=stock, derived=False, source="FinMind TaiwanStockPriceLimit v4",
+                   formula_version="", reference_input=None, dividend_reference_input=None,
+                   previous_price_date=None)
+        try:
+            if key in supplied.index:
+                quote = supplied.loc[key]
+                for field in ["reference_price", "limit_up", "limit_down"]:
+                    value = Decimal(str(quote[field]))
+                    if not value.is_finite() or value < 0:
+                        raise ValueError("invalid_provider_price")
+                    row[field] = float(value)
+                if (row["limit_up"] == 0) != (row["limit_down"] == 0):
+                    raise ValueError("inconsistent_no_limit_status")
+                if row["limit_up"] and row["limit_down"] > row["limit_up"]:
+                    raise ValueError("inverted_provider_limits")
+            else:
+                raw_row = raw_index.loc[key]
+                event = event_index.get(key)
+                if key in specials:
+                    ref, dividend_ref = specials[key]
+                    rule = "official_ex_right_reference"
+                elif event is not None:
+                    nondiv = event[event["event_type"].isin(["capital_reduction", "par_value_change_split"])]
+                    matches = [re.search(r"(?:^|;)\s*ref=([^;]+)", note) for note in nondiv["notes"]]
+                    references = {match.group(1).strip() for match in matches if match}
+                    if len(nondiv) != 1 or len(references) != 1:
+                        raise ValueError("special_event_reference_unresolved")
+                    ref = dividend_ref = references.pop()
+                    rule = "official_resumption_reference"
+                else:
+                    if raw_row["observation_number"] <= 5:
+                        raise ValueError("ipo_no_limit_status_unverified")
+                    if raw_row["previous_stock_date"] != previous_market_day.get(date):
+                        raise ValueError("previous_session_quote_missing")
+                    if str(raw_row["previous_market"]).lower() != str(raw_row["market"]).lower():
+                        raise ValueError("market_transfer_reference_unverified")
+                    ref = dividend_ref = raw_row["previous_close"]
+                    rule = "previous_session_raw_close"
+                ref = str(ref).replace(",", "")
+                dividend_ref = str(dividend_ref).replace(",", "")
+                up, down = _s3_limit_bounds(ref, dividend_ref)
+                row.update(reference_price=float(ref), limit_up=float(up), limit_down=float(down),
+                           derived=True, source=rule, formula_version="common_stock_limit_rules_v1",
+                           reference_input=ref, dividend_reference_input=dividend_ref,
+                           previous_price_date=raw_row["previous_stock_date"])
+                # A range violation is evidence of missing inputs, never a basis to infer an adjustment.
+                if float(raw_row["max"]) > float(up) + 1e-8 or float(raw_row["min"]) < float(down) - 1e-8:
+                    raise ValueError("derived_limit_outside_observed_raw_range")
+            records.append(row)
+        except (ValueError, ArithmeticError, KeyError) as error:
+            unresolved.append(dict(date=date, stock_id=stock, reason=str(error)))
+    result = pd.DataFrame(records).sort_values(["date", "stock_id"])
+    result.to_parquet(output / "price_limit_supplement_2019_2021.parquet", index=False)
+    result[result["derived"]].to_csv(output / "derived_rows.csv", index=False)
+    pd.DataFrame(unresolved, columns=["date", "stock_id", "reason"]).to_csv(output / "unresolved.csv", index=False)
+    pd.DataFrame(response_records).to_csv(output / "response_manifest.csv", index=False)
+    coverage = []
+    for year in range(2019, 2022):
+        part = result[result["date"].dt.year.eq(year)]
+        coverage.append(dict(year=year, expected_s1_stock_days=int(panel["date"].dt.year.eq(year).sum()),
+                             supplied_or_derived=len(part), finmind_rows=int((~part["derived"]).sum()),
+                             derived_rows=int(part["derived"].sum()), unresolved=sum(pd.Timestamp(r["date"]).year == year for r in unresolved),
+                             duplicate_keys=int(part.duplicated(["date", "stock_id"]).sum())))
+    pd.DataFrame(coverage).to_csv(output / "coverage.csv", index=False)
+    manifest = dict(schema_version="limit_supplement_v1", source_revision=source_manifest["source_revision"],
+                    fixed_input_manifest_sha256=_sha256(inputs / "input_manifest.json"),
+                    fixed_inputs=source_manifest["files"],
+                    provider_snapshot_version="not supplied by API; individual response hashes frozen",
+                    s1_panel_sha256=expected_panel_hash, fetched_start_utc=started,
+                    frozen_at_utc=datetime.datetime.now(datetime.timezone.utc).isoformat(),
+                    official_formula_matches=10, expected_rows=len(panel), rows=len(result), unresolved=len(unresolved),
+                    daily_requests=len(days), status="READY_FOR_REVIEW" if not unresolved else "BLOCKED_UNRESOLVED_INPUTS",
+                    s3_run=False, coverage_scope="all S1 panel stock-days in 2019-2021; not all FinMind securities", files=[])
+    for path in sorted(output.glob("*")):
+        if path.is_file() and path.name != "manifest.json":
+            manifest["files"].append(dict(path=path.name, sha256=_sha256(path), bytes=path.stat().st_size))
+    (output / "manifest.json").write_text(json.dumps(manifest, indent=2) + "\n")
+    print(pd.DataFrame(coverage).to_csv(index=False), flush=True)
+    if unresolved:
+        raise SystemExit("BLOCKED: unresolved limit inputs; evidence retained; no S3")
+
+
+def _s3_limit_inputs():
+    """Export immutable inputs for supplemental limits; no S1/S3 run."""
+    import shutil
+    import datetime
+    output = OUT_ROOT / "limit_rule_inputs"
+    _s3_limit_probe(output)
+    if SOURCE_REVISION != "3e7c4b6d9cde3b18942710fa977db02f89bffa0d":
+        raise SystemExit("STOP: fixed source revision changed")
+    paths = [SOURCE_ROOT / "raw" / f"prices_raw_{y}.parquet" for y in range(2018, 2022)]
+    paths += [SOURCE_ROOT / "reference" / "corporate_actions_official.csv",
+              SOURCE_ROOT / "reference" / "corporate_actions_ledger.parquet"]
+    files, coverage = [], []
+    for path in paths:
+        if not path.exists():
+            raise SystemExit(f"STOP: input absent: {path.name}")
+        target = output / path.name
+        shutil.copyfile(path, target)
+        files.append(dict(path=target.name, source_path=str(path.relative_to(SOURCE_ROOT)),
+                          sha256=_sha256(target), bytes=target.stat().st_size))
+        if path.suffix == ".parquet" and path.name.startswith("prices_raw"):
+            prices = pd.read_parquet(path)
+            dates = pd.to_datetime(prices["date"], errors="raise")
+            coverage.append(dict(path=path.name, rows=len(prices), date_start=str(dates.min().date()),
+                                 date_end=str(dates.max().date()), columns="|".join(prices.columns)))
+    pd.DataFrame(coverage).to_csv(output / "input_coverage.csv", index=False)
+    manifest = dict(schema_version="limit_rule_inputs_v1", source_revision=SOURCE_REVISION,
+                    exported_at_utc=datetime.datetime.now(datetime.timezone.utc).isoformat(),
+                    files=files, official_formula_matches=10, s1_rebuilt=False, s3_run=False,
+                    finmind_secret_available=bool(os.environ.get("FINMIND_TOKEN")))
+    (output / "input_manifest.json").write_text(json.dumps(manifest, indent=2) + "\n")
+    print("LIMIT_RULE_INPUTS_ONLY; no signals, fills or effect metrics")
+    print(pd.DataFrame(coverage).to_csv(index=False))
+    print(f"FINMIND_SECRET_AVAILABLE={manifest['finmind_secret_available']}")
+
+
 def _s3_source_preflight():
     """Read the fixed E1 source schema/coverage only; do not run effects."""
     if not SOURCE_REVISION:
@@ -1101,7 +1426,11 @@ def _s3_source_preflight():
 
 
 if __name__ == "__main__":
-    if os.environ.get("S3_SOURCE_PREFLIGHT") == "1":
+    if os.environ.get("S3_LIMIT_SUPPLEMENT") == "1":
+        _s3_limit_supplement()
+    elif os.environ.get("S3_LIMIT_INPUTS") == "1":
+        _s3_limit_inputs()
+    elif os.environ.get("S3_SOURCE_PREFLIGHT") == "1":
         _s3_source_preflight()
     elif os.environ.get("BUILD_ELIGIBILITY_PANEL") == "1":
         _s1_main()
