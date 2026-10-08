@@ -21,6 +21,9 @@ from astraquant.execution.service import CanonicalExecutionService, SignalDeclar
 from astraquant.portfolio.engine import PortfolioEngine, SettlementInstruction
 from astraquant.portfolio.models import OrderIntent
 from astraquant.portfolio.reviewed_ca import ReviewedCA
+from astraquant.portfolio.normalized_ca import NormalizedCA
+from astraquant.portfolio.replay_runner import CanonicalPortfolioReplay
+from astraquant.research.terminal_events import load_terminal_event_records
 from astraquant.research.epoch_governance import resolve_historical_effect_period
 from astraquant.research.technical_components import _rsi_value
 from astraquant.research.trading_plan_r1 import (
@@ -34,7 +37,7 @@ S1_SHA = "2fc9680a3cbb74b15d690edbeb02ed03457b26c74dd682a877b1c6e93f8dc38e"
 LIMIT_SHA = "a38f5d63726df1daf4982067b7ce592dc6893f6768af8908e5dae1302b5c0a0a"
 SOURCE_REVISION = "3e7c4b6d9cde3b18942710fa977db02f89bffa0d"
 LIMIT_REVISION = "67e069e962e365b4f4c09fa466decd66bb70fc82"
-VERSION = "s3-canonical-wiring-v3"
+VERSION = "s3-canonical-wiring-v4"
 EXIT_MODES = {"sma20", "sma20_or_rsi13_lt50"}
 S3_SCHEMAS = {name: cols + ("input_binding", "exit_mode", "execution_version")
               for name, cols in SCHEMAS.items()}
@@ -59,14 +62,16 @@ def _inside(root, path):
     return target
 
 
-def write_source_manifest(root, *, source_root, panel, supplement, output, reviewed_ca_overlay=None):
+def write_source_manifest(root, *, source_root, panel, supplement, output, terminal_events, reviewed_ca_overlay=None):
     """Inventory the existing accepted inputs; never create an approval receipt."""
     root = Path(root).resolve()
     source = _inside(root, source_root)
     paths = [(source / "raw" / f"prices_raw_{year}.parquet", "raw")
              for year in range(2015, 2022)]
     paths += [(source / "reference" / "tradability.parquet", "tradability"),
-              (source / "reference" / "corporate_actions_official.csv", "events")]
+              (source / "reference" / "corporate_actions_official.csv", "events"),
+              (source / "fundamentals" / "dividend.parquet", "dividend"),
+              (_inside(root,terminal_events), "terminal")]
     paths += [(p, "limits") for p in sorted((source / "reference").glob("price_limit_*.parquet"))
               if any(str(year) in p.name for year in range(2015, 2019))]
     if len([p for p, role in paths if role == "limits"]) != 4:
@@ -99,6 +104,7 @@ class _InputSnapshot:
     input_binding: str
     bars_sha: str
     panel_keys: frozenset
+    ca_sha: str
 
 
 class S3Inputs:
@@ -155,8 +161,13 @@ class S3Inputs:
         self.reviewed_ca = (ReviewedCA(self.role("reviewed_ca_overlay"), self.role("events"), engineering_fixture=fixture)
                             if overlays else None)
         self._declared_ca = self.reviewed_ca
+        self.normalized_ca = NormalizedCA(self.role('dividend')) if any(e['role']=='dividend' for e in self.inventory) else None
+        self._declared_normalized_ca = self.normalized_ca
+        self.terminal_records = (tuple(load_terminal_event_records(self.role('terminal')))
+                                 if any(e['role']=='terminal' for e in self.inventory) else ())
+        self._terminal_digest = _digest(json.loads(json.dumps([asdict(t) for t in self.terminal_records],default=str)))
         self._bars = self._read_bars()
-        self._snapshot = _InputSnapshot(self.binding_id, _frame_digest(self._bars), self._panel_keys)
+        self._snapshot = _InputSnapshot(self.binding_id, _frame_digest(self._bars), self._panel_keys, self._ca_digest())
         self.verify()
         return self
 
@@ -166,15 +177,28 @@ class S3Inputs:
             raise ValueError(f"exactly one {name} input required")
         return _inside(self.root, entries[0]["path"])
 
+    def _ca_digest(self):
+        return _digest(json.loads(json.dumps(dict(
+            normalized=[] if self.normalized_ca is None else [asdict(a) for a in self.normalized_ca.actions],
+            terminal=[asdict(t) for t in self.terminal_records],
+            official=[(d,s,sorted(types)) for (d,s),types in sorted(self.official_event_types.items())]),default=str)))
+
     def verify(self):
         self._verify_files()
         if self.reviewed_ca is not self._declared_ca:
             raise ValueError("changed bound corporate-action implementation")
         if self.reviewed_ca is not None:
             self.reviewed_ca.verify()
+        if self.normalized_ca is not self._declared_normalized_ca:
+            raise ValueError('changed bound normalized corporate-action implementation')
+        if self.normalized_ca is not None:
+            self.normalized_ca.verify()
+        if _digest(json.loads(json.dumps([asdict(t) for t in self.terminal_records],default=str))) != self._terminal_digest:
+            raise ValueError('changed bound terminal evidence')
         if (self._snapshot.input_binding != self.binding_id
                 or _frame_digest(self._bars) != self._snapshot.bars_sha
-                or self._panel_keys != self._snapshot.panel_keys):
+                or self._panel_keys != self._snapshot.panel_keys
+                or self._ca_digest() != self._snapshot.ca_sha):
             raise ValueError("changed verified S3 input snapshot/keys")
 
     def _verify_files(self):
@@ -195,7 +219,7 @@ class S3Inputs:
             if self.role(role) != (self.source_root / relative).resolve():
                 raise ValueError("inventory does not bind canonical source path")
         for entry in self.inventory:
-            if entry["role"] not in {"raw", "tradability", "events", "limits", "panel", "supplement", "reviewed_ca_overlay"}:
+            if entry["role"] not in {"raw", "tradability", "events", "limits", "panel", "supplement", "reviewed_ca_overlay", "dividend", "terminal"}:
                 raise ValueError("unknown S3 input role")
             if entry["role"] in {"raw", "limits"}:
                 directory = "raw" if entry["role"] == "raw" else "reference"
@@ -204,12 +228,16 @@ class S3Inputs:
         if not self.fixture:
             if _hash(self.role("panel")) != S1_SHA or _hash(self.role("supplement")) != LIMIT_SHA:
                 raise ValueError("wrong accepted S1/limit bytes")
+            if self.role('dividend') != (self.source_root/'fundamentals/dividend.parquet').resolve():
+                raise ValueError('inventory does not bind canonical dividend path')
+            if _hash(self.role('terminal')) != '02d30cf5dc079a18b7ba7888568f1607e7152136aeca02b7ee06ada5ead58a5d':
+                raise ValueError('wrong frozen terminal evidence bytes')
             revision = subprocess.check_output(["git", "-C", str(self.source_root), "rev-parse", "HEAD"], text=True).strip()
             if revision != SOURCE_REVISION:
                 raise ValueError("wrong immutable RAW source checkout")
             top = Path(subprocess.check_output(["git", "-C", str(self.source_root), "rev-parse", "--show-toplevel"], text=True).strip())
             paths = [str(_inside(self.root, e["path"]).relative_to(top)) for e in self.inventory
-                     if e["role"] in {"raw", "tradability", "events", "limits"}]
+                     if e["role"] in {"raw", "tradability", "events", "limits", "dividend"}]
             subprocess.run(["git", "-C", str(top), "ls-files", "--error-unmatch", "--", *paths], check=True, capture_output=True)
             subprocess.run(["git", "-C", str(top), "diff", "--quiet", "HEAD", "--", *paths], check=True)
             raw_names = {Path(e["path"]).name for e in self.inventory if e["role"] == "raw"}
@@ -267,9 +295,18 @@ class S3Inputs:
         bars["available_date"] = bars.available_date.where(bars.available_date.notna(), bars.date)
         bars["source_kind"], bars["source"] = self.source_kind, self.binding_id
         events = pd.read_csv(self.role("events"), dtype={"stock_id": str})
+        self.official_event_types = {(_day(d),s):frozenset(g.event_type)
+            for (d,s),g in events.groupby(['event_date','stock_id'])}
         event_keys = set(zip(pd.to_datetime(events.event_date).map(_day), events.stock_id))
+        if self.normalized_ca is not None:
+            event_keys |= {(str(a.effective_date),a.ticker) for a in self.normalized_ca.actions}
         bars["corporate_action"] = ["source_event_requires_accounting" if (_day(d), s) in event_keys else None
                                     for d, s in zip(bars.date, bars.stock)]
+        for terminal in self.terminal_records:
+            cutoff = terminal.suspension_from or terminal.effective_date
+            if cutoff is not None:
+                bars.loc[bars.stock.eq(terminal.ticker) & bars.date.ge(pd.Timestamp(cutoff)),
+                         'corporate_action'] = 'terminal_terms_unverified'
         return bars.sort_values(["stock", "date"]).reset_index(drop=True)
 
 
@@ -305,6 +342,7 @@ class S3TradingPlanR1(TradingPlanR1):
             fill_factory=ExecutionFillFactory(_OwnerCosts(), FixedBpsSlippage(0)),
             portfolio=PortfolioEngine(opening_cash=initial_cash))
         self.signal = SignalDeclaration(source=inputs.binding_id, price_semantics=SignalPriceSemantics.RAW_REQUIRED)
+        self.canonical_replay = CanonicalPortfolioReplay(execution=self.canonical,portfolio=self.canonical.portfolio)
         self.journal = []
         self.close_exit_reasons = {}
         self.applied_ca_keys = set()
@@ -345,29 +383,74 @@ class S3TradingPlanR1(TradingPlanR1):
             if settlement.due_at <= datetime.fromisoformat(day):
                 self.canonical.portfolio.settlements.settle(sid, datetime.fromisoformat(day))
                 self.journal.append(dict(kind="settle", id=sid, at=day))
-        actions = self.inputs.reviewed_ca
-        if actions is not None:
-            self.journal.extend(actions.pay_due(portfolio=self.canonical.portfolio, day=day))
-            event_bars = self._bound_bars[self._bound_bars.date.map(_day).eq(day)]
-            for bar in event_bars.itertuples():
-                if not bar.corporate_action or (day, bar.stock) in self.applied_ca_keys:
-                    continue
-                pos = self.positions.get(bar.stock)
-                if pos is None:
-                    continue
-                try:
-                    record = actions.apply(portfolio=self.canonical.portfolio,
-                        ticker=bar.stock, day=day, stop_price=pos.stop_price)
-                except ValueError:
-                    # The existing unresolved-event path freezes the portfolio.
-                    continue
-                record["trade_id"] = pos.trade_id
-                pos.quantity = record["new_quantity"]
-                pos.stop_price = record["new_stop"]
-                self.cash += record["cash_receivable"]
+        if self.inputs.reviewed_ca is not None:
+            self.journal.extend(self.inputs.reviewed_ca.pay_due(portfolio=self.canonical.portfolio,day=day))
+        if self.inputs.normalized_ca is not None:
+            self.journal.extend(self.inputs.normalized_ca.pay_due(replay=self.canonical_replay,day=day))
+        for terminal in self.inputs.terminal_records:
+            cutoff = terminal.suspension_from or terminal.effective_date
+            if cutoff is None or str(cutoff) > day:
+                continue
+            observation = self._terminal_observation(terminal,day)
+            self.journal.append(observation)
+            pos = self.positions.get(terminal.ticker)
+            if pos is not None and not pos.truncated:
+                self._truncate(pos,day,'unresolved_terminal_event',observation)
+        for stock,pos in list(self.positions.items()):
+            if self.frozen or pos.truncated or (day,stock) in self.applied_ca_keys:
+                continue
+            normalized = self.inputs.normalized_ca
+            has_normalized = normalized is not None and any(
+                a.ticker==stock and str(a.effective_date)==day for a in normalized.actions)
+            if (day,stock) not in self.inputs.official_event_types and not has_normalized:
+                continue
+            try:
+                records = self._apply_bound_ca(stock,day,pos.stop_price)
+            except ValueError as error:
+                observation = dict(kind='unresolved_ca',ticker=stock,day=day,trade_id=pos.trade_id,
+                    old_quantity=pos.quantity,old_stop=pos.stop_price,reason=str(error),binding=self.inputs.binding_id)
+                self.journal.append(observation)
+                self._truncate(pos,day,'unresolved_ca',observation)
+                continue
+            for record in records:
+                record['trade_id'] = pos.trade_id
+                pos.quantity = record['new_quantity']
+                pos.stop_price = record['new_stop']
+                self.cash += record['cash_receivable']
                 self.journal.append(record)
-                self.applied_ca_keys.add((day, bar.stock))
+            self.applied_ca_keys.add((day,stock))
         return super().prepare_session(self._bound_bars, day)
+
+    def _apply_bound_ca(self,ticker,day,stop_price):
+        normalized = self.inputs.normalized_ca
+        has_normalized = normalized is not None and any(
+            a.ticker==ticker and str(a.effective_date)==day for a in normalized.actions)
+        official = self.inputs.official_event_types.get((day,ticker),frozenset())
+        if has_normalized:
+            if official - {'ex_right_dividend'}:
+                raise ValueError('overlapping official and normalized rights require resolved evidence')
+            return normalized.apply(replay=self.canonical_replay,ticker=ticker,day=day,stop_price=stop_price)
+        if self.inputs.reviewed_ca is not None:
+            return [self.inputs.reviewed_ca.apply(portfolio=self.canonical.portfolio,
+                        ticker=ticker,day=day,stop_price=stop_price)]
+        raise ValueError('corporate action lacks complete bound source evidence')
+
+    def _holding_trade_id(self,ticker):
+        position = self.canonical.portfolio.positions.positions.get(ticker)
+        if position is None or not position.quantity:
+            return None
+        buy = next(fill for fill in reversed(position.fills) if fill.side=='buy')
+        row_id = buy.fill_id.removesuffix(':fill')
+        return next(r['trade_id'] for r in self.ledger.rows['fills'] if r['row_id']==row_id)
+
+    def _terminal_observation(self,terminal,day):
+        position = self.canonical.portfolio.positions.positions.get(terminal.ticker)
+        return dict(kind='terminal_observation',ticker=terminal.ticker,day=day,
+            candidate_boundary=str(terminal.suspension_from or terminal.effective_date),
+            source_status='UNKNOWN_FINAL_TERMS',binding=self.inputs.binding_id,
+            terms_sha=_hash(self.inputs.role('terminal')),
+            held_quantity=0 if position is None else position.quantity,
+            trade_id=self._holding_trade_id(terminal.ticker))
 
     def _session_bars(self, prices, day):
         today = super()._session_bars(prices, day)
@@ -415,6 +498,12 @@ class S3TradingPlanR1(TradingPlanR1):
     def _execute(self, event):
         self._verify_run()
         day, side = event["day"], event["side"]
+        if not self.inputs.manifest['period']['start']<=day<=self.inputs.manifest['period']['end']:
+            raise ValueError('S3 fill outside declared E1')
+        barred=self._bound_bars[self._bound_bars.stock.eq(event['stock']) & self._bound_bars.date.map(_day).eq(day)]
+        if (len(barred) and barred.iloc[0].corporate_action
+                and (day,event['stock']) not in self.applied_ca_keys):
+            raise NotExecutableError('S3 source event requires resolved accounting')
         at = datetime.fromisoformat(day + ("T09:00:00" if event["field"] == "open" else "T13:30:00"))
         kwargs = dict(ticker=event["stock"], session_date=day, side=side)
         if event["use"] == "stop":
@@ -427,6 +516,8 @@ class S3TradingPlanR1(TradingPlanR1):
             raise ValueError("R1 fill is not the governed RAW price")
         intent = OrderIntent(event["id"]+":intent", event["stock"], side, event["quantity"], at, "S3 fixed R1")
         index = self.sessions.index(day)
+        if index+2>=len(self.sessions) and not self.inputs.fixture:
+            raise NotExecutableError('S3 source calendar lacks T+2 settlement sessions')
         due = self.sessions[index+2] if index+2 < len(self.sessions) else _day(pd.Timestamp(day)+pd.offsets.BDay(2))
         args = dict(intent=intent, signal=self.signal, order_id=event["id"]+":order", fill_id=event["id"]+":fill",
                     submitted_at=at, session_date=day, settlement=SettlementInstruction(event["id"]+":settle", datetime.fromisoformat(due)))
@@ -445,7 +536,17 @@ class S3TradingPlanR1(TradingPlanR1):
                      field="stop" if stop else "close" if side == "buy" and self.entry_mode == "close" else "open",
                      use="stop" if stop else PriceUse.ENTRY.value if side == "buy" else PriceUse.EXIT.value,
                      stop_price=self.positions[row["stock"]].stop_price if stop else None)
-        self._execute(event)
+        try:
+            self._execute(event)
+        except NotExecutableError as error:
+            self.journal.append(dict(event,kind='execution_blocked',reason=str(error)))
+            row.update(status='BLOCKED',reason=str(error))
+            pos=self.positions.get(row['stock'])
+            if pos is not None:
+                self._truncate(pos,day,'unresolved_execution',dict(reason=str(error)))
+            else:
+                self.frozen,self.freeze_reason=True,'unresolved_execution:'+str(error)
+            raise
         self.journal.append(event)
         return super()._charge(row, price=price, quantity=quantity, day=day, observed_at=observed_at)
 
@@ -467,9 +568,10 @@ class S3TradingPlanR1(TradingPlanR1):
         entry = buy["quantity"] * buy["price"] + buy["cost"]
         proceeds = sell["quantity"] * sell["price"] - sell["cost"]
         ca = self.canonical.portfolio.corporate_actions
-        entitlements = {**ca.completed_cash_entitlements, **ca.cash_entitlement_receivables}
-        events = [r["event_id"] for r in self.journal if r["kind"] == "reviewed_ca" and r["trade_id"] == trade_id]
-        rights = sum(entitlements[event_id].amount for event_id in events)
+        entitlements = {**ca.completed_cash_entitlements, **ca.cash_entitlement_receivables,
+                        **ca.completed_dividends, **ca.dividend_receivables}
+        events = [r["event_id"] for r in self.journal if r["kind"] in {"reviewed_ca","normalized_ca"} and r["trade_id"] == trade_id]
+        rights = sum(entitlements[event_id].amount for event_id in events if event_id in entitlements)
         pnl = proceeds + rights - entry
         return dict(pnl=pnl, net_return=pnl / entry, cash_entitlement=rights, events=events)
 
@@ -485,32 +587,111 @@ class S3TradingPlanR1(TradingPlanR1):
 
     def _check_accounts(self):
         portfolio = self.canonical.portfolio
-        ca_records = [r for r in self.journal if r["kind"] == "reviewed_ca"]
-        if len({r["event_id"] for r in ca_records}) != len(ca_records):
-            raise ValueError("duplicate corporate-action journal")
-        for record in ca_records:
-            decisions = [r for r in self.ledger.rows["decisions"] if r["trade_id"] == record["trade_id"]]
-            if (len(decisions) != 1 or self.inputs.reviewed_ca is None
-                    or record["binding"] != self.inputs.reviewed_ca.binding
-                    or decisions[0]["stock"] != record["ticker"]
-                    or not math.isclose(decisions[0]["stop_price"], record["old_stop"], abs_tol=1e-8)):
-                raise ValueError("corporate-action stop/input provenance mismatch")
+        from itertools import groupby
+        from decimal import Decimal
+        ca_records = [r for r in self.journal if r['kind'] in {'reviewed_ca','normalized_ca'}]
+        if len({r['event_id'] for r in ca_records}) != len(ca_records):
+            raise ValueError('duplicate corporate-action journal')
         ca = portfolio.corporate_actions
-        entitlements = {**ca.completed_cash_entitlements, **ca.cash_entitlement_receivables}
-        if set(entitlements) != {r["event_id"] for r in ca_records}:
-            raise ValueError("corporate-action entitlement journal mismatch")
-        for record in ca_records:
-            entitlement = entitlements[record["event_id"]]
-            trade_fills = [r for r in self.ledger.rows["fills"] if r["fill"] and r["trade_id"] == record["trade_id"]]
-            buys = [r for r in trade_fills if r["side"] == "buy"]
-            sells = [r for r in trade_fills if r["side"] == "sell"]
-            if (len(buys) != 1 or buys[0]["fill_date"] > record["day"]
-                    or any(r["fill_date"] < record["day"] for r in sells)
-                    or not math.isclose(buys[0]["quantity"], record["old_quantity"], abs_tol=1e-8)):
-                raise ValueError("corporate-action rights belong to different holding")
-            if (entitlement.ticker != record["ticker"]
-                    or not math.isclose(entitlement.amount, record["cash_receivable"], abs_tol=1e-8)):
-                raise ValueError("corporate-action entitlement economics mismatch")
+        entitlements = {**ca.completed_cash_entitlements,**ca.cash_entitlement_receivables,
+                        **ca.completed_dividends,**ca.dividend_receivables}
+        if set(entitlements) != {r['event_id'] for r in ca_records if r['cash_receivable']>0}:
+            raise ValueError('corporate-action entitlement journal mismatch')
+        mutations = {r['event_id'] for r in ca_records if r['new_quantity']!=r['old_quantity']}
+        if set(ca.share_mutations)!=mutations or portfolio.positions.applied_share_mutation_ids!=mutations:
+            raise ValueError('corporate-action share mutation journal mismatch')
+        for trade_id in {r['trade_id'] for r in ca_records}:
+            records = [r for r in ca_records if r['trade_id']==trade_id]
+            decisions = [r for r in self.ledger.rows['decisions'] if r['trade_id']==trade_id]
+            fills = [r for r in self.ledger.rows['fills'] if r['fill'] and r['trade_id']==trade_id]
+            buys = [r for r in fills if r['side']=='buy']
+            sells = [r for r in fills if r['side']=='sell']
+            if len(decisions)!=1 or len(buys)!=1:
+                raise ValueError('corporate-action holding provenance mismatch')
+            quantity, stop = float(buys[0]['quantity']), decisions[0]['stop_price']
+            for (day,kind),bundle in groupby(records,key=lambda r:(r['day'],r['kind'])):
+                bundle=list(bundle);ticker=decisions[0]['stock']
+                if buys[0]['fill_date']>=day or any(r['fill_date']<day for r in sells):
+                    raise ValueError('corporate-action rights belong to different holding')
+                if kind=='normalized_ca':
+                    if self.inputs.normalized_ca is None:
+                        raise ValueError('normalized journal lacks bound source')
+                    expected=self.inputs.normalized_ca.expected_records(ticker=ticker,day=day,
+                        quantity=quantity,stop_price=stop)
+                else:
+                    if self.inputs.reviewed_ca is None:
+                        raise ValueError('reviewed journal lacks bound overlay')
+                    action=self.inputs.reviewed_ca.resolve(ticker,day);event=action.event
+                    expected=[dict(kind='reviewed_ca',ticker=ticker,day=day,binding=action.binding,
+                        old_quantity=quantity,new_quantity=float(Decimal(str(quantity))*Decimal(str(event.share_multiplier))),
+                        cash_receivable=quantity*event.cash_per_share,old_stop=stop,
+                        new_stop=(stop-event.cash_per_share)/event.share_multiplier,event_id=event.event_id)]
+                expected=[dict(r,trade_id=trade_id) for r in expected]
+                if bundle != expected:
+                    raise ValueError('corporate-action stop/input/economics provenance mismatch')
+                for record in bundle:
+                    if record['cash_receivable']>0:
+                        entitlement=entitlements[record['event_id']]
+                        if (entitlement.ticker!=ticker or not math.isclose(entitlement.amount,record['cash_receivable'],abs_tol=1e-8)):
+                            raise ValueError('corporate-action entitlement economics mismatch')
+                    quantity,stop=record['new_quantity'],record['new_stop']
+        prepared=set(self.completed)|set(self.plans)
+        observations=[r for r in self.journal if r['kind']=='terminal_observation']
+        expected_keys={(day,t.ticker) for day in prepared for t in self.inputs.terminal_records
+                       if (t.suspension_from or t.effective_date) is not None
+                       and str(t.suspension_from or t.effective_date)<=day}
+        if (len(observations)!=len(expected_keys)
+                or {(r['day'],r['ticker']) for r in observations}!=expected_keys):
+            raise ValueError('terminal coverage observation mismatch')
+        for record in observations:
+            if record['binding']!=self.inputs.binding_id or record['terms_sha']!=_hash(self.inputs.role('terminal')):
+                raise ValueError('terminal observation source mismatch')
+            if record['held_quantity']>0:
+                truncated=[r for r in self.ledger.rows['fills'] if r['truncated']
+                           and r['trade_id']==record['trade_id'] and r['reason']=='unresolved_terminal_event']
+                if not self.frozen or not truncated:
+                    raise ValueError('unresolved terminal holding must remain incomplete')
+        quantities,owners={},{}
+        fill_rows={r['row_id']:r for r in self.ledger.rows['fills'] if r['fill']}
+        for event in self.journal:
+            if event['kind']=='fill':
+                stock=event['stock']
+                quantities[stock]=quantities.get(stock,0)+(event['quantity'] if event['side']=='buy' else -event['quantity'])
+                if event['side']=='buy': owners[stock]=fill_rows[event['id']]['trade_id']
+                if quantities[stock]==0: owners.pop(stock,None)
+            elif event['kind'] in {'reviewed_ca','normalized_ca'}:
+                quantities[event['ticker']]=event['new_quantity']
+            elif event['kind']=='terminal_observation':
+                terminal=next(t for t in self.inputs.terminal_records if t.ticker==event['ticker'])
+                if (event['held_quantity']!=quantities.get(event['ticker'],0)
+                        or event['trade_id']!=owners.get(event['ticker'])
+                        or event['candidate_boundary']!=str(terminal.suspension_from or terminal.effective_date)
+                        or event['source_status']!='UNKNOWN_FINAL_TERMS'):
+                    raise ValueError('terminal historical exposure provenance mismatch')
+        for record in [r for r in self.journal if r['kind']=='unresolved_ca']:
+            if not self.frozen or record['binding']!=self.inputs.binding_id:
+                raise ValueError('unresolved corporate-action holding must remain incomplete')
+            decision=next(r for r in self.ledger.rows['decisions'] if r['trade_id']==record['trade_id'])
+            earlier=[r for r in ca_records if r['trade_id']==record['trade_id'] and r['day']<record['day']]
+            stop=earlier[-1]['new_stop'] if earlier else decision['stop_price']
+            if record['old_stop']!=stop:
+                raise ValueError('unresolved corporate-action stop provenance mismatch')
+        if any(r['kind']=='execution_blocked' for r in self.journal) and not self.frozen:
+            raise ValueError('blocked execution must remain incomplete')
+        paid={**ca.completed_cash_entitlements,**ca.completed_dividends}
+        payments=[r for r in self.journal if r['kind'] in {'reviewed_ca_payment','normalized_ca_payment'}]
+        if len(payments)!=len(paid) or {r['event_id'] for r in payments}!=set(paid):
+            raise ValueError('corporate-action payment journal mismatch')
+        for record in payments:
+            right=paid[record['event_id']]
+            if right.amount!=record['amount'] or right.paid_at!=datetime.fromisoformat(record['day']):
+                raise ValueError('corporate-action payment economics mismatch')
+        if prepared:
+            at=datetime.fromisoformat(max(prepared))
+            if (any(r.due_at<=at for r in portfolio.settlements.pending.values())
+                    or any(r.payment_at is not None and r.payment_at<=at
+                           for r in list(ca.dividend_receivables.values())+list(ca.cash_entitlement_receivables.values()))):
+                raise ValueError('due settlement/payment missing from canonical replay')
         if not math.isclose(self.cash, portfolio.cash.projected_cash, abs_tol=1e-6):
             raise ValueError("canonical/R1 cash mismatch")
         own = {sid: p.quantity for sid, p in self.positions.items()}
@@ -520,6 +701,7 @@ class S3TradingPlanR1(TradingPlanR1):
         pending = portfolio.settlements.pending.values()
         receivables = sum(p.amount for p in pending if p.direction.value == "RECEIVABLE")
         receivables += sum(r.amount for r in portfolio.corporate_actions.cash_entitlement_receivables.values())
+        receivables += sum(r.amount for r in portfolio.corporate_actions.dividend_receivables.values())
         payables = sum(p.amount for p in portfolio.settlements.pending.values() if p.direction.value == "PAYABLE")
         if not math.isclose(receivables, portfolio.cash.pending_receivables, abs_tol=1e-6) or not math.isclose(payables, portfolio.cash.pending_payables, abs_tol=1e-6):
             raise ValueError("canonical settlement/cash mismatch")
@@ -527,7 +709,7 @@ class S3TradingPlanR1(TradingPlanR1):
             value = portfolio.positions.positions[stock]
             if not math.isclose(value.avg_cost * value.quantity, pos.entry_cash, abs_tol=1e-6):
                 raise ValueError("canonical/R1 position cost mismatch")
-            records = [r for r in self.journal if r["kind"] == "reviewed_ca" and r["trade_id"] == pos.trade_id]
+            records = [r for r in self.journal if r["kind"] in {"reviewed_ca","normalized_ca"} and r["trade_id"] == pos.trade_id]
             if records and not math.isclose(pos.stop_price, records[-1]["new_stop"], abs_tol=1e-8):
                 raise ValueError("canonical/R1 equivalent stop mismatch")
         actual = {r["row_id"]: r for r in self.ledger.rows["fills"] if r["fill"]}
@@ -607,34 +789,68 @@ class S3TradingPlanR1(TradingPlanR1):
         if (identity != engine.ledger.identity or state["sessions"] != engine.sessions
                 or tuple(state.get("declared_cell", [])) != engine._declared_cell):
             raise ValueError("saved S3 source/cell/calendar mismatch")
-        for event in state["journal"]:
-            if event["kind"] == "fill":
+        engine.ledger.rows = state['tables']
+        events=iter(state['journal'])
+        for event in events:
+            if event['kind']=='fill':
                 engine._execute(event)
-            elif event["kind"] == "settle":
-                at = datetime.fromisoformat(event["at"])
-                if engine.canonical.portfolio.settlements.pending[event["id"]].due_at > at:
-                    raise ValueError("saved settlement precedes canonical due date")
-                engine.canonical.portfolio.settlements.settle(event["id"], at)
-            elif event["kind"] == "reviewed_ca":
+            elif event['kind']=='settle':
+                at=datetime.fromisoformat(event['at'])
+                if engine.canonical.portfolio.settlements.pending[event['id']].due_at>at:
+                    raise ValueError('saved settlement precedes canonical due date')
+                engine.canonical.portfolio.settlements.settle(event['id'],at)
+            elif event['kind'] in {'reviewed_ca','normalized_ca'}:
+                decisions=[r for r in state['tables']['decisions'] if r['trade_id']==event['trade_id']]
+                if len(decisions)!=1 or decisions[0]['stock']!=event['ticker']:
+                    raise ValueError('saved corporate-action holding provenance mismatch')
+                records=engine._apply_bound_ca(event['ticker'],event['day'],event['old_stop'])
+                supplied=[event]+[next(events,None) for _ in range(len(records)-1)]
+                expected=[dict(r,trade_id=event['trade_id']) for r in records]
+                if expected != supplied:
+                    raise ValueError('saved corporate-action economics mismatch')
+                engine.applied_ca_keys.add((event['day'],event['ticker']))
+            elif event['kind']=='reviewed_ca_payment':
                 if inputs.reviewed_ca is None:
-                    raise ValueError("saved corporate action lacks bound overlay")
-                decisions = [r for r in state["tables"]["decisions"] if r["trade_id"] == event["trade_id"]]
-                if len(decisions) != 1 or not math.isclose(decisions[0]["stop_price"], event["old_stop"], abs_tol=1e-8):
-                    raise ValueError("saved corporate-action stop provenance mismatch")
-                record = inputs.reviewed_ca.apply(portfolio=engine.canonical.portfolio,
-                    ticker=event["ticker"], day=event["day"], stop_price=event["old_stop"])
-                record["trade_id"] = event["trade_id"]
-                if record != event:
-                    raise ValueError("saved corporate-action economics mismatch")
-                engine.applied_ca_keys.add((event["day"], event["ticker"]))
-            elif event["kind"] == "reviewed_ca_payment":
-                if inputs.reviewed_ca is None:
-                    raise ValueError("saved payment lacks bound overlay")
-                paid = inputs.reviewed_ca.pay_due(portfolio=engine.canonical.portfolio, day=event["day"])
+                    raise ValueError('saved payment lacks bound overlay')
+                paid=inputs.reviewed_ca.pay_due(portfolio=engine.canonical.portfolio,day=event['day'])
                 if paid != [event]:
-                    raise ValueError("saved corporate-action payment mismatch")
+                    raise ValueError('saved corporate-action payment mismatch')
+            elif event['kind']=='normalized_ca_payment':
+                if inputs.normalized_ca is None:
+                    raise ValueError('saved normalized payment lacks bound source')
+                receivable=engine.canonical.portfolio.corporate_actions.dividend_receivables[event['event_id']]
+                at=datetime.fromisoformat(event['day'])
+                paid=engine.canonical_replay.pay_cash_dividend(event['event_id'],at)
+                expected=dict(kind='normalized_ca_payment',event_id=event['event_id'],day=event['day'],amount=paid.amount)
+                if expected!=event:
+                    raise ValueError('saved normalized payment mismatch')
+            elif event['kind']=='terminal_observation':
+                terminal=next((t for t in inputs.terminal_records if t.ticker==event['ticker']),None)
+                if terminal is None or engine._terminal_observation(terminal,event['day'])!=event:
+                    raise ValueError('saved terminal exposure mismatch')
+            elif event['kind']=='unresolved_ca':
+                pos=engine.canonical.portfolio.positions.positions.get(event['ticker'])
+                if (pos is None or pos.quantity!=event['old_quantity']
+                        or engine._holding_trade_id(event['ticker'])!=event['trade_id']
+                        or event['binding']!=inputs.binding_id):
+                    raise ValueError('saved unresolved corporate-action holding mismatch')
+                try:
+                    engine._apply_bound_ca(event['ticker'],event['day'],event['old_stop'])
+                except ValueError as error:
+                    if str(error)!=event['reason']:
+                        raise ValueError('saved unresolved corporate-action reason mismatch')
+                else:
+                    raise ValueError('saved unresolved event no longer rejects')
+            elif event['kind']=='execution_blocked':
+                try:
+                    engine._execute(event)
+                except NotExecutableError as error:
+                    if str(error)!=event['reason']:
+                        raise ValueError('saved blocked execution reason mismatch')
+                else:
+                    raise ValueError('saved blocked execution no longer rejects')
             else:
-                raise ValueError("unknown canonical journal event")
+                raise ValueError('unknown canonical journal event')
         engine.close_exit_reasons = state["close_exit_reasons"]
         for reason in engine.close_exit_reasons.values():
             if reason not in {"sma20_next_open", "rsi13_lt50_next_open"}:
@@ -676,6 +892,20 @@ class S3TradingPlanR1(TradingPlanR1):
         self.validate_tables(tables)
         return tables
 
+    def cell_status(self):
+        self.validate_tables()
+        expected=[day for day in self.sessions if self.inputs.manifest['period']['start']<=day<=self.inputs.manifest['period']['end']]
+        full = self.completed==expected and not self.plans
+        observations=[r for r in self.journal if r['kind']=='terminal_observation']
+        affected=[r for r in observations if r['held_quantity']>0]
+        status = 'INCOMPLETE' if self.frozen else 'COMPLETE_UNAFFECTED' if full else 'PARTIAL' if self.completed else 'NOT_RUN'
+        return dict(status=status,input_binding=self.inputs.binding_id,entry_mode=self.entry_mode,exit_mode=self.exit_mode,
+            full_e1_sessions_covered=full,completed_sessions=len(self.completed),expected_sessions=len(expected),
+            s1_population_preserved=True,unresolved_terminal_tickers=sorted({t.ticker for t in self.inputs.terminal_records
+                if t.effective_date is not None and str(t.effective_date)<=self.inputs.manifest['period']['end']}),
+            terminal_observations=observations,held_crossings=affected,
+            freeze_reason=self.freeze_reason,final_terms_status='UNKNOWN')
+
     def metrics(self, tables=None):
         self.validate_tables(tables)
         self._check_accounts()
@@ -683,7 +913,11 @@ class S3TradingPlanR1(TradingPlanR1):
             raise ValueError("engineering fixtures cannot produce S3 performance")
         if self.frozen:
             raise ValueError("unresolved holding path blocks S3 performance")
+        coverage=self.cell_status()
+        if coverage['status']!='COMPLETE_UNAFFECTED':
+            raise ValueError("incomplete E1 coverage blocks S3 performance")
         result = _metric_rows(tables if tables is not None else self.ledger.tables(), scope="s3_fixed_E1")
         for key in ["exit_mode", "source_kind", "input_binding", "execution_version"]:
             result[key] = self.ledger.identity[key]
+        result.attrs['unresolved_event_coverage']=coverage
         return result

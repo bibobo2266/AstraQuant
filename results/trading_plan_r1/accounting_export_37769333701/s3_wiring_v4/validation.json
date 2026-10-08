@@ -1,0 +1,50 @@
+{
+  "execution_base_sha": "34b258ec8e7179779398c27310a6fed67d6b4043",
+  "command": "ASTRAQUANT_REAL_CASE_ROOT=/workspace/scratch/4498b78b33c4 ASTRAQUANT_REAL_CASE_OUTPUT=results/trading_plan_r1/accounting_export_37769333701/s3_wiring_v4/common_bound_cases.json PYTHONPATH=/workspace/scratch/4498b78b33c4/task-python-deps:src python3 -m pytest -q tests --basetemp=/workspace/scratch/4498b78b33c4/s3-wiring-v4-full-regression",
+  "result": {
+    "passed": 759,
+    "skipped": 10,
+    "subtests_passed": 13,
+    "duration_seconds": 109.5,
+    "actual_data_tests_executed": 3
+  },
+  "scope": {
+    "real_four_cells_executed": 0,
+    "workflows_started": 0,
+    "real_18_item_gate_cleared": false,
+    "real_common_bound_case_is_formal_s3_e1": false,
+    "prior_113_14_independently_reviewed": false
+  },
+  "files": [
+    {
+      "path": "scripts/source_accounting_smoke_replay.py",
+      "bytes": 34191,
+      "sha256": "87c6ff577d4592594abb62748aec98c3daa6f12654300088f4f03de1ca41ecde"
+    },
+    {
+      "path": "src/astraquant/research/trading_plan_r1_s3.py",
+      "bytes": 57799,
+      "sha256": "4cfaf67131c516044e130088e5c6b36e549e14fd11be12b425d64aa1015ce442"
+    },
+    {
+      "path": "src/astraquant/portfolio/normalized_ca.py",
+      "bytes": 5009,
+      "sha256": "215f416e11ab9cd4c12d6ac57658534d120a62ddd9718446e8a35726000f820e"
+    },
+    {
+      "path": "tests/test_s3_normalized_restore.py",
+      "bytes": 11575,
+      "sha256": "7fa866238eb1ead057aeed197f190f884f87b2c2372900868ca4834f2a2615b5"
+    },
+    {
+      "path": "results/trading_plan_r1/accounting_export_37769333701/s3_wiring_v4/common_bound_cases.json",
+      "bytes": 20323,
+      "sha256": "66eed9a4513a5fa8c5534d1ed2430b64f5eaa8810d14ce87d13ba9e4ee8714af"
+    },
+    {
+      "path": "results/trading_plan_r1/accounting_export_37769333701/s3_wiring_v4/engineering_cases.json",
+      "bytes": 28270,
+      "sha256": "b5f810888f2f9e80f5bc5f685b4a3b7d8e536505031659f577c19c8d6542d7f6"
+    }
+  ]
+}

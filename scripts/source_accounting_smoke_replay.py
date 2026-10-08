@@ -415,7 +415,9 @@ def run_real_flow_probe(*, source_root, manifest_path, archive, panel, output):
     sessions = sorted(raw.date.unique())
     features_owner = SimpleNamespace(sessions=sessions)
     dividend = pd.read_parquet(root/'fundamentals/dividend.parquet')
-    normalized = build_finmind_normalized_actions(dividend)
+    from astraquant.portfolio.normalized_ca import NormalizedCA
+    bound_actions = NormalizedCA(root/'fundamentals/dividend.parquet')
+    normalized = bound_actions.actions
     official = pd.read_csv(root/'reference/corporate_actions_official.csv')
 
     def context(ticker):
@@ -520,12 +522,13 @@ def run_real_flow_probe(*, source_root, manifest_path, archive, panel, output):
     assert due <= datetime(2016,6,27,9)
     replay.settle(settle_id,due)
     cash_before = portfolio.cash.settled_cash
-    entitlement = replay.apply_normalized_action(action,applied_at=datetime(2016,6,27,9))
+    bound_records=bound_actions.apply(replay=replay,ticker='2330',day='2016-06-27',stop_price=buy.fill.price*.93)
+    entitlement = portfolio.corporate_actions.dividend_receivables[bound_records[0]['event_id']]
     assert entitlement.amount==6000 and portfolio.cash.pending_receivables==6000
     assert portfolio.cash.settled_cash == cash_before
     failed = []
     for label, operation in [
-            ('duplicate_accrual',lambda:replay.apply_normalized_action(action,applied_at=datetime(2016,6,27,9))),
+            ('duplicate_accrual',lambda:bound_actions.apply(replay=replay,ticker='2330',day='2016-06-27',stop_price=buy.fill.price*.93)),
             ('early_payment',lambda:replay.pay_cash_dividend(entitlement.event_id,datetime(2016,7,20)))]:
         try: operation()
         except ValueError: failed.append(label)
@@ -540,6 +543,7 @@ def run_real_flow_probe(*, source_root, manifest_path, archive, panel, output):
                   for key,value in dividend.iloc[action.source_row].to_dict().items()}
     normalized_case = dict(action=asdict(action),source_row=source_row,
         controlled_quantity=1000,buy=asdict(buy.fill),cash_before=cash_before,
+        bound_event_records=bound_records,normalized_source_binding=bound_actions.binding,
         entitlement=asdict(entitlement),cash_after_payment=portfolio.cash.settled_cash,rejected=failed,
         scope='common canonical replay boundary; not a complete S3/E1 wiring acceptance')
 
@@ -554,7 +558,7 @@ def run_real_flow_probe(*, source_root, manifest_path, archive, panel, output):
                                    case='pit:'+action.ticker,field='close')
         before = (portfolio.cash.settled_cash,portfolio.cash.pending_receivables,
                   portfolio.cash.pending_payables,portfolio.positions.positions[action.ticker].quantity)
-        try: replay.apply_normalized_action(action,applied_at=datetime.fromisoformat(day+'T09:00:00'))
+        try: bound_actions.apply(replay=replay,ticker=action.ticker,day=day,stop_price=buy.fill.price*.93)
         except ValueError as error:
             assert 'point-in-time' in str(error)
         else: raise AssertionError('late source action accepted against actual holding')
