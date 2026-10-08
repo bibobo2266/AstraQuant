@@ -1,0 +1,25 @@
+{
+  "base_sha": "19aa28683fc06af1d0e1c1205c23123faa05ca13",
+  "targeted_tests": {
+    "passed": 86,
+    "seconds": 37.47
+  },
+  "actual_probe_completed": true,
+  "changed_manifest_rejected_before_output": true,
+  "checks": {
+    "stop_observation_raw": "EXERCISED_CASE_ONLY",
+    "exit_raw": "EXERCISED_CASE_ONLY",
+    "sizing_raw": "OBSERVED_FORMULA_ONLY",
+    "normalized_ca_view_active": "NORMALIZATION_ONLY",
+    "pit_unsafe_ca_excluded": "INVENTORY_ONLY_NOT_REPLAYED",
+    "terminal_security_lifecycle_active": "NOT_EXERCISED_MISSING_KNOWN_AT",
+    "long_horizon_canonical_probe_passed": "NOT_EXERCISED_UNRESOLVED_EVENT_EVIDENCE"
+  },
+  "accounting_gate_passed": false,
+  "s3_effects_executed": false,
+  "workflow_dispatch_count": 0,
+  "files": {
+    "scripts/source_accounting_smoke_replay.py": "eb479939ab878ffd76cd3980a0619be4f722bcecb36d48008f2326a7fa5619c3",
+    "results/trading_plan_r1/accounting_export_37769333701/ca_wiring_r3/real_remaining.json": "224ab128b26687c4e7b5688b2368e917c91701432fbb4ec45149811389545f5c"
+  }
+}

@@ -262,5 +262,116 @@ def run_reviewed_reduction_probe(*, source_root, overlay, manifest_path, output)
     return result
 
 
+def run_remaining_accounting_probe(*, source_root, overlay, manifest_path, archive, output):
+    """Evidence only: exercise frozen inputs without issuing an unlock receipt."""
+    import json
+    import math
+    import zipfile
+    from dataclasses import asdict
+    from astraquant.data.corporate_actions import build_finmind_normalized_actions
+    from astraquant.data.market_coordinates import SignalPriceSemantics
+    from astraquant.execution.assumptions import FixedBpsSlippage
+    from astraquant.execution.fills import ExecutionFillFactory
+    from astraquant.execution.service import CanonicalExecutionService, SignalDeclaration
+    from astraquant.portfolio.engine import PortfolioEngine, SettlementInstruction
+    from astraquant.portfolio.models import OrderIntent
+    from astraquant.portfolio.reviewed_ca import ReviewedCA, sha
+    from astraquant.research.trading_plan_r1_s3 import _OwnerCosts
+    from astraquant.research.trading_plan_r1 import COMMISSION, SLIPPAGE
+    from astraquant.research.terminal_events import load_terminal_event_records
+    import hashlib
+    from tempfile import TemporaryDirectory
+
+    root = Path(source_root)
+    if sha(manifest_path) != 'e18b21dab018c04ae5f6d05979c9d601b035bde45338ed40c42544be9337a26c':
+        raise ValueError('unreviewed accounting export manifest')
+    manifest = json.loads(Path(manifest_path).read_text())
+    evidence = []
+    for item in manifest['files']:
+        if item['role'] not in {'raw', 'tradability', 'dividend', 'official_events'}:
+            continue
+        path = root / item['source_path']
+        if sha(path) != item['sha256'] or path.stat().st_size != item['bytes']:
+            raise ValueError('changed frozen accounting probe input')
+        evidence.append(dict(path=item['source_path'], sha256=item['sha256']))
+    if sha(archive) != '79a45e098fb55f9c358c2c8a67e58365d07277b5ba706e2768d1842d11902867':
+        raise ValueError('changed reviewed accounting archive')
+    terms = next(x for x in manifest['files'] if x['role'] == 'terminal_terms')
+    with zipfile.ZipFile(archive) as zipped:
+        terminal_bytes = zipped.read('research/' + terms['source_path'])
+    if hashlib.sha256(terminal_bytes).hexdigest() != terms['sha256'] or len(terminal_bytes) != terms['bytes']:
+        raise ValueError('changed terminal terms')
+    evidence.append(dict(path=terms['source_path'], sha256=terms['sha256']))
+    actions = ReviewedCA(overlay, root/'reference/corporate_actions_official.csv')
+    portfolio = PortfolioEngine(opening_cash=1_000_000)
+    service = CanonicalExecutionService(
+        market_data=ExecutionMarketData(SourceDataAdapter(root), ticker_scope={'1315'}),
+        fill_factory=ExecutionFillFactory(_OwnerCosts(), FixedBpsSlippage(0)), portfolio=portfolio)
+    signal = SignalDeclaration(source=actions.binding, price_semantics=SignalPriceSemantics.RAW_REQUIRED)
+    sizing = service.sizing_price(ticker='1315', session_date='2020-10-14', side='buy', field='close', signal=signal)
+    assert sizing.availability is ExecutionAvailability.EXECUTABLE
+    per_share = sizing.price*(1+COMMISSION+SLIPPAGE)
+    sized_quantity = math.floor(min(1_000_000*.07, 1_000_000*.25)/per_share)
+    assert sized_quantity*per_share <= 70_000 < (sized_quantity+1)*per_share
+    at = datetime(2020,10,14,13,30)
+    buy = service.execute(intent=OrderIntent('real7-buy','1315','buy',1000,at,'controlled accounting holding, not strategy sizing'),
+        signal=signal, order_id='real7-buy-order',fill_id='real7-buy-fill',submitted_at=at,
+        session_date='2020-10-14', use=PriceUse.ENTRY,field='close',
+        settlement=SettlementInstruction('real7-buy-settlement',datetime(2020,10,16)))
+    portfolio.settlements.settle('real7-buy-settlement',datetime(2020,10,16))
+    event = actions.apply(portfolio=portfolio,ticker='1315',day='2020-10-26',stop_price=buy.fill.price*.93)
+    observation = service.stop_observation(ticker='1315',session_date='2020-10-26',side='sell')
+    assert observation.availability is ExecutionAvailability.EXECUTABLE and observation.price == 68.2
+    assert observation.price > event['new_stop']
+    actions.pay_due(portfolio=portfolio,day='2020-10-29')
+    at = datetime(2020,10,30,9)
+    sell = service.execute(intent=OrderIntent('real7-sell','1315','sell',700,at,'controlled next-open accounting exit, not an SMA signal'),
+        signal=signal,order_id='real7-sell-order',fill_id='real7-sell-fill',submitted_at=at,
+        session_date='2020-10-30',use=PriceUse.EXIT,field='open',
+        settlement=SettlementInstruction('real7-sell-settlement',datetime(2020,11,3)))
+    portfolio.settlements.settle('real7-sell-settlement',datetime(2020,11,3))
+    entry_cash = buy.fill.quantity*buy.fill.price+buy.fill.fees
+    exit_cash = sell.fill.quantity*sell.fill.price-sell.fill.fees
+    economic_pnl = exit_cash+3000-entry_cash
+    assert math.isclose(portfolio.cash.settled_cash-1_000_000,economic_pnl,abs_tol=1e-8)
+    assert portfolio.positions.positions['1315'].quantity == 0
+    assert portfolio.cash.pending_receivables == portfolio.cash.pending_payables == 0
+    dividend = pd.read_parquet(root/'fundamentals/dividend.parquet')
+    normalized = [a for a in build_finmind_normalized_actions(dividend)
+                  if datetime(2016,1,1).date() <= a.effective_date <= datetime(2021,12,31).date()]
+    late = [a for a in normalized if a.known_at is None or a.known_at.date() > a.effective_date]
+    with TemporaryDirectory() as temporary:
+        terminal_path = Path(temporary)/'terminal_events.csv'
+        terminal_path.write_bytes(terminal_bytes)
+        terminal = load_terminal_event_records(terminal_path)
+    e1_terminal = [asdict(a) for a in terminal if a.effective_date and a.effective_date.year <= 2021]
+    result = dict(schema_version='real_accounting_remaining_v1',source_revision=manifest['source_revision'],
+        source_inputs=evidence, overlay_sha256=sha(overlay),
+        sizing=dict(source_key=['2020-10-14','1315'],raw_price=sizing.price,budget=70000,per_share_cost=per_share,
+                    quantity=sized_quantity,executed_quantity=1000,scope='formula observation; controlled holding differs from strategy sizing'),
+        stop_observation=dict(source_key=['2020-10-26','1315'],raw_low=observation.price,
+                              adjusted_stop=event['new_stop'],triggered=False),
+        exit=dict(source_key=['2020-10-30','1315'],raw_open=sell.fill.price,quantity=700,cost=sell.fill.fees,
+                  entry_cash=entry_cash,exit_cash=exit_cash,refund=3000,pnl=economic_pnl,
+                  final_cash=portfolio.cash.settled_cash,settlement='2020-11-03',
+                  scope='controlled accounting exit, not a strategy-generated signal'),
+        normalized=dict(count=len(normalized),unsafe=[asdict(a) for a in late],
+                        scope='actual normalization and unsafe-key inventory; not production exclusion replay'),
+        terminal=dict(e1_records=e1_terminal,known_at_field_present=False,
+                      scope='frozen terms contain no announcement timestamp; no guessed terminal application'),
+        checks={
+            'stop_observation_raw':'EXERCISED_CASE_ONLY', 'exit_raw':'EXERCISED_CASE_ONLY',
+            'sizing_raw':'OBSERVED_FORMULA_ONLY', 'normalized_ca_view_active':'NORMALIZATION_ONLY',
+            'pit_unsafe_ca_excluded':'INVENTORY_ONLY_NOT_REPLAYED',
+            'terminal_security_lifecycle_active':'NOT_EXERCISED_MISSING_KNOWN_AT',
+            'long_horizon_canonical_probe_passed':'NOT_EXERCISED_UNRESOLVED_EVENT_EVIDENCE'},
+        accounting_gate_passed=False,s3_effects_executed=False,
+        blockers=['Terminal terms lack known_at; no new timestamp/source inferred.',
+                  'Full E1 canonical integration not executed: terminal announcement times and other nine event evidence gaps remain unresolved.'])
+    Path(output).parent.mkdir(parents=True,exist_ok=True)
+    Path(output).write_text(json.dumps(result,indent=2,default=str)+'\n')
+    return result
+
+
 if __name__ == "__main__":
     main()

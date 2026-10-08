@@ -1,0 +1,179 @@
+{
+  "schema_version": "real_accounting_remaining_v1",
+  "source_revision": "3e7c4b6d9cde3b18942710fa977db02f89bffa0d",
+  "source_inputs": [
+    {
+      "path": "raw/prices_raw_2015.parquet",
+      "sha256": "9235f174a6021d11cacfe1901b9ace4445f01dbc595b369b845665aeb84de8c6"
+    },
+    {
+      "path": "raw/prices_raw_2016.parquet",
+      "sha256": "8c1d9ad7d1baae9117b6cb5caffe1ca71359673702af4889325274e4d5a0f5b2"
+    },
+    {
+      "path": "raw/prices_raw_2017.parquet",
+      "sha256": "1b51f311e7ca4e2ccf5d7fcf384ac2d274a8006d8d45bf7e84fc82436f40e2aa"
+    },
+    {
+      "path": "raw/prices_raw_2018.parquet",
+      "sha256": "06845ef8fb4bcde0869188e35d03d4c388776681c647bf96d8c58121767f68a3"
+    },
+    {
+      "path": "raw/prices_raw_2019.parquet",
+      "sha256": "08993f01cfa889d12600a6b50893fab83b87516ec99c9fe7e10c5621aab6e467"
+    },
+    {
+      "path": "raw/prices_raw_2020.parquet",
+      "sha256": "f206e28600e2303b001081119d0e112ee4117e4fea03b1db191773f41f415861"
+    },
+    {
+      "path": "raw/prices_raw_2021.parquet",
+      "sha256": "344585aa37b0e2255490bfdb11d83a0d1aee69439c0ae1fa3dffd2d39ff53f55"
+    },
+    {
+      "path": "reference/tradability.parquet",
+      "sha256": "3bba4a24ab289fe50165e121865e7bf6fd10a47993339b26fe6975878e6432d0"
+    },
+    {
+      "path": "fundamentals/dividend.parquet",
+      "sha256": "f0fa98a466923b25f15135aa7f67edf0633ff00720c034f79e1bfe3851f1a415"
+    },
+    {
+      "path": "reference/corporate_actions_official.csv",
+      "sha256": "78d481ef10a3e3e6691d803ecf2805a8096b1c4bec4f63ac4faf717c8785300c"
+    },
+    {
+      "path": "data/research/terminal_events.csv",
+      "sha256": "02d30cf5dc079a18b7ba7888568f1607e7152136aeca02b7ee06ada5ead58a5d"
+    }
+  ],
+  "overlay_sha256": "1c1917620f3f7fe7d266d488588b3872c540c8adfa27beb3b84b422009f2c4d4",
+  "sizing": {
+    "source_key": [
+      "2020-10-14",
+      "1315"
+    ],
+    "raw_price": 52.7,
+    "budget": 70000,
+    "per_share_cost": 52.85045850000001,
+    "quantity": 1324,
+    "executed_quantity": 1000,
+    "scope": "formula observation; controlled holding differs from strategy sizing"
+  },
+  "stop_observation": {
+    "source_key": [
+      "2020-10-26",
+      "1315"
+    ],
+    "raw_low": 68.2,
+    "adjusted_stop": 65.73,
+    "triggered": false
+  },
+  "exit": {
+    "source_key": [
+      "2020-10-30",
+      "1315"
+    ],
+    "raw_open": 68.2,
+    "quantity": 700,
+    "cost": 279.5177,
+    "entry_cash": 52850.4585,
+    "exit_cash": 47460.4823,
+    "refund": 3000,
+    "pnl": -2389.9761999999973,
+    "final_cash": 997610.0238000001,
+    "settlement": "2020-11-03",
+    "scope": "controlled accounting exit, not a strategy-generated signal"
+  },
+  "normalized": {
+    "count": 8680,
+    "unsafe": [
+      {
+        "ticker": "3234",
+        "effective_date": "2017-07-19",
+        "kind": "CASH_DIVIDEND",
+        "known_at": "2017-07-26 16:35:25",
+        "payment_at": "2017-07-31 00:00:00",
+        "cash_per_share": 1.00049094,
+        "share_multiplier": null,
+        "source_name": "FinMind TaiwanStockDividend",
+        "source_row": 7319,
+        "unit_semantics": "cash_per_pre_event_share"
+      },
+      {
+        "ticker": "4550",
+        "effective_date": "2016-09-12",
+        "kind": "CASH_DIVIDEND",
+        "known_at": "2016-09-13 16:35:53",
+        "payment_at": "2016-10-05 00:00:00",
+        "cash_per_share": 1.26118879,
+        "share_multiplier": null,
+        "source_name": "FinMind TaiwanStockDividend",
+        "source_row": 10097,
+        "unit_semantics": "cash_per_pre_event_share"
+      },
+      {
+        "ticker": "5234",
+        "effective_date": "2019-06-13",
+        "kind": "CASH_DIVIDEND",
+        "known_at": "2019-06-14 09:02:42",
+        "payment_at": "2019-07-16 00:00:00",
+        "cash_per_share": 5.0,
+        "share_multiplier": null,
+        "source_name": "FinMind TaiwanStockDividend",
+        "source_row": 11514,
+        "unit_semantics": "cash_per_pre_event_share"
+      }
+    ],
+    "scope": "actual normalization and unsafe-key inventory; not production exclusion replay"
+  },
+  "terminal": {
+    "e1_records": [
+      {
+        "ticker": "6286",
+        "last_trading_date": "2016-04-20",
+        "event_type": "CASH_MERGER_EXTINGUISHMENT",
+        "suspension_from": "2016-04-21",
+        "effective_date": "2016-04-29",
+        "cash_per_share": 195.0,
+        "payment_date": "2016-05-05",
+        "successor_ticker": null,
+        "share_ratio": null,
+        "confidence": "CONFIRMED",
+        "source_url": "https://news.cnyes.com/news/id/748023",
+        "source_quote": "Existing curated MOPS/TWSE cash share-conversion disclosure."
+      },
+      {
+        "ticker": "5305",
+        "last_trading_date": "2020-11-23",
+        "event_type": "CASH_MERGER_EXTINGUISHMENT",
+        "suspension_from": "2020-11-24",
+        "effective_date": "2020-11-30",
+        "cash_per_share": 42.5,
+        "payment_date": "2020-12-04",
+        "successor_ticker": null,
+        "share_ratio": null,
+        "confidence": "CONFIRMED",
+        "source_url": "https://www.moneydj.com/kmdj/news/newsviewer.aspx?a=08e82787-ac21-4b82-a7e5-0457c205ba74",
+        "source_quote": "Existing curated cash conversion evidence used by AstraQuant."
+      }
+    ],
+    "known_at_field_present": false,
+    "scope": "frozen terms contain no announcement timestamp; no guessed terminal application"
+  },
+  "checks": {
+    "stop_observation_raw": "EXERCISED_CASE_ONLY",
+    "exit_raw": "EXERCISED_CASE_ONLY",
+    "sizing_raw": "OBSERVED_FORMULA_ONLY",
+    "normalized_ca_view_active": "NORMALIZATION_ONLY",
+    "pit_unsafe_ca_excluded": "INVENTORY_ONLY_NOT_REPLAYED",
+    "terminal_security_lifecycle_active": "NOT_EXERCISED_MISSING_KNOWN_AT",
+    "long_horizon_canonical_probe_passed": "NOT_EXERCISED_UNRESOLVED_EVENT_EVIDENCE"
+  },
+  "accounting_gate_passed": false,
+  "s3_effects_executed": false,
+  "blockers": [
+    "Terminal terms lack known_at; no new timestamp/source inferred.",
+    "Full E1 canonical integration not executed: terminal announcement times and other nine event evidence gaps remain unresolved."
+  ]
+}
