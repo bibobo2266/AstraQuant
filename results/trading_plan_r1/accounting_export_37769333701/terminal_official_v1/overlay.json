@@ -1,0 +1,296 @@
+{
+  "schema_version": "terminal_official_evidence_v1",
+  "base_sha": "333fe094182762984b3124a79a297570215dee36",
+  "authorization_comment": 6066545532,
+  "scope": {
+    "original_events_retained": 10,
+    "additional_event_tickers": [
+      "6286",
+      "5305"
+    ],
+    "event_limit": 12,
+    "fixed_inputs_overwritten": false,
+    "workflow_dispatch_count": 0,
+    "four_cells_executed": false,
+    "accounting_gate_passed": false
+  },
+  "files": [
+    {
+      "path": "originals/5305_diodes_acquisition.html",
+      "bytes": 37072,
+      "sha256": "56b1232f3e2e7eafcd90f0b48ea0eeff9a98a8382768d5e7b8bccaed3030da7a",
+      "source_url": "https://investor.diodes.com/news-releases/news-release-details/diodes-incorporated-acquire-lite-semiconductor-corporation",
+      "request_method": "GET",
+      "request_json": null,
+      "scope": "official_original_pending_independent_review"
+    },
+    {
+      "path": "originals/5305_mops_list.json",
+      "bytes": 765,
+      "sha256": "31a68e75f37bd26f4426b80db365963390dafb52bf7c9eb19ea9bf65b6db110b",
+      "source_url": "https://mops.twse.com.tw/mops/api/t05st01",
+      "request_method": "POST",
+      "request_json": {
+        "companyId": "5305",
+        "year": "109",
+        "month": "9",
+        "firstDay": "24",
+        "lastDay": "24"
+      },
+      "scope": "official_original_pending_independent_review"
+    },
+    {
+      "path": "originals/5305_twse_20201008.pdf",
+      "bytes": 50960,
+      "sha256": "211167a45f83a3ed7bb5210fb88a4938172437c5218bebbc565a39f67b189428",
+      "source_url": "https://www.twse.com.tw/staticFiles/news/news/tsecnews/ff80808174fce5b3017507adc3ac0028.pdf",
+      "request_method": "GET",
+      "request_json": null,
+      "scope": "official_original_pending_independent_review"
+    },
+    {
+      "path": "originals/6286_mops_20160316_list.json",
+      "bytes": 634,
+      "sha256": "136919bde5fc61117df7bc27538b486c48281da330ea9f9a234fd13de62d0074",
+      "source_url": "https://mops.twse.com.tw/mops/api/t05st01",
+      "request_method": "POST",
+      "request_json": {
+        "companyId": "6286",
+        "year": "105",
+        "month": "3",
+        "firstDay": "16",
+        "lastDay": "16"
+      },
+      "scope": "official_original_pending_independent_review"
+    },
+    {
+      "path": "originals/6286_mops_list.json",
+      "bytes": 677,
+      "sha256": "25a1b6c08f816dfcc06170b1e39b230199324096f05b5071264c9a53a612ed0f",
+      "source_url": "https://mops.twse.com.tw/mops/api/t05st01",
+      "request_method": "POST",
+      "request_json": {
+        "companyId": "6286",
+        "year": "105",
+        "month": "4",
+        "firstDay": "6",
+        "lastDay": "6"
+      },
+      "scope": "official_original_pending_independent_review"
+    },
+    {
+      "path": "originals/6286_richtek_20160303_meeting.pdf",
+      "bytes": 1366259,
+      "sha256": "e12f756ce3856aac0a083c787fcfbd64ee14d2a47a9761b46e3f289bba2b7572",
+      "source_url": "https://www.richtek.com/~/media/Richtek/About%20Richtek/Investor%20Relations/Shareholders%20Meeting/2016/105%E8%87%A8_%E8%AD%B0%E4%BA%8B%E6%89%8B%E5%86%8A.pdf",
+      "request_method": "GET",
+      "request_json": null,
+      "scope": "official_original_pending_independent_review"
+    },
+    {
+      "path": "retrieval_responses/5305_mops_detail.json",
+      "bytes": 122,
+      "sha256": "905f9049782b5ec9b48ac3260e05c9cffcb6cdf86fd21cfb5670db87f19292b6",
+      "source_url": "https://mops.twse.com.tw/mops/api/t05st01_detail",
+      "request_method": "POST",
+      "request_json": {
+        "companyId": "5305",
+        "marketKind": "pub",
+        "enterDate": "1090924",
+        "serialNumber": "1"
+      },
+      "scope": "failed_or_empty_official_response"
+    },
+    {
+      "path": "retrieval_responses/5305_mops_detail_historical_sii.json",
+      "bytes": 122,
+      "sha256": "3acd3f3ef37265a15feaa58322b1882562c3ee27c71787c4c14af1c6449889c8",
+      "source_url": "https://mops.twse.com.tw/mops/api/t05st01_detail",
+      "request_method": "POST",
+      "request_json": {
+        "companyId": "5305",
+        "marketKind": "sii",
+        "enterDate": "1090924",
+        "serialNumber": "1"
+      },
+      "scope": "failed_or_empty_official_response"
+    },
+    {
+      "path": "retrieval_responses/6286_mops_detail.json",
+      "bytes": 122,
+      "sha256": "e94469f97b66470acced0386a51048b52e39415b260662a0f6e947e5e1f647e2",
+      "source_url": "https://mops.twse.com.tw/mops/api/t05st01_detail",
+      "request_method": "POST",
+      "request_json": {
+        "companyId": "6286",
+        "marketKind": "pub",
+        "enterDate": "1050406",
+        "serialNumber": "1"
+      },
+      "scope": "failed_or_empty_official_response"
+    },
+    {
+      "path": "retrieval_responses/6286_mops_detail_historical_sii.json",
+      "bytes": 122,
+      "sha256": "15556b58fd8528b5dfd8c9eb0ced280dfd0ee2bb6e4d0068fd1514220eb941cc",
+      "source_url": "https://mops.twse.com.tw/mops/api/t05st01_detail",
+      "request_method": "POST",
+      "request_json": {
+        "companyId": "6286",
+        "marketKind": "sii",
+        "enterDate": "1050406",
+        "serialNumber": "1"
+      },
+      "scope": "failed_or_empty_official_response"
+    },
+    {
+      "path": "retrieval_responses/6286_twse_delist_empty_table.html",
+      "bytes": 1289,
+      "sha256": "86e2aad35d47333944c6e8fe2eb043af4589e0e8fd1e6f9ef1ec1381093f4db3",
+      "source_url": "https://www.twse.com.tw/company/suspendListingCsvAndHtml?lang=zh&selectYear=105&type=html",
+      "request_method": "GET",
+      "request_json": null,
+      "scope": "failed_or_empty_official_response"
+    }
+  ],
+  "events": [
+    {
+      "ticker": "6286",
+      "frozen_event_key": [
+        "6286",
+        "CASH_MERGER_EXTINGUISHMENT",
+        "2016-04-29"
+      ],
+      "official_announcement_key": {
+        "companyId": "6286",
+        "marketKind": "pub",
+        "enterDate": "1050406",
+        "serialNumber": "1"
+      },
+      "announcement_subject": "補充公告：本公司與旭思投資股份有限公司股份轉換\r\n基準日及其相關說明",
+      "fields": {
+        "announcement_at": {
+          "candidate_value": "2016-04-06T14:04:58+08:00",
+          "original_path": "originals/6286_mops_list.json",
+          "locator": "/result/data/0/2 and /result/data/0/3",
+          "status": "PENDING_SOL_R",
+          "scope": "List timestamp only; full announcement body unavailable"
+        },
+        "last_trading_date": {
+          "candidate_value": null,
+          "status": "UNKNOWN",
+          "reason": "No complete official final notice obtained; not inferred from RAW or suspension"
+        },
+        "payment_date": {
+          "candidate_value": null,
+          "status": "UNKNOWN",
+          "reason": "No complete official final payment notice obtained"
+        },
+        "payment_terms": {
+          "candidate_value": null,
+          "status": "UNKNOWN",
+          "reason": "No complete official final payment notice obtained"
+        },
+        "cash_per_share": {
+          "candidate_value": 195,
+          "original_path": "originals/6286_richtek_20160303_meeting.pdf",
+          "locator": "printed p8, contract article2 (PDF page containing 第二條 現金對價)",
+          "status": "PENDING_SOL_R",
+          "scope": "Proposed contract amount only; final event terms remain UNKNOWN"
+        },
+        "effective_date": {
+          "candidate_value": null,
+          "status": "UNKNOWN",
+          "reason": "Meeting contract article3 printed p9 says tentative 2016-04-29, adjustable; fetched TWSE table empty"
+        },
+        "suspension_from": {
+          "candidate_value": null,
+          "status": "UNKNOWN",
+          "reason": "No complete official final notice obtained"
+        }
+      },
+      "final_terms_status": "UNKNOWN",
+      "ledger_application_allowed": false
+    },
+    {
+      "ticker": "5305",
+      "frozen_event_key": [
+        "5305",
+        "CASH_MERGER_EXTINGUISHMENT",
+        "2020-11-30"
+      ],
+      "official_announcement_key": {
+        "companyId": "5305",
+        "marketKind": "pub",
+        "enterDate": "1090924",
+        "serialNumber": "1"
+      },
+      "announcement_subject": "公告本公司與美商達爾(Diodes Incorporated)於台灣所設立\r\n之百分之百持股子公司「台灣達爾科技股份有限公司」之股份轉換\r\n基準日及相關日期",
+      "fields": {
+        "announcement_at": {
+          "candidate_value": "2020-09-24T14:43:41+08:00",
+          "original_path": "originals/5305_mops_list.json",
+          "locator": "/result/data/0/2 and /result/data/0/3",
+          "status": "PENDING_SOL_R",
+          "scope": "List timestamp only; full announcement body unavailable"
+        },
+        "last_trading_date": {
+          "candidate_value": null,
+          "status": "UNKNOWN",
+          "reason": "No complete official final notice obtained; not inferred from RAW or suspension"
+        },
+        "payment_date": {
+          "candidate_value": null,
+          "status": "UNKNOWN",
+          "reason": "No complete official final payment notice obtained"
+        },
+        "payment_terms": {
+          "candidate_value": null,
+          "status": "UNKNOWN",
+          "reason": "No complete official final payment notice obtained"
+        },
+        "cash_per_share": {
+          "candidate_value": 42.5,
+          "original_path": "originals/5305_diodes_acquisition.html",
+          "locator": "article acquisition cash consideration TWD42.50",
+          "status": "PENDING_SOL_R",
+          "scope": "2019 proposed acquisition amount only; final event terms remain UNKNOWN"
+        },
+        "effective_date": {
+          "candidate_value": "2020-11-30",
+          "original_path": "originals/5305_twse_20201008.pdf",
+          "locator": "PDF p1, first paragraph 終止上市",
+          "status": "PENDING_SOL_R",
+          "scope": "Exchange final delisting notice; not payment proof"
+        },
+        "suspension_from": {
+          "candidate_value": "2020-11-24",
+          "original_path": "originals/5305_twse_20201008.pdf",
+          "locator": "PDF p1, first paragraph 停止買賣",
+          "status": "PENDING_SOL_R",
+          "scope": "Exchange suspension notice; last trade not inferred"
+        }
+      },
+      "final_terms_status": "UNKNOWN",
+      "ledger_application_allowed": false
+    }
+  ],
+  "retrieval_findings": [
+    "Official list endpoints returned announcement dates, times, subjects and serial keys for both events.",
+    "Full official detail endpoints returned code500/discontinued public-company responses for both current pub and historical sii keys.",
+    "Fetched TWSE historical delisting HTML has empty tbody, hence supplies no event evidence.",
+    "Richtek meeting contract payment-at-effective-date is conditional and tentative; does not prove final 2016-05-05 payment.",
+    "Diodes 2019 proposed transaction release does not prove final 2020-12-04 payment."
+  ],
+  "stop_record": {
+    "step": "complete terminal official announcement body / final payment terms",
+    "tried": [
+      "MOPS modern list/detail with returned parameters",
+      "MOPS historical sii detail",
+      "legacy AJAX and official redirect to legacy",
+      "TWSE final suspension notice and historical table",
+      "issuer meeting handbook and acquirer release"
+    ],
+    "needed_from": "Sol-R: verify partial originals; Bibobo: adjudicate any new source/scope change. No guessed final dates or accounting application."
+  }
+}
