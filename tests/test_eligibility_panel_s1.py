@@ -192,7 +192,7 @@ class LimitRuleTests(unittest.TestCase):
         self.assertEqual(self.limits("40.60"), ("44.65", "36.55"))
         self.assertEqual(self.limits("95"), ("104.5", "85.5"))
 
-    def test_ex_dividend_uses_unrounded_reference_not_auction_base(self):
+    def test_ex_dividend_bounds_given_unrounded_reference(self):
         self.assertEqual(self.limits("610.50"), ("671", "550"))
 
     def test_discount_rights_have_separate_upper_lower_bases(self):
@@ -238,6 +238,217 @@ class LimitRuleTests(unittest.TestCase):
         for value in ["0.00", "-1", "NaN"]:
             with self.assertRaises((ValueError, ArithmeticError)):
                 number(value)
+
+class SupplementFlowTests(unittest.TestCase):
+    """Run the real supplement entry point with synthetic, offline I/O only."""
+
+    def run_flow(self, case, *, wrong_reference=False):
+        import contextlib
+        import gzip
+        import hashlib
+        import io
+        import json
+        import os
+        import tempfile
+        from unittest.mock import patch
+
+        source_path = Path(__file__).resolve().parents[1] / "scripts/source_pit_feature_matrix_layer1.py"
+        source = source_path.read_text()
+        if wrong_reference:
+            original = 'specials[key] = (str(row[4]).strip(), str(row[dividend_col]).strip())'
+            self.assertEqual(source.count(original), 1)
+            source = source.replace(original,
+                'specials[key] = (str(row[9 if market == "twse" else 11]).strip(), str(row[dividend_col]).strip())')
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            (root / "scripts").mkdir()
+            (root / "scripts/source_pit_feature_matrix_layer1.py").write_text(source)
+            inputs, evidence = root / "inputs", root / "results/trading_plan_r1/limit_source_probe"
+            inputs.mkdir()
+            evidence.mkdir(parents=True)
+            output = root / "out/limit_supplement"
+            (output / "finmind_responses").mkdir(parents=True)
+            (output / "official_quote_inputs").mkdir()
+            days = pd.bdate_range("2019-01-02", periods=18)
+            date, previous, earlier = days[-1], days[-2], days[-3]
+            stock = "1101"
+            rows = [dict(date=day, stock_id=sid, close=100.0, max=np.nan, min=np.nan,
+                         market="TPEx") for sid in [stock, "9999"] for day in days]
+            raw = pd.DataFrame(rows)
+            events = []
+            official_rows = []
+
+            def official_row(day, sid, reference, auction, dividend):
+                return [f"{day.year-1911}/{day.month:02}/{day.day:02}", sid, "synthetic",
+                        "100", reference, "", "", "", "", auction, dividend, auction, dividend]
+
+            def quote(day, bid, ask, *, absent_stock=False):
+                payload = dict(stat="ok", date=day.strftime("%Y%m%d"), tables=[dict(
+                    fields=["代號", "收盤", "最後買價", "最後賣價"],
+                    data=[["8888" if absent_stock else stock, "----", bid, ask]])])
+                (output / f"official_quote_inputs/tpex_{day.date()}.json").write_text(json.dumps(payload))
+
+            if case == "ex_dividend":
+                raw.loc[raw.stock_id.eq(stock), "market"] = "TWSE"
+            if case in {"ex_dividend", "event_seed"}:
+                event_day = date if case == "ex_dividend" else previous
+                official_rows.append(official_row(event_day, stock, "610.50", "611", "610.50"))
+            if case == "chain":
+                raw.loc[raw.stock_id.eq(stock) & raw.date.isin([earlier, previous]), "close"] = np.nan
+                quote(earlier, "101", "102")
+                quote(previous, "100", "100.50")
+            if case in {"event_seed", "missing_quote", "unverified_seed"}:
+                raw.loc[raw.stock_id.eq(stock) & raw.date.eq(previous), "close"] = np.nan
+                quote(previous, "610", "612", absent_stock=case == "missing_quote")
+            if case == "missing_session":
+                raw = raw[~(raw.stock_id.eq(stock) & raw.date.eq(previous))]
+            if case == "transfer":
+                raw.loc[raw.stock_id.eq(stock) & raw.date.eq(previous), "market"] = "TWSE"
+            if case == "ipo":
+                raw = raw[~raw.stock_id.eq(stock) | raw.date.ge(days[-3])]
+            if case in {"unverified_seed", "unverified_event", "verified_event"}:
+                event_day = previous if case == "unverified_seed" else date
+                events.append(dict(stock_id=stock, event_date=str(event_day.date()),
+                    event_type="capital_reduction", notes="ref=50.89" if case == "verified_event" else "unverified"))
+            pd.DataFrame(events, columns=["stock_id", "event_date", "event_type", "notes"]).to_csv(
+                inputs / "corporate_actions_official.csv", index=False)
+            # A fixed ten-row synthetic probe exercises the audit gate too.
+            # These fixtures are not additional official stock-day comparisons.
+            probe_day = date if case == "ex_dividend" else previous if case == "event_seed" else days[0]
+            if not official_rows:
+                official_rows.append(official_row(probe_day, "4000", "100", "100", "100"))
+            for number in range(1, 10):
+                official_rows.append(official_row(days[0], f"400{number}", "100", "100", "100"))
+            fixture_market = "tpex" if case == "event_seed" else "twse"
+            for market in ["twse", "tpex"]:
+                for year in range(2019, 2022):
+                    data = official_rows if market == fixture_market and year == 2019 else []
+                    payload = dict(data=data) if market == "twse" else dict(tables=[dict(data=data)])
+                    (evidence / f"official-{market}-{year}.json").write_text(json.dumps(payload))
+            official_file = evidence / f"official-{fixture_market}-2019.json"
+            official_hash = hashlib.sha256(official_file.read_bytes()).hexdigest()
+            plan = []
+            for row in official_rows:
+                y, m, d = map(int, row[0].split("/"))
+                special = row[4] == "610.50"
+                plan.append(dict(date=f"{y+1911:04}-{m:02}-{d:02}", stock_id=row[1], market=fixture_market.upper(),
+                    official_file=official_file.name, official_sha256=official_hash,
+                    official_limit_up="671" if special else "110",
+                    official_limit_down="550" if special else "90"))
+            (evidence / "sample_plan.json").write_text(json.dumps(plan))
+            source_manifest = dict(source_revision="3e7c4b6d9cde3b18942710fa977db02f89bffa0d", files=[
+                dict(path="corporate_actions_official.csv", sha256=hashlib.sha256(
+                    (inputs / "corporate_actions_official.csv").read_bytes()).hexdigest())])
+            (inputs / "input_manifest.json").write_text(json.dumps(source_manifest))
+            panel_path = root / "accepted_panel.parquet"
+            panel = pd.DataFrame(dict(date=[date, date], stock=[stock, "9999"])).set_index(["date", "stock"])
+            body = json.dumps(dict(status=200, data=[dict(date=str(date.date()), stock_id="9999",
+                reference_price=100, limit_up=110, limit_down=90)])).encode()
+            (output / f"finmind_responses/{date.date()}.json.gz").write_bytes(gzip.compress(body, mtime=0))
+            nodes = [node for node in ast.parse(source).body if isinstance(node, ast.FunctionDef)
+                     and (node.name.startswith("_s3_limit_") or node.name == "_sha256")]
+            namespace = dict(ROOT=root, OUT_ROOT=root / "out", Path=Path, os=os,
+                             pd=pd, json=json, hashlib=hashlib)
+            exec(compile(ast.Module(body=nodes, type_ignores=[]), str(source_path), "exec"), namespace)
+            real_sha = namespace["_sha256"]
+            # Only the accepted panel's byte read is substituted; all other
+            # file hashes, source selection and calculations run unchanged.
+            namespace["_sha256"] = lambda path: (
+                "2fc9680a3cbb74b15d690edbeb02ed03457b26c74dd682a877b1c6e93f8dc38e"
+                if Path(path) == panel_path else real_sha(path))
+            written = {}
+            def read_parquet(path, **kwargs):
+                if Path(path) == panel_path:
+                    return panel.copy()
+                year = int(Path(path).stem.rsplit("_", 1)[1])
+                return raw[raw.date.dt.year.eq(year)].copy()
+            def write_parquet(frame, path, **kwargs):
+                written[Path(path).name] = frame.copy()
+                Path(path).write_bytes(b"synthetic parquet output")
+            with patch.dict(os.environ, dict(LIMIT_INPUT_ROOT=str(inputs), S1_PANEL_PATH=str(panel_path)), clear=True), \
+                 patch.object(pd, "read_parquet", side_effect=read_parquet), \
+                 patch.object(pd.DataFrame, "to_parquet", new=write_parquet), \
+                 patch("urllib.request.urlopen", side_effect=AssertionError("offline fixture attempted network")), \
+                 contextlib.redirect_stdout(io.StringIO()):
+                try:
+                    namespace["_s3_limit_supplement"]()
+                except SystemExit as error:
+                    self.assertEqual(str(error), "BLOCKED: unresolved limit inputs; evidence retained; no S3")
+            return (written["price_limit_supplement_2019_2021.parquet"],
+                    pd.read_csv(output / "unresolved.csv", dtype={"stock_id": str}),
+                    pd.read_csv(output / "no_close_reference_trace.csv", dtype={"stock_id": str}),
+                    json.loads((output / "manifest.json").read_text()))
+
+    def assert_reference_selection(self, *, wrong_reference=False):
+        result, unresolved, _, manifest = self.run_flow("ex_dividend", wrong_reference=wrong_reference)
+        self.assertTrue(unresolved.empty)
+        target = result[result.stock_id.eq("1101")].iloc[0]
+        self.assertEqual(target.reference_input, "610.50")
+        self.assertEqual((target.limit_up, target.limit_down), (671, 550))
+        self.assertTrue(target.derived)
+        self.assertEqual(target.source, "official_ex_right_reference")
+        self.assertEqual(manifest["status"], "READY_FOR_REVIEW")
+
+    def test_actual_source_selection_uses_reference_610_50_not_auction_611(self):
+        self.assert_reference_selection()
+
+    def test_wrong_auction_column_mutation_is_detected_by_actual_flow_assertions(self):
+        with self.assertRaises(AssertionError) as detected:
+            self.assert_reference_selection(wrong_reference=True)
+        self.assertIn("'611' != '610.50'", str(detected.exception))
+
+    def test_actual_flow_recurses_across_consecutive_no_close_sessions(self):
+        result, unresolved, trace, _ = self.run_flow("chain")
+        self.assertTrue(unresolved.empty)
+        target = result[result.stock_id.eq("1101")].iloc[0]
+        self.assertEqual(target.reference_input, "100.50")
+        self.assertEqual((target.limit_up, target.limit_down), (110.5, 90.5))
+        self.assertEqual(target.source, "official_no_close_bid_ask_rule")
+        self.assertEqual(trace.previous_auction_base.tolist(), [100.0, 101.0])
+        self.assertEqual(trace.next_reference.tolist(), [101.0, 100.5])
+
+    def test_actual_flow_seeds_special_no_close_day_from_official_auction_base(self):
+        result, unresolved, trace, _ = self.run_flow("event_seed")
+        self.assertTrue(unresolved.empty)
+        target = result[result.stock_id.eq("1101")].iloc[0]
+        self.assertEqual(target.reference_input, "611")
+        self.assertEqual((target.limit_up, target.limit_down), (672, 550))
+        self.assertEqual(trace.previous_auction_base.tolist(), [611])
+
+    def assert_rejected(self, case, reason):
+        result, unresolved, _, manifest = self.run_flow(case)
+        self.assertEqual(result.stock_id.tolist(), ["9999"])
+        self.assertEqual(unresolved.stock_id.tolist(), ["1101"])
+        self.assertEqual(unresolved.reason.tolist(), [reason])
+        self.assertEqual(manifest["unresolved"], 1)
+        self.assertEqual(manifest["status"], "BLOCKED_UNRESOLVED_INPUTS")
+        self.assertFalse(manifest["s3_run"])
+
+    def test_actual_flow_rejects_missing_previous_market_session(self):
+        self.assert_rejected("missing_session", "previous_session_quote_missing")
+
+    def test_actual_flow_rejects_missing_official_stock_quote(self):
+        self.assert_rejected("missing_quote", "official_closing_quote_missing")
+
+    def test_actual_flow_rejects_unverified_market_transfer(self):
+        self.assert_rejected("transfer", "market_transfer_reference_unverified")
+
+    def test_actual_flow_rejects_unverified_ipo_status(self):
+        self.assert_rejected("ipo", "ipo_no_limit_status_unverified")
+
+    def test_actual_flow_rejects_unverified_special_no_close_seed(self):
+        self.assert_rejected("unverified_seed", "special_no_close_auction_base_unverified")
+
+    def test_actual_flow_rejects_event_with_unverified_reference(self):
+        self.assert_rejected("unverified_event", "special_event_reference_unresolved")
+
+    def test_actual_flow_uses_verified_resumption_reference(self):
+        result, unresolved, _, _ = self.run_flow("verified_event")
+        self.assertTrue(unresolved.empty)
+        target = result[result.stock_id.eq("1101")].iloc[0]
+        self.assertEqual(target.reference_input, "50.89")
+        self.assertEqual((target.limit_up, target.limit_down), (55.9, 45.85))
+        self.assertEqual(target.source, "official_resumption_reference")
 
 
 if __name__ == "__main__":
