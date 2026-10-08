@@ -1,0 +1,176 @@
+{
+  "schema_version": "finmind-limit-official-probe-v1",
+  "baseline_sha": "83c8832c1a15430d99180aa4877f3616e3bcf8a9",
+  "fixed_s1_source_sha": "3e7c4b6d9cde3b18942710fa977db02f89bffa0d",
+  "s1_panel_sha256": "2fc9680a3cbb74b15d690edbeb02ed03457b26c74dd682a877b1c6e93f8dc38e",
+  "supplement_source": "FinMind",
+  "dataset": "TaiwanStockPriceLimit",
+  "api_version": "v4",
+  "provider_snapshot_version": "not_provided_by_api; frozen_response_hashes",
+  "official_sample_count": 10,
+  "official_matches": 10,
+  "official_comparison_fields": [
+    "date",
+    "stock_id",
+    "reference_price",
+    "limit_up",
+    "limit_down"
+  ],
+  "official_reference_definition": "official_ex_rights_dividend_reference_price; opening_base_preserved_separately",
+  "requests": {
+    "official_comparison": 10,
+    "bulk": 1,
+    "individual_missing_probe": 1
+  },
+  "backfill_status": "BLOCKED_MISSING_SOURCE_ROWS",
+  "backfill_scope": "only 2019-01-02 attempted; full 2019-2021 NOT completed",
+  "s3_status": "NOT_RUN",
+  "missing_stock_days": [
+    "1333",
+    "3431",
+    "3452",
+    "3562",
+    "5317",
+    "8913"
+  ],
+  "files": [
+    {
+      "path": "1333_2019-01-02_missing_probe.json",
+      "bytes": 40,
+      "sha256": "bd3deae97b9bbf5496db1c19da707df924ec244a8568f606429c0a6532ddca72",
+      "saved_at_utc": "2026-10-08T03:30:22.423199+00:00"
+    },
+    {
+      "path": "1786_2019-01-07_finmind.json",
+      "bytes": 137,
+      "sha256": "bf64f21841fc88f0ea676b5833e56fa9d5ee67fb6ef2cc465c2de0190af41bf5",
+      "saved_at_utc": "2026-10-08T03:26:38.486856+00:00"
+    },
+    {
+      "path": "2330_2019-06-24_finmind.json",
+      "bytes": 139,
+      "sha256": "0f97debdfc6dfe101c45f8e4352f3bae652ce7fb2898e2157efa8fc491a45f1c",
+      "saved_at_utc": "2026-10-08T03:25:34.087754+00:00"
+    },
+    {
+      "path": "2330_2020-03-19_finmind.json",
+      "bytes": 139,
+      "sha256": "b37da4462a15664454e376b3ce234e24eb2eb4f39e779118bf01036b3263449f",
+      "saved_at_utc": "2026-10-08T03:25:42.015131+00:00"
+    },
+    {
+      "path": "2330_2021-03-17_finmind.json",
+      "bytes": 139,
+      "sha256": "5f49514187bcdd95d79fa1f289dd56e4e405a1378c41a70b525ac0186b4c1420",
+      "saved_at_utc": "2026-10-08T03:25:54.569580+00:00"
+    },
+    {
+      "path": "2613_2019-02-18_finmind.json",
+      "bytes": 137,
+      "sha256": "7f478dca3d49cf1c82b7a856d4b5c4f4c78b5cde0133034ac65b5803bf660499",
+      "saved_at_utc": "2026-10-08T03:26:46.926771+00:00"
+    },
+    {
+      "path": "4556_2019-01-10_finmind.json",
+      "bytes": 137,
+      "sha256": "d85b89ef2d2392d741dbb4e8774057cced835053a1d3f5994b633df9adb560f5",
+      "saved_at_utc": "2026-10-08T03:26:56.587214+00:00"
+    },
+    {
+      "path": "6488_2019-07-17_finmind.json",
+      "bytes": 139,
+      "sha256": "93cbc7930eda4ffb81314c670904981e73b42a7ada0a12e5b74307eef9a78a40",
+      "saved_at_utc": "2026-10-08T03:26:04.179809+00:00"
+    },
+    {
+      "path": "6488_2020-07-16_finmind.json",
+      "bytes": 139,
+      "sha256": "774b7b98c9ad9c2e8f89d16950db6560eb148ecee670118708ead050da941332",
+      "saved_at_utc": "2026-10-08T03:26:13.092666+00:00"
+    },
+    {
+      "path": "6488_2021-01-21_finmind.json",
+      "bytes": 139,
+      "sha256": "ea0bd2905fb658380da6ea50492eb131d6eb7049ded5faec9cbe842cf91671b3",
+      "saved_at_utc": "2026-10-08T03:26:22.224589+00:00"
+    },
+    {
+      "path": "8473_2019-01-02_finmind.json",
+      "bytes": 137,
+      "sha256": "33be68db803b5f1364bb6cb8623cce7efe6e076bb88aa7a7b02f9bc2fc4d3a20",
+      "saved_at_utc": "2026-10-08T03:26:30.239640+00:00"
+    },
+    {
+      "path": "coverage.csv",
+      "bytes": 262,
+      "sha256": "d06b420b4c566fc5a02af2fdeb19d487d382b8ae2989ac2fdc3c2b49d8b09157",
+      "saved_at_utc": "2026-10-08T03:31:22.481886+00:00"
+    },
+    {
+      "path": "market_2019-01-02_finmind.json",
+      "bytes": 205642,
+      "sha256": "7de85a7ab152bc7efd3dcf1fb2fa6ab097c75d2693f879d363763bdacc222f52",
+      "saved_at_utc": "2026-10-08T03:29:40.083245+00:00"
+    },
+    {
+      "path": "missing_stock_days.csv",
+      "bytes": 332,
+      "sha256": "9e6d3e1856babd59b710f001160c137e211beef800c9648b7ec5615a1be77acb",
+      "saved_at_utc": "2026-10-08T03:31:22.481972+00:00"
+    },
+    {
+      "path": "official-tpex-2019.json",
+      "bytes": 220952,
+      "sha256": "4ff1f6345f1934bb754cc0a3c2ce3037ad73fc2e74c88581c0ba32aa5e2fbaf9",
+      "saved_at_utc": "2026-10-08T03:26:56.588565+00:00"
+    },
+    {
+      "path": "official-tpex-2020.json",
+      "bytes": 190571,
+      "sha256": "69c82f7d3dd217188fd4301cc0362576d509e875d326ebbc629b2be4a729987b",
+      "saved_at_utc": "2026-10-08T03:26:56.588279+00:00"
+    },
+    {
+      "path": "official-tpex-2021.json",
+      "bytes": 196417,
+      "sha256": "b969b5c614c44750b694952051fcc356a2272b15af967c67c6663d87d14c3a45",
+      "saved_at_utc": "2026-10-08T03:26:56.588423+00:00"
+    },
+    {
+      "path": "official-twse-2019.json",
+      "bytes": 172507,
+      "sha256": "d75db952c5daf704b50391eb9dd4ba82b09ae22a9b7a3e8203a254c62e13691f",
+      "saved_at_utc": "2026-10-08T03:26:56.588352+00:00"
+    },
+    {
+      "path": "official-twse-2020.json",
+      "bytes": 174225,
+      "sha256": "68f055d7f7230698393d98c810f20167770affbc652e36eb7925496f5af6a41b",
+      "saved_at_utc": "2026-10-08T03:26:56.588177+00:00"
+    },
+    {
+      "path": "official-twse-2021.json",
+      "bytes": 191456,
+      "sha256": "503122f6bc19299bf57010cdee4d7d54a7116f107f4214f3bf4f2db2201b93bd",
+      "saved_at_utc": "2026-10-08T03:26:56.588490+00:00"
+    },
+    {
+      "path": "official_comparison.csv",
+      "bytes": 4087,
+      "sha256": "db23113d552781784b0a119e9dffbe4f4331386ce691af1cf0523736165a3eb0",
+      "saved_at_utc": "2026-10-08T03:26:56.587794+00:00"
+    },
+    {
+      "path": "official_comparison.json",
+      "bytes": 8766,
+      "sha256": "815e5b1176b72f86c6ffba2bedd56bee3e785b826a1d7e687e1fbb3901484d98",
+      "saved_at_utc": "2026-10-08T03:26:56.587535+00:00"
+    },
+    {
+      "path": "sample_plan.json",
+      "bytes": 5089,
+      "sha256": "37bfb1770d3927d010ecb6ffc8e25479e841a3e309fee23f04701d7f4a02a9f4",
+      "saved_at_utc": "2026-10-08T03:25:19.918799+00:00"
+    }
+  ]
+}

@@ -1,0 +1,2 @@
+date,expected_s1_stock_days,source_rows,source_unique_stocks,matched_s1_stock_days,missing_s1_stock_days,duplicate_stock_dates,wrong_dates,status,coverage_scope
+2019-01-02,1785,2093,2093,1779,6,0,0,BLOCKED_MISSING_SOURCE_ROWS,first_day_only_not_full_2019_2021
