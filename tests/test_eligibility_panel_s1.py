@@ -54,6 +54,43 @@ def fundamentals():
 
 
 class S1Tests(unittest.TestCase):
+    def test_owner_rs_boundary_250_closes_fail_251_closes_qualify(self):
+        dates, prices, tape = fixture()
+        out = S1["_s1_technical"](prices, tape).set_index(["date", "stock"])
+        active, *_ = S1["_s1_prepare"](prices, tape)
+        for day, count in [(dates[249], 0), (dates[250], 3)]:
+            row = out.loc[(day, "1101")]
+            reference = S1["_s1_reference_technical"](active, tape, day, "1101")
+            self.assertEqual(row.rs_denominator, count)
+            self.assertEqual(reference["rs_denominator"], count)
+            self.assertFalse(row.rs_short)
+            if count:
+                self.assertAlmostEqual(row.return250, 1.001**250 - 1)
+                self.assertAlmostEqual(row.rs, 100/3)
+                self.assertAlmostEqual(reference["rs"], row.rs)
+            else:
+                self.assertTrue(pd.isna(row.return250))
+                self.assertTrue(pd.isna(row.rs))
+
+    def test_whole_market_empty_week_is_not_skipped_in_weekly_ma(self):
+        dates, prices, tape = fixture()
+        day = dates[-1]
+        holiday = day.to_period("W-FRI") - 12
+        prices = prices[prices.date.dt.to_period("W-FRI").ne(holiday)]
+        tape = tape[tape.date.dt.to_period("W-FRI").ne(holiday)]
+        out = S1["_s1_technical"](prices, tape).set_index(["date", "stock"])
+        active, *_ = S1["_s1_prepare"](prices, tape)
+        row = out.loc[(day, "1101")]
+        reference = S1["_s1_reference_technical"](active, tape, day, "1101")
+        for field in ["wk_ma20", "wk_ma20_prev"]:
+            self.assertTrue(pd.isna(row[field]))
+            self.assertTrue(pd.isna(reference[field]))
+        for field in ["wk_close", "wk_ma6", "wk_ma6_prev"]:
+            self.assertTrue(pd.notna(row[field]))
+            self.assertAlmostEqual(row[field], reference[field])
+        self.assertFalse(row.wk_trend_ok)
+        self.assertFalse(reference["wk_trend_ok"])
+
     def test_whole_market_rs_denominator_includes_illiquid_otc_excludes_etf(self):
         dates, prices, tape = fixture()
         out = S1["_s1_technical"](prices, tape).set_index(["date", "stock"])

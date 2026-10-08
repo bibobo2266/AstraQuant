@@ -738,7 +738,9 @@ def main() -> None:
     )
 
 
-S1_VERSION = "trading-plan-r1-eligibility-v1"
+S1_VERSION = "trading-plan-r1-eligibility-v2"
+S1_RS_INTERVALS = 250
+S1_RS_REQUIRED_CLOSES = S1_RS_INTERVALS + 1
 S1_FLAGS = ["liq_ok", "size_ok", "wk_trend_ok", "rs_ok", "rev_ok", "eps_ok", "eps_acc_ok", "excl_ok"]
 
 
@@ -793,14 +795,15 @@ def _s1_short_percentiles(ret120, full, short):
 
 def _s1_technical(prices, tape):
     active, calendar, first, origin, close, volume, amount = _s1_prepare(prices, tape)
-    full = close.rolling(251, min_periods=251).count().eq(251)
+    # Owner ruling: 250 return intervals require 251 complete closes.
+    full = close.rolling(S1_RS_REQUIRED_CLOSES, min_periods=S1_RS_REQUIRED_CLOSES).count().eq(S1_RS_REQUIRED_CLOSES)
     valid120 = close.rolling(121, min_periods=121).count().eq(121)
-    ret250 = (close / close.shift(250) - 1).where(full)
+    ret250 = (close / close.shift(S1_RS_INTERVALS) - 1).where(full)
     ret120 = (close / close.shift(120) - 1).where(valid120)
     first_position = calendar.get_indexer(first.reindex(close.columns))
     age = pd.DataFrame(np.arange(len(calendar))[:, None] - first_position[None, :],
                        index=calendar, columns=close.columns)
-    short = age.ge(120) & age.lt(250) & valid120 & first.reindex(close.columns).gt(origin)
+    short = age.ge(120) & age.lt(S1_RS_INTERVALS) & valid120 & first.reindex(close.columns).gt(origin)
     rs = (ret250.rank(axis=1, method="average", pct=True) * 100).where(
         ~short, _s1_short_percentiles(ret120, full, short))
     weekly = close.resample("W-FRI").last()
@@ -955,6 +958,10 @@ def _s1_reference_technical(active, tape, date, stock):
         values = single[column].tail(n)
         return values.mean()/scale if len(values) == n and values.notna().all() else np.nan
     weeks = c[stock].groupby(c.index.to_period("W-FRI")).last()
+    # Keep every calendar week, including a whole-market holiday week.
+    # Omitting an empty week silently extends the MA6/MA20 lookback.
+    week_grid = pd.period_range(cal.min().to_period("W-FRI"), date.to_period("W-FRI"), freq="W-FRI")
+    weeks = weeks.reindex(week_grid)
     weeks = weeks[weeks.index < date.to_period("W-FRI")]
     def weekly_mean(n, offset=0):
         values = weeks.iloc[:len(weeks)-offset] if offset else weeks

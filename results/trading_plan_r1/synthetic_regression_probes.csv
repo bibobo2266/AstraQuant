@@ -1,0 +1,3 @@
+test,baseline_tests,baseline_failures,baseline_errors,source_kind
+test_eligibility_panel_s1.S1Tests.test_whole_market_empty_week_is_not_skipped_in_weekly_ma,1,1,0,synthetic
+test_trading_plan_r1.SharedSchemaAndContracts.test_previous_upper_break_over_sixty_sessions_controls_entire_base,1,1,0,synthetic

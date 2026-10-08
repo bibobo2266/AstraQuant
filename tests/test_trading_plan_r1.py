@@ -167,6 +167,70 @@ class OwnerAcceptance(unittest.TestCase):
 
 
 class SharedSchemaAndContracts(unittest.TestCase):
+    def test_consolidation_exactly_ten_prior_closes_is_accepted(self):
+        p, days = fixture(closes=(105.0,), changes={
+            ("1101", 69): {"open": 103.0, "high": 105.0, "low": 102.0, "close": 104.0}})
+        engine = execute(p, days)
+        row = engine.ledger.table("decisions").iloc[0]
+        self.assertEqual(row.base_sessions, 10)
+        self.assertEqual(row.status, "FILLED")
+        self.assertEqual(row.reject_reason, "")
+
+    def test_previous_upper_break_over_sixty_sessions_controls_entire_base(self):
+        p, days = fixture(closes=tuple([100.0]*20 + [104.0]), changes={
+            ("1101", 21): {"open": 119.0, "high": 121.0, "low": 118.0, "close": 120.0},
+            ("1101", 22): {"open": 106.0, "high": 107.0, "low": 105.0, "close": 106.0},
+            ("1101", 23): {"open": 90.0, "high": 91.0, "low": 89.0, "close": 90.0}})
+        engine = TradingPlanR1(run_id="long-base", mode="backtest", sessions=days)
+        engine.prepare_session(p, days[100])
+        engine.reconcile_session(days[100], observed_at=days[100])
+        row = engine.ledger.table("decisions").iloc[0]
+        self.assertEqual(row.base_sessions, 78)
+        self.assertEqual(row.pivot, 106.0)
+        self.assertEqual(row.structure_stop, 90.0)
+        self.assertAlmostEqual(row.price_cap, 106.0 * 1.05)
+        self.assertAlmostEqual(row.stop_price, 104.0 * .93)
+        self.assertEqual(row.status, "FILLED")
+
+    def test_bollinger_upper_independent_population_variance(self):
+        p, days = fixture()
+        engine = TradingPlanR1(run_id="bb-number", mode="backtest", sessions=days)
+        upper = engine._features(engine._prices(p), "1101", days[80])["bb_upper"]
+        values = [100.0]*20 + [104.0]
+        mean = sum(values)/21
+        population_variance = sum((x-mean)**2 for x in values)/21
+        self.assertAlmostEqual(upper, mean + 2.1 * population_variance**.5, places=12)
+        sample_upper = mean + 2.1 * (population_variance * 21/20)**.5
+        self.assertGreater(abs(upper-sample_upper), .01)
+
+    def test_closed_winner_loser_and_open_share_one_net_win_rate(self):
+        p, days = fixture(stocks=("1101", "1102", "1103"), closes=(104.0, 104.0, 104.0))
+        for stock, opening in [("1101", 110.0), ("1102", 102.0)]:
+            mask = p.stock.eq(stock) & p.date.eq(days[81])
+            p.loc[mask, ["open", "high", "low", "close"]] = [opening, opening+1, opening-1, opening]
+        engine = TradingPlanR1(run_id="mixed", mode="backtest", sessions=days)
+        engine.prepare_session(p, days[80])
+        engine.reconcile_session(days[80], observed_at=days[80])
+        # Explicit next-open exits isolate the shared accounting denominator.
+        for stock in ["1101", "1102"]:
+            pos = engine.positions[stock]
+            intent = engine._intent(day=days[80], stock=stock, trade_id=pos.trade_id,
+                                    side="sell", reason="sma20_next_open", want_price=None, quantity=pos.quantity)
+            pos.pending_exit = intent["row_id"]
+        engine.prepare_session(p, days[81])
+        engine.reconcile_session(days[81], observed_at=days[81])
+        m = metrics(engine.ledger.tables()).iloc[0]
+        self.assertEqual(m.closed_count, 2)
+        self.assertEqual(m.open_count, 1)
+        self.assertEqual(m.net_win_rate, .5)
+        def net_return(exit_price):
+            paid = 104.0 * (1 + .001425*.6 + .002)
+            received = exit_price * (1 - .001425*.6 - .003 - .002)
+            return received/paid - 1
+        self.assertAlmostEqual(m.avg_win, net_return(110.0))
+        self.assertAlmostEqual(m.avg_loss, -net_return(102.0))
+        self.assertAlmostEqual(m.expectancy, (net_return(110.0) + net_return(102.0))/2)
+
     def test_daily_intent_save_reload_same_row_and_same_metrics(self):
         p, days = fixture(closes=(104.0, 90.0), changes={
             ("1101", 81): {"open": 103.0, "high": 104.0, "low": 80.0,

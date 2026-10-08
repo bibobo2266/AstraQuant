@@ -77,7 +77,7 @@ eligibility_panel:
     liq_ok: "volume5_lots >= 1000; 5 complete market sessions; source Trading_Volume / 1000 shares per lot."
     size_ok: "size_proxy_turnover20_twd >= 50000000; 20 complete sessions; TURNOVER PROXY for USD100m market cap, not actual market cap."
     wk_trend_ok: "Previous completed W-FRI week only: close > MA6 > MA20; MA6 and MA20 each strictly above their preceding week; shift(1) the entire weekly input set."
-    rs: "250-session return percentile, average ties, denominator ALL dated TWSE/TPEx ordinary stocks with 251 valid closes over 250 market sessions. Never use the filtered eligibility pool."
+    rs: "Owner ruling 2026-10-08: 250 trading-session return intervals require 251 complete closes; average-tie percentile denominator is ALL dated TWSE/TPEx ordinary stocks meeting that qualification, never the filtered eligibility pool."
     rs_short: "Owner-approved first official TWSE/TPEx observation substitutes for listing date. Stocks present at the source start are left-censored and never marked new. Ages 120..249 use complete 120-session returns."
     rs_short_rank: "Same FULL-250-history denominator; compare 120-session returns to that cohort's 120-session returns using empirical midpoint percentile. Short stocks never enter the denominator. Preserve rs_short for later include/exclude comparisons."
     rs_ok: "rs >= 80; unavailable ranks remain NaN and fail eligibility."

@@ -12,7 +12,7 @@ import pandas as pd
 from astraquant.execution.assumptions import SideAwareBpsFeeModel
 
 
-RULE_VERSION = "trading-plan-r1-owner-20261008-r2"
+RULE_VERSION = "trading-plan-r1-owner-20261008-r3"
 COMMISSION = 0.001425 * 0.6
 TAX = 0.003
 SLIPPAGE = 0.002
@@ -204,7 +204,7 @@ class TradingPlanR1:
         upper = close.rolling(21, min_periods=21).mean() + 2.1 * close.rolling(21, min_periods=21).std(ddof=0)
         trigger = bool(index > 0 and _finite(upper.iloc[-1]) and _finite(upper.iloc[-2])
                        and close.iloc[-1] > upper.iloc[-1] and close.iloc[-2] <= upper.iloc[-2])
-        previous_above = [i for i in range(max(0, index - 60), index)
+        previous_above = [i for i in range(index)
                           if _finite(upper.iloc[i]) and close.iloc[i] > upper.iloc[i]]
         start = previous_above[-1] + 1 if previous_above else index - 60
         base = close.iloc[max(0, start):index]
