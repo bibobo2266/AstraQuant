@@ -2,6 +2,15 @@ name: PIT feature matrix layer1
 
 on:
   workflow_dispatch:
+    inputs:
+      stage:
+        description: "S1 panel build or S3 source-only preflight (no effects)"
+        required: false
+        default: s1
+        type: choice
+        options:
+          - s1
+          - s3_source_preflight
 
 permissions:
   contents: read
@@ -33,6 +42,7 @@ jobs:
           persist-credentials: false
           sparse-checkout: |
             data/adj
+            data/raw
             data/reference
             data/fundamentals
             data/futures
@@ -64,11 +74,21 @@ jobs:
           python -m unittest discover -s tests -p test_trading_plan_r1.py -v
 
       - name: Build E1 eligibility panel and ten source comparisons
+        if: ${{ inputs.stage != 's3_source_preflight' }}
         working-directory: AstraQuant
         env:
           SOURCE_ROOT: ${{ github.workspace }}/source_runtime/minervini_picks/data
           SOURCE_REVISION: ${{ env.SOURCE_REVISION }}
           BUILD_ELIGIBILITY_PANEL: "1"
+        run: python scripts/source_pit_feature_matrix_layer1.py
+
+      - name: S3 source-only preflight (no effects)
+        if: ${{ inputs.stage == 's3_source_preflight' }}
+        working-directory: AstraQuant
+        env:
+          SOURCE_ROOT: ${{ github.workspace }}/source_runtime/minervini_picks/data
+          SOURCE_REVISION: ${{ env.SOURCE_REVISION }}
+          S3_SOURCE_PREFLIGHT: "1"
         run: python scripts/source_pit_feature_matrix_layer1.py
 
       - name: Upload panel and source comparisons
@@ -80,6 +100,7 @@ jobs:
             AstraQuant/data/panel/eligibility_panel.parquet
             AstraQuant/out/eligibility_panel_*.csv
             AstraQuant/out/eligibility_panel_manifest.json
+            AstraQuant/out/trading_plan_r1_s3_source_preflight.csv
             AstraQuant/configs/research/pit_feature_matrix_layer1_v1.yaml
           if-no-files-found: warn
           retention-days: 90

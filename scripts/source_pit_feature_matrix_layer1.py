@@ -1070,8 +1070,40 @@ def _s1_main():
     print("S1_REPORT 基本面可用日沿用 runtime 的保守估計，並非原始公告／修訂版本證明。")
 
 
+def _s3_source_preflight():
+    """Read the fixed E1 source schema/coverage only; do not run effects."""
+    if not SOURCE_REVISION:
+        raise SystemExit("BLOCKED: SOURCE_REVISION is required")
+    import pyarrow.parquet as pq
+    rows = []
+    for kind, paths in [
+        ("raw", [SOURCE_ROOT / "raw" / f"prices_raw_{year}.parquet"
+                 for year in range(2015, E1_END.year + 1)]),
+        ("price_limit", sorted((SOURCE_ROOT / "reference").glob("price_limit_*.parquet"))),
+    ]:
+        for path in paths:
+            row = dict(source_revision=SOURCE_REVISION, kind=kind,
+                       path=str(path.relative_to(SOURCE_ROOT)), exists=path.exists(),
+                       rows=None, date_start=None, date_end=None, columns=None)
+            if path.exists():
+                parquet = pq.ParquetFile(path)
+                row["rows"] = parquet.metadata.num_rows
+                row["columns"] = "|".join(parquet.schema_arrow.names)
+                if kind == "price_limit" and "date" in parquet.schema_arrow.names:
+                    dates = pd.to_datetime(pd.read_parquet(path, columns=["date"])["date"], errors="raise")
+                    row["date_start"], row["date_end"] = str(dates.min().date()), str(dates.max().date())
+            rows.append(row)
+    result = pd.DataFrame(rows)
+    OUT_ROOT.mkdir(exist_ok=True)
+    result.to_csv(OUT_ROOT / "trading_plan_r1_s3_source_preflight.csv", index=False)
+    print("S3_SOURCE_PREFLIGHT_ONLY; no signals, fills or effect metrics computed")
+    print(result.drop(columns=["source_revision"]).to_csv(index=False))
+
+
 if __name__ == "__main__":
-    if os.environ.get("BUILD_ELIGIBILITY_PANEL") == "1":
+    if os.environ.get("S3_SOURCE_PREFLIGHT") == "1":
+        _s3_source_preflight()
+    elif os.environ.get("BUILD_ELIGIBILITY_PANEL") == "1":
         _s1_main()
     else:
         main()
