@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       stage:
-        description: "S1 panel, source preflight or frozen limit-rule inputs (no effects)"
+        description: "S1 panel, source preflight, frozen limits or complete accounting inputs (no effects)"
         required: false
         default: s1
         type: choice
@@ -12,6 +12,7 @@ on:
           - s1
           - s3_source_preflight
           - s3_limit_inputs
+          - s3_accounting_inputs
 
 permissions:
   contents: read
@@ -102,6 +103,20 @@ jobs:
           FINMIND_TOKEN: ${{ secrets.FINMIND_TOKEN }}
         run: python scripts/source_pit_feature_matrix_layer1.py
 
+      - name: Accounting export path unit checks
+        if: ${{ inputs.stage == 's3_accounting_inputs' }}
+        working-directory: AstraQuant
+        run: python -m pytest -q tests/test_s3_accounting_input_export.py
+
+      - name: Export complete immutable accounting inputs (no effects)
+        if: ${{ inputs.stage == 's3_accounting_inputs' }}
+        working-directory: AstraQuant
+        env:
+          SOURCE_ROOT: ${{ github.workspace }}/source_runtime/minervini_picks/data
+          SOURCE_REVISION: ${{ env.SOURCE_REVISION }}
+          S3_ACCOUNTING_INPUTS: "1"
+        run: python scripts/source_pit_feature_matrix_layer1.py
+
       - name: Upload panel and source comparisons
         if: ${{ always() }}
         uses: actions/upload-artifact@v4
@@ -113,6 +128,9 @@ jobs:
             AstraQuant/out/eligibility_panel_manifest.json
             AstraQuant/out/trading_plan_r1_s3_source_preflight.csv
             AstraQuant/out/limit_rule_inputs/
+            AstraQuant/out/s3_accounting_inputs/accounting_source_inputs.zip
+            AstraQuant/out/s3_accounting_inputs/input_manifest.json
+            AstraQuant/out/s3_accounting_inputs/archive_receipt.json
             AstraQuant/configs/research/pit_feature_matrix_layer1_v1.yaml
           if-no-files-found: warn
           retention-days: 90

@@ -1510,6 +1510,136 @@ def _s3_limit_inputs():
     print(f"FINMIND_SECRET_AVAILABLE={manifest['finmind_secret_available']}")
 
 
+
+def _s3_export_accounting_inputs(source_root, research_root, output, source_revision, research_revision):
+    """Copy a verified immutable inventory, preserving paths; no strategy run."""
+    import subprocess
+    import shutil
+    import zipfile
+    import datetime
+    import pyarrow.parquet as pq
+
+    source_root, research_root, output = map(lambda p: Path(p).resolve(), (source_root, research_root, output))
+    if output.is_relative_to(source_root):
+        raise SystemExit("STOP: cannot export into immutable source")
+    source_files = [("raw", f"raw/prices_raw_{y}.parquet") for y in range(2015, 2022)]
+    source_files += [("limits", f"reference/price_limit_{y}.parquet") for y in range(2015, 2019)]
+    source_files += [("tradability", "reference/tradability.parquet"),
+        ("dividend", "fundamentals/dividend.parquet"),
+        ("official_events", "reference/corporate_actions_official.csv"),
+        ("event_ledger", "reference/corporate_actions_ledger.parquet"),
+        ("event_reconciliation", "reference/corporate_actions_reconciliation.csv"),
+        ("suspensions", "reference/finmind_suspended.parquet"), ("universe", "universe.parquet")]
+    research_files = [("terminal_terms", "data/research/terminal_events.csv"),
+        ("terminal_composite_terms", "scripts/source_strategy_integration_smoke.py"),
+        ("terminal_loader", "src/astraquant/research/terminal_events.py"),
+        ("normalizer", "src/astraquant/data/corporate_actions.py"),
+        ("canonical_ca_path", "src/astraquant/portfolio/strategy_simulator.py"),
+        ("equivalent_stop_path", "src/astraquant/portfolio/policy.py"),
+        ("exporter", "scripts/source_pit_feature_matrix_layer1.py")]
+    # Validate every root and member before copying anything. Symlinks cannot
+    # bind bytes from outside the pinned Git inventory.
+    inventory, missing = [], []
+    for owner, root, revision, members in [("source", source_root, source_revision, source_files),
+                                          ("research", research_root, research_revision, research_files)]:
+        actual = subprocess.check_output(["git", "-C", str(root), "rev-parse", "HEAD"], text=True).strip()
+        if actual != revision:
+            raise SystemExit(f"STOP: {owner} revision mismatch")
+        top = Path(subprocess.check_output(["git", "-C", str(root), "rev-parse", "--show-toplevel"], text=True).strip()).resolve()
+        for role, relative in members:
+            path = (root / relative).resolve()
+            path.relative_to(root)
+            if path != root / relative or (root / relative).is_symlink():
+                raise SystemExit(f"STOP: symlink input {owner}/{relative}")
+            if not path.is_file():
+                missing.append(f"{owner}/{relative}")
+                continue
+            git_path = str(path.relative_to(top))
+            subprocess.run(["git", "-C", str(top), "ls-files", "--error-unmatch", "--", git_path], check=True, capture_output=True)
+            subprocess.run(["git", "-C", str(top), "diff", "--quiet", "HEAD", "--", git_path], check=True)
+            data_sha = _sha256(path)
+            # Git blob identity binds the exported bytes directly to the commit,
+            # independently of a clean-working-tree claim or export manifest.
+            blob = subprocess.check_output(["git", "-C", str(top), "rev-parse", f"HEAD:{git_path}"], text=True).strip()
+            if subprocess.check_output(["git", "hash-object", str(path)], text=True).strip() != blob:
+                raise SystemExit(f"STOP: Git blob mismatch {owner}/{relative}")
+            row = dict(owner=owner, role=role, original_path=git_path, source_path=relative,
+                archive_path=f"{owner}/{relative}", revision=revision,
+                bytes=path.stat().st_size, sha256=data_sha, git_blob=blob)
+            if path.suffix == ".parquet":
+                metadata = pq.ParquetFile(path)
+                row.update(rows=metadata.metadata.num_rows, columns=metadata.schema_arrow.names)
+                if role == "raw":
+                    dates = pd.to_datetime(pd.read_parquet(path, columns=["date"])["date"], errors="raise")
+                    row.update(date_start=None if dates.empty else str(dates.min().date()),
+                               date_end=None if dates.empty else str(dates.max().date()))
+                    year = int(path.stem.rsplit("_", 1)[1])
+                    if dates.empty or not dates.dt.year.eq(year).all():
+                        raise SystemExit(f"STOP: RAW year coverage mismatch {relative}")
+            inventory.append((path, row))
+    if output.exists():
+        raise SystemExit("STOP: accounting export destination already exists; refuse stale/mixed files")
+    output.mkdir(parents=True)
+    manifest = dict(schema_version="s3_accounting_source_export_v1", source_revision=source_revision,
+        research_revision=research_revision, epoch="E1", period_start="2016-01-04", period_end="2021-12-31",
+        warmup_start="2015-06-01", s1_panel_sha256="2fc9680a3cbb74b15d690edbeb02ed03457b26c74dd682a877b1c6e93f8dc38e",
+        limit_supplement_revision="67e069e962e365b4f4c09fa466decd66bb70fc82",
+        limit_supplement_sha256="a38f5d63726df1daf4982067b7ce592dc6893f6768af8908e5dae1302b5c0a0a",
+        exported_at_utc=datetime.datetime.now(datetime.timezone.utc).isoformat(),
+        status="BLOCKED_MISSING_INPUTS" if missing else "VERIFIED_INPUTS_AWAITING_ARCHIVE",
+        missing_inputs=missing, files=[row for _, row in inventory], official_event_probe_cap=10,
+        official_events_verified=0, s1_rebuilt=False, s3_run=False, accounting_gate_passed=False,
+        source_limits="Source values, including missing or late announcement fields, are unchanged; this inventory is not a gate receipt.")
+    (output / "input_manifest.json").write_text(json.dumps(manifest, ensure_ascii=False, indent=2)+"\n")
+    if missing:
+        raise SystemExit("STOP: required accounting inputs absent; manifest retained: " + ",".join(missing))
+    for path, row in inventory:
+        target = output / row["archive_path"]
+        target.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copyfile(path, target)
+        if _sha256(path) != row["sha256"] or _sha256(target) != row["sha256"]:
+            raise SystemExit("STOP: input changed during immutable export")
+    manifest["status"] = "SOURCE_EXPORT_COMPLETE_FOR_REVIEW"
+    (output / "input_manifest.json").write_text(json.dumps(manifest, ensure_ascii=False, indent=2)+"\n")
+    # The archive contains exactly the inventory and manifest, never stale files,
+    # credentials, generated S1 data or unrelated research artifacts.
+    archive = output / "accounting_source_inputs.zip"
+    try:
+        with zipfile.ZipFile(archive, "w", compression=zipfile.ZIP_STORED) as z:
+            z.write(output / "input_manifest.json", "input_manifest.json")
+            for _, row in inventory:
+                z.write(output / row["archive_path"], row["archive_path"])
+        with zipfile.ZipFile(archive) as z:
+            if z.testzip() is not None:
+                raise SystemExit("STOP: accounting ZIP integrity failure")
+            for _, row in inventory:
+                if hashlib.sha256(z.read(row["archive_path"])).hexdigest() != row["sha256"]:
+                    raise SystemExit("STOP: archived input hash mismatch")
+    except (OSError, ValueError, SystemExit, zipfile.BadZipFile):
+        manifest["status"] = "BLOCKED_ARCHIVE_INTEGRITY"
+        (output / "input_manifest.json").write_text(json.dumps(manifest, ensure_ascii=False, indent=2)+"\n")
+        archive.unlink(missing_ok=True)
+        raise
+    receipt = dict(schema_version="s3_accounting_archive_receipt_v1", path=archive.name,
+        bytes=archive.stat().st_size, sha256=_sha256(archive),
+        input_manifest_sha256=_sha256(output / "input_manifest.json"),
+        archived_input_files=len(inventory), source_revision=source_revision, research_revision=research_revision)
+    (output / "archive_receipt.json").write_text(json.dumps(receipt, indent=2)+"\n")
+    print(json.dumps(receipt))
+    return manifest
+
+
+def _s3_accounting_inputs():
+    """Only the authorized fixed-source export stage; no S1 rebuild or effects."""
+    import subprocess
+    if SOURCE_REVISION != "3e7c4b6d9cde3b18942710fa977db02f89bffa0d":
+        raise SystemExit("STOP: fixed source revision changed")
+    if any(os.environ.get(flag) == "1" for flag in ["S3_LIMIT_SUPPLEMENT", "S3_LIMIT_INPUTS", "S3_SOURCE_PREFLIGHT", "BUILD_ELIGIBILITY_PANEL"]):
+        raise SystemExit("STOP: accounting export cannot share a strategy/panel stage")
+    research_revision = subprocess.check_output(["git", "-C", str(ROOT), "rev-parse", "HEAD"], text=True).strip()
+    return _s3_export_accounting_inputs(SOURCE_ROOT, ROOT, OUT_ROOT / "s3_accounting_inputs", SOURCE_REVISION, research_revision)
+
+
 def _s3_source_preflight():
     """Read the fixed E1 source schema/coverage only; do not run effects."""
     if not SOURCE_REVISION:
@@ -1541,7 +1671,9 @@ def _s3_source_preflight():
 
 
 if __name__ == "__main__":
-    if os.environ.get("S3_LIMIT_SUPPLEMENT") == "1":
+    if os.environ.get("S3_ACCOUNTING_INPUTS") == "1":
+        _s3_accounting_inputs()
+    elif os.environ.get("S3_LIMIT_SUPPLEMENT") == "1":
         _s3_limit_supplement()
     elif os.environ.get("S3_LIMIT_INPUTS") == "1":
         _s3_limit_inputs()
