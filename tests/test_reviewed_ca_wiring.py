@@ -12,9 +12,9 @@ from test_trading_plan_r1_s3 import bundle
 PROBE = Path(__file__).resolve().parents[1] / 'results/trading_plan_r1/accounting_export_37769333701/official_probe_v1'
 
 
-def setup(tmp_path, *, fractional=False):
-    root, _ = bundle(tmp_path, tail=(104., 140., 140.))
-    days = list(pd.bdate_range(end='2020-10-14', periods=81)) + [pd.Timestamp('2020-10-26'), pd.Timestamp('2020-10-29')]
+def setup(tmp_path, *, fractional=False, tail=(104., 140., 140.), final_days=('2020-10-26','2020-10-29')):
+    root, _ = bundle(tmp_path, tail=tail)
+    days = list(pd.bdate_range(end='2020-10-14', periods=81)) + [pd.Timestamp(d) for d in final_days]
     for path in root.rglob('*.parquet'):
         frame = pd.read_parquet(path).reset_index()
         frame['date'] = days
@@ -119,4 +119,66 @@ def test_restore_rejects_changed_stop_or_early_payment(tmp_path,case):
         next(r for r in state['journal'] if r['kind']=='reviewed_ca_payment')['day']='2020-10-28'
     state.pop('state_digest');state['state_digest']=_digest(state);path.write_text(json.dumps(state))
     with pytest.raises(ValueError,match='corporate-action'):
+        S3TradingPlanR1.load(path,inputs=S3Inputs.open_engineering_fixture(root,'manifest.json','receipt.json'))
+
+
+@pytest.mark.parametrize('before_payment',[True,False])
+def test_reduction_sale_pnl_rights_once_and_nav_after_restore(tmp_path,before_payment):
+    extra=('2020-10-26','2020-10-28','2020-10-29') if before_payment else ('2020-10-26','2020-10-29','2020-10-30')
+    root,days,e=setup(tmp_path,tail=(104.,140.,120.,120.),final_days=extra)
+    for day in days[81:83]:
+        e.prepare(day);e.reconcile_session(day,observed_at=day)
+    sell=next(r for r in e.ledger.rows['fills'] if r['fill'] and r['side']=='sell')
+    buy=next(r for r in e.ledger.rows['fills'] if r['fill'] and r['side']=='buy')
+    expected=sell['cash_flow']+3000+buy['cash_flow']
+    assert sell['pnl']==pytest.approx(-7534.294211826928,abs=1e-6)
+    assert sell['pnl']==pytest.approx(expected)
+    assert sell['net_return']==pytest.approx(expected/-buy['cash_flow'])
+    assert sell['corporate_action']['cash_entitlement']==3000
+    assert e.last_reliable_equity-e.initial_cash==pytest.approx(expected)
+    ca=e.canonical.portfolio.corporate_actions
+    assert sum(r.amount for r in ca.cash_entitlement_receivables.values())==(3000 if before_payment else 0)
+    assert len(ca.completed_cash_entitlements)==(0 if before_payment else 1)
+    path=tmp_path/'closed.json';e.save(path)
+    restored=S3TradingPlanR1.load(path,inputs=S3Inputs.open_engineering_fixture(root,'manifest.json','receipt.json'))
+    for run in [e,restored]:
+        run.prepare(days[82]);run.reconcile_session(days[82],observed_at=days[82])
+        run.prepare(days[83]);run.reconcile_session(days[83],observed_at=days[83])
+        closed=next(r for r in run.ledger.rows['fills'] if r['fill'] and r['side']=='sell')
+        assert closed['pnl']==pytest.approx(expected)
+        assert run.last_reliable_equity-run.initial_cash==pytest.approx(expected)
+        assert len(run.canonical.portfolio.corporate_actions.completed_cash_entitlements)==1
+        assert not run.canonical.portfolio.corporate_actions.cash_entitlement_receivables
+    assert e.journal==restored.journal
+
+
+@pytest.mark.parametrize('field',['pnl','net_return','cash_flow'])
+def test_recomputed_digest_cannot_validate_changed_closed_economics(tmp_path,field):
+    root,days,e=setup(tmp_path,tail=(104.,140.,120.))
+    for day in days[81:]:
+        e.prepare(day);e.reconcile_session(day,observed_at=day)
+    path=tmp_path/'closed.json';e.save(path)
+    state=json.loads(path.read_text())
+    sell=next(r for r in state['tables']['fills'] if r['fill'] and r['side']=='sell')
+    sell[field]=.9 if field=='net_return' else sell[field]+999
+    state.pop('state_digest');state['state_digest']=_digest(state);path.write_text(json.dumps(state))
+    with pytest.raises(ValueError,match='economics mismatch'):
+        S3TradingPlanR1.load(path,inputs=S3Inputs.open_engineering_fixture(root,'manifest.json','receipt.json'))
+    live=next(r for r in e.ledger.rows['fills'] if r['fill'] and r['side']=='sell')
+    live[field]=sell[field]
+    with pytest.raises(ValueError,match='economics mismatch'): e.save(tmp_path/'bad.json')
+    with pytest.raises(ValueError,match='economics mismatch'): e.validate_tables()
+    with pytest.raises(ValueError,match='economics mismatch'): e.metrics()
+
+
+def test_old_refund_omission_rejected_on_load(tmp_path):
+    root,days,e=setup(tmp_path,tail=(104.,140.,120.))
+    for day in days[81:]:
+        e.prepare(day);e.reconcile_session(day,observed_at=day)
+    path=tmp_path/'old.json';e.save(path);state=json.loads(path.read_text())
+    sell=next(r for r in state['tables']['fills'] if r['fill'] and r['side']=='sell')
+    buy=next(r for r in state['tables']['fills'] if r['fill'] and r['side']=='buy')
+    sell['pnl']-=3000;sell['net_return']=sell['pnl']/-buy['cash_flow']
+    state.pop('state_digest');state['state_digest']=_digest(state);path.write_text(json.dumps(state))
+    with pytest.raises(ValueError,match='closed pnl economics'):
         S3TradingPlanR1.load(path,inputs=S3Inputs.open_engineering_fixture(root,'manifest.json','receipt.json'))

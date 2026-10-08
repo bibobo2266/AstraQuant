@@ -456,6 +456,33 @@ class S3TradingPlanR1(TradingPlanR1):
         self._check_accounts()
         return result
 
+    def _trade_economics(self, trade_id):
+        fills = [r for r in self.ledger.rows["fills"] if r["fill"] and r["trade_id"] == trade_id]
+        buys = [r for r in fills if r["side"] == "buy"]
+        sells = [r for r in fills if r["side"] == "sell"]
+        if len(buys) != 1 or len(sells) != 1:
+            raise ValueError("closed trade requires one canonical entry and exit")
+        journal = {e["id"]: e for e in self.journal if e["kind"] == "fill"}
+        buy, sell = (journal[r["row_id"]] for r in (buys[0], sells[0]))
+        entry = buy["quantity"] * buy["price"] + buy["cost"]
+        proceeds = sell["quantity"] * sell["price"] - sell["cost"]
+        ca = self.canonical.portfolio.corporate_actions
+        entitlements = {**ca.completed_cash_entitlements, **ca.cash_entitlement_receivables}
+        events = [r["event_id"] for r in self.journal if r["kind"] == "reviewed_ca" and r["trade_id"] == trade_id]
+        rights = sum(entitlements[event_id].amount for event_id in events)
+        pnl = proceeds + rights - entry
+        return dict(pnl=pnl, net_return=pnl / entry, cash_entitlement=rights, events=events)
+
+    def _sell(self, pos, bar, day, observed_at, *, open_only=False):
+        super()._sell(pos, bar, day, observed_at, open_only=open_only)
+        if pos.stock in self.positions:
+            return
+        economics = self._trade_economics(pos.trade_id)
+        row = next(r for r in self.ledger.rows["fills"] if r["trade_id"] == pos.trade_id and r["side"] == "sell" and r["fill"])
+        row.update(pnl=economics["pnl"], net_return=economics["net_return"])
+        if economics["events"]:
+            row["corporate_action"] = dict(cash_entitlement=economics["cash_entitlement"], events=economics["events"])
+
     def _check_accounts(self):
         portfolio = self.canonical.portfolio
         ca_records = [r for r in self.journal if r["kind"] == "reviewed_ca"]
@@ -465,8 +492,25 @@ class S3TradingPlanR1(TradingPlanR1):
             decisions = [r for r in self.ledger.rows["decisions"] if r["trade_id"] == record["trade_id"]]
             if (len(decisions) != 1 or self.inputs.reviewed_ca is None
                     or record["binding"] != self.inputs.reviewed_ca.binding
+                    or decisions[0]["stock"] != record["ticker"]
                     or not math.isclose(decisions[0]["stop_price"], record["old_stop"], abs_tol=1e-8)):
                 raise ValueError("corporate-action stop/input provenance mismatch")
+        ca = portfolio.corporate_actions
+        entitlements = {**ca.completed_cash_entitlements, **ca.cash_entitlement_receivables}
+        if set(entitlements) != {r["event_id"] for r in ca_records}:
+            raise ValueError("corporate-action entitlement journal mismatch")
+        for record in ca_records:
+            entitlement = entitlements[record["event_id"]]
+            trade_fills = [r for r in self.ledger.rows["fills"] if r["fill"] and r["trade_id"] == record["trade_id"]]
+            buys = [r for r in trade_fills if r["side"] == "buy"]
+            sells = [r for r in trade_fills if r["side"] == "sell"]
+            if (len(buys) != 1 or buys[0]["fill_date"] > record["day"]
+                    or any(r["fill_date"] < record["day"] for r in sells)
+                    or not math.isclose(buys[0]["quantity"], record["old_quantity"], abs_tol=1e-8)):
+                raise ValueError("corporate-action rights belong to different holding")
+            if (entitlement.ticker != record["ticker"]
+                    or not math.isclose(entitlement.amount, record["cash_receivable"], abs_tol=1e-8)):
+                raise ValueError("corporate-action entitlement economics mismatch")
         if not math.isclose(self.cash, portfolio.cash.projected_cash, abs_tol=1e-6):
             raise ValueError("canonical/R1 cash mismatch")
         own = {sid: p.quantity for sid, p in self.positions.items()}
@@ -495,6 +539,22 @@ class S3TradingPlanR1(TradingPlanR1):
             for field, key in [("fill_price", "price"), ("quantity", "quantity"), ("cost", "cost")]:
                 if not math.isclose(float(row[field]), event[key], abs_tol=1e-8, rel_tol=0):
                     raise ValueError("canonical/R1 fill economics mismatch")
+            gross = event["price"] * event["quantity"]
+            expected_cash = -gross-event["cost"] if event["side"] == "buy" else gross-event["cost"]
+            if not _finite(row["cash_flow"]) or not math.isclose(float(row["cash_flow"]), expected_cash, abs_tol=1e-8, rel_tol=0):
+                raise ValueError("canonical/R1 cash_flow economics mismatch")
+            if row["side"] == "sell":
+                economics = self._trade_economics(row["trade_id"])
+                for key in ("pnl", "net_return"):
+                    if not _finite(row[key]) or not math.isclose(float(row[key]), economics[key], abs_tol=1e-8, rel_tol=0):
+                        raise ValueError(f"canonical/R1 closed {key} economics mismatch")
+                if economics["events"] and row["corporate_action"] != dict(cash_entitlement=economics["cash_entitlement"], events=economics["events"]):
+                    raise ValueError("canonical/R1 closed entitlement attribution mismatch")
+        expected_cash = self.initial_cash + sum(
+            (-e["price"] * e["quantity"] - e["cost"] if e["side"] == "buy" else e["price"] * e["quantity"] - e["cost"])
+            for e in journal.values()) + sum(r.amount for r in entitlements.values())
+        if not math.isclose(expected_cash, portfolio.cash.projected_cash, abs_tol=1e-6, rel_tol=0):
+            raise ValueError("canonical fill/entitlement cash and NAV mismatch")
         if self.completed and not self.frozen:
             day = self.completed[-1]
             equity = self.cash
@@ -508,6 +568,7 @@ class S3TradingPlanR1(TradingPlanR1):
 
     def validate_tables(self, tables=None):
         self._verify_run()
+        self._check_accounts()
         frames = self.ledger.tables() if tables is None else tables
         if set(frames) != set(S3_SCHEMAS):
             raise ValueError("exactly four S3 ledger tables required")

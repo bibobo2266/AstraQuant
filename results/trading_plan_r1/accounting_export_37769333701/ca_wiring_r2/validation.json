@@ -1,0 +1,21 @@
+{
+  "base_head": "a74dade64d6b7f2b9e9d98734d81791717211270",
+  "review_comment": "6062001436",
+  "tests": {
+    "passed": 724,
+    "skipped": 10,
+    "subtests_passed": 13,
+    "seconds": 107.96,
+    "command": "python3 -m pytest -q"
+  },
+  "targeted_tests": 80,
+  "unchanged_real_missing_checks": 7,
+  "accounting_gate_passed": false,
+  "s3_effects_executed": false,
+  "workflow_dispatches": 0,
+  "files": {
+    "src/astraquant/research/trading_plan_r1_s3.py": "7200c114e3a5e898c59295c425a9aa29c9c970d5b2b975e3c98514b4925a32b8",
+    "tests/test_reviewed_ca_wiring.py": "64df92756e60ed8ac59d23dd7d075f5729d93f54fb034397b8d1bd30c2c20876",
+    "results/trading_plan_r1/accounting_export_37769333701/ca_wiring_r2/engineering_closed_economics.json": "5524c87b86cf45f82a7766e7f707c102f39484c2fb68730479044b2c2ad7ab7a"
+  }
+}

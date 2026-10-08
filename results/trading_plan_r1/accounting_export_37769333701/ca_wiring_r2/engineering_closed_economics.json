@@ -1,0 +1,76 @@
+{
+  "base_head": "a74dade64d6b7f2b9e9d98734d81791717211270",
+  "cases": [
+    {
+      "source_kind": "s3_engineering_fixture",
+      "sale_before_payment": true,
+      "buy": {
+        "fill_price": 52.699999999999996,
+        "quantity": 1000,
+        "cost": 150.4585,
+        "cash_flow": -52850.45849999999
+      },
+      "sell": {
+        "fill_date": "2020-10-28",
+        "fill_price": 60.80769230769231,
+        "quantity": 700.0,
+        "cost": 249.2203269230769,
+        "cash_flow": 42316.16428846154,
+        "pnl": -7534.29421153845,
+        "net_return": -0.14255872939188316,
+        "corporate_action": {
+          "cash_entitlement": 3000.0,
+          "events": [
+            "reviewed:1315:2020-10-26:capital_reduction"
+          ]
+        }
+      },
+      "nav_delta": -7534.294211538392,
+      "pending_refund_at_sale": 3000.0,
+      "restore_pnl": -7534.29421153845,
+      "recomputed_digest_rejections": {
+        "pnl": "canonical/R1 closed pnl economics mismatch",
+        "net_return": "canonical/R1 closed net_return economics mismatch",
+        "cash_flow": "canonical/R1 cash_flow economics mismatch"
+      },
+      "pnl_after_payment_and_replay": -7534.29421153845
+    },
+    {
+      "source_kind": "s3_engineering_fixture",
+      "sale_before_payment": false,
+      "buy": {
+        "fill_price": 52.699999999999996,
+        "quantity": 1000,
+        "cost": 150.4585,
+        "cash_flow": -52850.45849999999
+      },
+      "sell": {
+        "fill_date": "2020-10-29",
+        "fill_price": 60.80769230769231,
+        "quantity": 700.0,
+        "cost": 249.2203269230769,
+        "cash_flow": 42316.16428846154,
+        "pnl": -7534.29421153845,
+        "net_return": -0.14255872939188316,
+        "corporate_action": {
+          "cash_entitlement": 3000.0,
+          "events": [
+            "reviewed:1315:2020-10-26:capital_reduction"
+          ]
+        }
+      },
+      "nav_delta": -7534.294211538392,
+      "pending_refund_at_sale": 0,
+      "restore_pnl": -7534.29421153845,
+      "recomputed_digest_rejections": {
+        "pnl": "canonical/R1 closed pnl economics mismatch",
+        "net_return": "canonical/R1 closed net_return economics mismatch",
+        "cash_flow": "canonical/R1 cash_flow economics mismatch"
+      },
+      "pnl_after_payment_and_replay": -7534.29421153845
+    }
+  ],
+  "real_missing_checks_unchanged": 7,
+  "accounting_gate_passed": false,
+  "s3_effects_executed": false
+}
