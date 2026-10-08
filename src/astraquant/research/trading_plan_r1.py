@@ -79,6 +79,8 @@ def _plain(value: Any) -> Any:
 class SharedLedger:
     """Four tables; a fill intent keeps its row_id when reconciled."""
 
+    schemas = SCHEMAS
+
     def __init__(self, run_id: str, mode: str, portfolio_id: str = "synthetic-r1", entry_mode: str = "close"):
         if mode not in {"backtest", "daily"}:
             raise ValueError("mode must be backtest or daily")
@@ -86,15 +88,15 @@ class SharedLedger:
             raise ValueError("entry_mode must be close or next_open")
         self.identity = dict(run_id=run_id, portfolio_id=portfolio_id, mode=mode, entry_mode=entry_mode,
                              source_kind="synthetic", rule_version=RULE_VERSION)
-        self.rows: dict[str, list[dict]] = {name: [] for name in SCHEMAS}
+        self.rows: dict[str, list[dict]] = {name: [] for name in self.schemas}
 
     def add(self, table: str, row_id: str, **values: Any) -> dict:
         if self.find(table, row_id) is not None:
             raise ValueError(f"duplicate {table} row: {row_id}")
-        unknown = set(values) - set(SCHEMAS[table])
+        unknown = set(values) - set(self.schemas[table])
         if unknown:
             raise ValueError(f"unknown {table} fields: {sorted(unknown)}")
-        row = dict.fromkeys(SCHEMAS[table])
+        row = dict.fromkeys(self.schemas[table])
         row.update(self.identity, row_id=row_id, **values)
         self.rows[table].append(row)
         return row
@@ -103,7 +105,7 @@ class SharedLedger:
         return next((r for r in self.rows[table] if r["row_id"] == row_id), None)
 
     def table(self, name: str) -> pd.DataFrame:
-        frame = pd.DataFrame(deepcopy(self.rows[name]), columns=SCHEMAS[name])
+        frame = pd.DataFrame(deepcopy(self.rows[name]), columns=self.schemas[name])
         for col in frame:
             if col in FLOAT_COLUMNS:
                 frame[col] = pd.array(frame[col], dtype="Float64")
@@ -114,7 +116,7 @@ class SharedLedger:
         return frame
 
     def tables(self) -> dict[str, pd.DataFrame]:
-        return {name: self.table(name) for name in SCHEMAS}
+        return {name: self.table(name) for name in self.schemas}
 
 
 @dataclass
@@ -216,6 +218,19 @@ class TradingPlanR1:
                     pivot=float(base.max()) if len(base) else float("nan"),
                     structure_stop=float(base.min()) if len(base) else float("nan"))
 
+    def _close_exit_reason(self, bar: dict, feature: dict) -> str:
+        sma = feature.get("sma20")
+        return "sma20_next_open" if _finite(sma) and bar["close"] < sma else ""
+
+    def _pending_exit_reason(self, row: dict) -> str:
+        return "sma20_next_open"
+
+    def _available_cash(self) -> float:
+        return self.cash
+
+    def _session_bars(self, prices: pd.DataFrame, day: str) -> pd.DataFrame:
+        return prices[prices.date == day]
+
     def _intent(self, *, day: str, stock: str, trade_id: str, side: str,
                 reason: str, want_price: float | None, quantity: int = 0) -> dict:
         oid = self._id(trade_id, side, day, reason)
@@ -273,7 +288,7 @@ class TradingPlanR1:
         p = self._prices(bars)
         if set(p.date) - set(self.sessions):
             raise ValueError("bars outside declared calendar")
-        today = {r["stock"]: _plain(r) for r in p[p.date == day].to_dict("records")}
+        today = {r["stock"]: _plain(r) for r in self._session_bars(p, day).to_dict("records")}
         features: dict[str, dict] = {}
         candidates = []
         if self.entry_mode == "next_open":
@@ -367,10 +382,10 @@ class TradingPlanR1:
                                    reason=reason, want_price=pos.stop_price, quantity=pos.quantity)
                 sell_intents[stock] = row["row_id"]
             else:
-                sma = features.get(stock, {}).get("sma20")
-                if _finite(sma) and bar["close"] < sma:
+                close_reason = self._close_exit_reason(bar, features.get(stock, {}))
+                if close_reason:
                     row = self._intent(day=day, stock=stock, trade_id=pos.trade_id, side="sell",
-                                       reason="sma20_next_open", want_price=None, quantity=pos.quantity)
+                                       reason=close_reason, want_price=None, quantity=pos.quantity)
                     close_exit_intents[stock] = row["row_id"]
         self.plans[day] = dict(bars=today, features=features, candidates=candidates,
                                sell_intents=sell_intents, close_exit_intents=close_exit_intents)
@@ -435,7 +450,7 @@ class TradingPlanR1:
             price, reason = bar["open"], "stop_gap_open"
         elif pos.pending_exit:
             row = self.ledger.find("fills", pos.pending_exit)
-            price, reason = bar["open"], "sma20_next_open"
+            price, reason = bar["open"], self._pending_exit_reason(row)
         elif not open_only and bar["low"] <= pos.stop_price:
             observed = bar.get("stop_fill_price")
             price = float(observed) if _finite(observed) else pos.stop_price
@@ -500,7 +515,7 @@ class TradingPlanR1:
             qty = int(math.floor(target / per_share))
             if qty <= 0:
                 reasons.append("insufficient_size")
-            if qty * per_share > self.cash + 1e-8:
+            if qty * per_share > self._available_cash() + 1e-8:
                 reasons.append("insufficient_cash")
             if reasons:
                 self._reject(decision, reasons)
@@ -520,12 +535,12 @@ class TradingPlanR1:
         if not self.frozen:
             for stock, pos in list(self.positions.items()):
                 bar = today[stock]
-                sma = features.get(stock, {}).get("sma20")
-                if not pos.pending_exit and not pos.pending_stop and _finite(sma) and bar["close"] < sma:
+                close_reason = self._close_exit_reason(bar, features.get(stock, {}))
+                if not pos.pending_exit and not pos.pending_stop and close_reason:
                     staged_id = plan["close_exit_intents"].get(stock)
                     row = self.ledger.find("fills", staged_id) if staged_id else self._intent(
                         day=day, stock=stock, trade_id=pos.trade_id, side="sell",
-                        reason="sma20_next_open", want_price=None, quantity=pos.quantity)
+                        reason=close_reason, want_price=None, quantity=pos.quantity)
                     pos.pending_exit = row["row_id"]
         else:
             for rid in list(self.pending_entries):
@@ -623,8 +638,12 @@ def load_r1_config(path: str | Path) -> dict:
 
 
 def metrics(tables: dict[str, pd.DataFrame]) -> pd.DataFrame:
-    """One metrics path for either mode or their concatenation; report each run."""
+    """Legacy synthetic reporting keeps its existing source validation."""
     validate_tables(tables)
+    return _metric_rows(tables, scope="synthetic_entry_mode_simulation")
+
+
+def _metric_rows(tables: dict[str, pd.DataFrame], *, scope: str) -> pd.DataFrame:
     fills, equity, decisions = tables["fills"], tables["equity"], tables["decisions"]
     rows = []
     groups = sorted(set(zip(fills.run_id, fills.portfolio_id)) | set(zip(equity.run_id, equity.portfolio_id)))
@@ -669,7 +688,7 @@ def metrics(tables: dict[str, pd.DataFrame]) -> pd.DataFrame:
                          reject_reason_counts=reason_counts,
                          portfolio_frozen=frozen,
                          final_equity=None if frozen or not len(e) else float(e.iloc[-1].equity),
-                         metrics_scope="synthetic_entry_mode_simulation"))
+                         metrics_scope=scope))
     return pd.DataFrame(rows)
 
 

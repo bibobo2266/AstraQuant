@@ -1,0 +1,108 @@
+{
+  "schema_version": "s3-wiring-review-inputs-v1",
+  "status": "ENGINEERING_REVIEW_ONLY",
+  "baseline_commit": "26e2c3c337f038918b57627d72182cf43f4d44b8",
+  "execution_version": "s3-canonical-wiring-v1",
+  "period": {
+    "epoch": "E1",
+    "start": "2016-01-04",
+    "end": "2021-12-31",
+    "warmup_start": "2015-06-01"
+  },
+  "entry_modes": [
+    "close",
+    "next_open"
+  ],
+  "exit_modes": [
+    "sma20",
+    "sma20_or_rsi13_lt50"
+  ],
+  "accepted_inputs": {
+    "source_revision": "3e7c4b6d9cde3b18942710fa977db02f89bffa0d",
+    "limit_revision": "67e069e962e365b4f4c09fa466decd66bb70fc82",
+    "panel_sha256": "2fc9680a3cbb74b15d690edbeb02ed03457b26c74dd682a877b1c6e93f8dc38e",
+    "supplement_sha256": "a38f5d63726df1daf4982067b7ce592dc6893f6768af8908e5dae1302b5c0a0a",
+    "source_export": [
+      {
+        "path": "prices_raw_2018.parquet",
+        "source_path": "raw/prices_raw_2018.parquet",
+        "sha256": "06845ef8fb4bcde0869188e35d03d4c388776681c647bf96d8c58121767f68a3",
+        "bytes": 8601743
+      },
+      {
+        "path": "prices_raw_2019.parquet",
+        "source_path": "raw/prices_raw_2019.parquet",
+        "sha256": "08993f01cfa889d12600a6b50893fab83b87516ec99c9fe7e10c5621aab6e467",
+        "bytes": 8695726
+      },
+      {
+        "path": "prices_raw_2020.parquet",
+        "source_path": "raw/prices_raw_2020.parquet",
+        "sha256": "f206e28600e2303b001081119d0e112ee4117e4fea03b1db191773f41f415861",
+        "bytes": 9056866
+      },
+      {
+        "path": "prices_raw_2021.parquet",
+        "source_path": "raw/prices_raw_2021.parquet",
+        "sha256": "344585aa37b0e2255490bfdb11d83a0d1aee69439c0ae1fa3dffd2d39ff53f55",
+        "bytes": 11064484
+      },
+      {
+        "path": "corporate_actions_official.csv",
+        "source_path": "reference/corporate_actions_official.csv",
+        "sha256": "78d481ef10a3e3e6691d803ecf2805a8096b1c4bec4f63ac4faf717c8785300c",
+        "bytes": 4734033
+      },
+      {
+        "path": "corporate_actions_ledger.parquet",
+        "source_path": "reference/corporate_actions_ledger.parquet",
+        "sha256": "b7808ed74c2ea3289a7d7690930176f5859e6efe97fb04e49a5dec30dde82b6b",
+        "bytes": 336709
+      }
+    ]
+  },
+  "production_inventory_builder": "astraquant.research.trading_plan_r1_s3.write_source_manifest",
+  "runtime_inventory_required": [
+    "raw/prices_raw_2015.parquet through prices_raw_2021.parquet",
+    "reference/price_limit_2015.parquet through price_limit_2018.parquet",
+    "reference/tradability.parquet",
+    "reference/corporate_actions_official.csv",
+    "accepted S1 panel",
+    "accepted 2019–2021 limits supplement"
+  ],
+  "accounting_receipt": {
+    "schema_version": "s3-accounting-receipt-v1",
+    "bound_to": "SHA256(canonical runtime input manifest JSON)",
+    "required_checks": [
+      "signal_source_declared",
+      "entry_raw",
+      "stop_observation_raw",
+      "exit_raw",
+      "sizing_raw",
+      "mark_raw",
+      "share_count_reconciles",
+      "cash_reconciles",
+      "receivables_reconcile",
+      "corporate_actions_reconcile",
+      "nav_reconciles",
+      "no_adjusted_execution_fallback",
+      "canonical_execution_path_active",
+      "normalized_ca_view_active",
+      "ca_payment_dates_settle",
+      "pit_unsafe_ca_excluded",
+      "terminal_security_lifecycle_active",
+      "long_horizon_canonical_probe_passed"
+    ],
+    "production_receipt_status": "NOT_GENERATED_OR_VERIFIED_IN_ENGINEERING_RUN"
+  },
+  "engineering_fixtures": {
+    "source_kind": "s3_engineering_fixture",
+    "generation": "tests/test_trading_plan_r1_s3.py::bundle",
+    "performance_allowed": false
+  },
+  "remaining_limits": [
+    "A complete source checkout and a reviewed input-bound accounting receipt are required before production execution.",
+    "Unsupported corporate actions retain the existing R1 censorship/freeze policy; this patch does not assert corporate-action economic support.",
+    "No real four-cell performance run or workflow dispatch in this engineering submission."
+  ]
+}
