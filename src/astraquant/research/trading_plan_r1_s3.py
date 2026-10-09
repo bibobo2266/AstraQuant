@@ -43,6 +43,8 @@ S3_SCHEMAS = {name: cols + ("input_binding", "exit_mode", "execution_version")
               for name, cols in SCHEMAS.items()}
 _SEAL = object()
 DIAGNOSTIC_A_MISSING_SHA = '2135303089df2b975627934956f6b28dc11cc6b2a089ce15503204f66ce19657'
+DIAGNOSTIC_B_LIMIT_SHA = 'd0dcc01f3a86b3f53806a4c5e69386f280bdec4a520fc2c7033f0ddbafc5dc5d'
+DIAGNOSTIC_B_RESTORED = frozenset('1240 2739 3207 3346 4438 4543 4561 4744 4806 4961 4989 5206 5222 5876 6416 6469 6486 6552 6643 6664 6669'.split())
 
 
 def _diagnostic_a_exclusions(manifest, root):
@@ -50,8 +52,9 @@ def _diagnostic_a_exclusions(manifest, root):
     overlay = manifest.get('diagnostic_overlay')
     if overlay is None:
         return frozenset()
+    version = overlay.get('version')
     if (manifest.get('purpose') != 's3_accounting_probe'
-            or overlay.get('version') != 'A_exclude_missing_limits_102'
+            or version not in {'A_exclude_missing_limits_102', 'B_restore_verified_21_exclude_81'}
             or overlay.get('approval_issue_comment') != 6072210571
             or overlay.get('missing_keys_sha256') != DIAGNOSTIC_A_MISSING_SHA):
         raise ValueError('unapproved diagnostic exclusion overlay')
@@ -60,9 +63,22 @@ def _diagnostic_a_exclusions(manifest, root):
         raise ValueError('changed approved missing-limit exclusion source')
     missing = pd.read_csv(path, dtype={'stock': str})
     stocks = frozenset(missing.stock)
-    if len(missing) != 4806 or len(stocks) != 102 or sorted(stocks) != overlay.get('excluded_stocks'):
+    if len(missing) != 4806 or len(stocks) != 102:
         raise ValueError('changed approved 102-stock exclusion list')
-    return stocks
+    excluded = stocks
+    if version == 'B_restore_verified_21_exclude_81':
+        entries = [e for e in manifest.get('files', []) if e['role'] == 'supplement_2016_2018']
+        if (overlay.get('restoration_review_comment') != 6072459378
+                or overlay.get('restored_stocks') != sorted(DIAGNOSTIC_B_RESTORED)
+                or len(entries) != 1 or entries[0]['sha256'] != DIAGNOSTIC_B_LIMIT_SHA
+                or _hash(_inside(root, entries[0]['path'])) != DIAGNOSTIC_B_LIMIT_SHA):
+            raise ValueError('changed reviewed B restoration/limit binding')
+        excluded = stocks - DIAGNOSTIC_B_RESTORED
+    elif any(e['role']=='supplement_2016_2018' for e in manifest.get('files', [])):
+        raise ValueError('B supplement cannot alter fixed A inputs')
+    if sorted(excluded) != overlay.get('excluded_stocks'):
+        raise ValueError('changed approved exclusion list')
+    return excluded
 
 
 def _hash(path):
@@ -247,8 +263,10 @@ class S3Inputs:
             if self.role(role) != (self.source_root / relative).resolve():
                 raise ValueError("inventory does not bind canonical source path")
         for entry in self.inventory:
-            if entry["role"] not in {"raw", "tradability", "events", "limits", "panel", "supplement", "reviewed_ca_overlay", "dividend", "terminal", "export_manifest", "export_archive"}:
+            if entry["role"] not in {"raw", "tradability", "events", "limits", "panel", "supplement", "supplement_2016_2018", "reviewed_ca_overlay", "dividend", "terminal", "export_manifest", "export_archive"}:
                 raise ValueError("unknown S3 input role")
+            if entry['role']=='supplement_2016_2018' and (not self.probe or not self.manifest.get('diagnostic_overlay')):
+                raise ValueError('restored limits require reviewed B diagnostic binding')
             if entry["role"] in {"raw", "limits"}:
                 directory = "raw" if entry["role"] == "raw" else "reference"
                 if _inside(self.root, entry["path"]) != (self.source_root / directory / Path(entry["path"]).name).resolve():
@@ -339,7 +357,7 @@ class S3Inputs:
         if len(missing):
             raise ValueError("S1 keys lack RAW coverage")
         limits = pd.concat([pd.read_parquet(_inside(self.root, e["path"])) for e in self.inventory
-                            if e["role"] in {"limits", "supplement"}], ignore_index=True)
+                            if e["role"] in {"limits", "supplement", "supplement_2016_2018"}], ignore_index=True)
         limits["date"] = pd.to_datetime(limits.date).dt.normalize()
         limits["stock_id"] = limits.stock_id.astype(str)
         if limits.duplicated(["date", "stock_id"]).any():

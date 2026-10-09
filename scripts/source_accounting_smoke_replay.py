@@ -792,20 +792,29 @@ def restore_s3_evidence_transport(output_dir):
     return len(inventory['files'])
 
 
-def run_s3_diagnostic_a(*, workspace, output_dir):
+def run_s3_diagnostic_a(*, workspace, output_dir, round_name="A", measure=False):
     """Approved E1 diagnostic A; formal metrics remain locked, cells stop independently."""
     import json, traceback, subprocess
     from datetime import datetime, timezone
     from astraquant.research.trading_plan_r1_s3 import S3Inputs,S3TradingPlanR1,_digest,_hash
     from astraquant.research.trading_plan_r1 import _metric_rows
+    if round_name not in {"A","B"}:raise ValueError("only approved A/B diagnostics")
     workspace=Path(workspace).resolve();output=Path(output_dir).resolve();output.relative_to(workspace)
     output.mkdir(parents=True,exist_ok=True)
+    if measure:install_s3_timing(output/"timing.json")
     old=workspace/'AstraQuant-full/results/trading_plan_r1/accounting_export_37769333701/s3_wiring_v5'
     m=json.loads((old/'manifest.json').read_text())
     missing=old/'missing_limit_keys.csv';excluded=sorted(pd.read_csv(missing,dtype={'stock':str}).stock.unique())
     m['diagnostic_overlay']=dict(version='A_exclude_missing_limits_102',approval_issue_comment=6072210571,
         missing_keys_path=str(missing.relative_to(workspace)),missing_keys_sha256=_hash(missing),excluded_stocks=excluded,
         reason='missing_exact_limits',population_label='exclude_missing_limits_102')
+    if round_name=='B':
+        from astraquant.research.trading_plan_r1_s3 import DIAGNOSTIC_B_RESTORED,DIAGNOSTIC_B_LIMIT_SHA
+        supplement=workspace/'AstraQuant-full/results/trading_plan_r1/limit_supplement_2016_2018/price_limit_supplement_2016_2018.parquet'
+        if _hash(supplement)!=DIAGNOSTIC_B_LIMIT_SHA:raise ValueError('changed reviewed B supplement')
+        excluded=sorted(set(excluded)-DIAGNOSTIC_B_RESTORED)
+        m['diagnostic_overlay'].update(version='B_restore_verified_21_exclude_81',restoration_review_comment=6072459378,restored_stocks=sorted(DIAGNOSTIC_B_RESTORED),excluded_stocks=excluded,population_label='restore_verified_21_exclude_81')
+        m['files'].append(dict(path=str(supplement.relative_to(workspace)),role='supplement_2016_2018',sha256=DIAGNOSTIC_B_LIMIT_SHA))
     rawdates=pd.concat([pd.read_parquet(workspace/e['path'],columns=['date']) for e in m['files'] if e['role']=='raw']).date
     m['probe_sessions']=sorted(set(pd.to_datetime(rawdates.loc[rawdates.between(m['period']['start'],m['period']['end'])]).dt.strftime('%Y-%m-%d')))
     manifest=output/'manifest.json';manifest.write_text(json.dumps(m,indent=2)+'\n')
@@ -813,23 +822,23 @@ def run_s3_diagnostic_a(*, workspace, output_dir):
     receipt['evidence'].append(dict(kind='owner_approved_diagnostic_A',issue_comment=6072210571,formal_performance_unlocked=False))
     rp=output/'receipt.json';rp.write_text(json.dumps(receipt,indent=2)+'\n')
     commit=subprocess.check_output(['git','rev-parse','HEAD'],text=True).strip()
-    execution_id='s3-A-'+datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%SZ')
-    cells=[('A1','close','sma20'),('A2','next_open','sma20'),('A3','close','sma20_or_rsi13_lt50'),('A4','next_open','sma20_or_rsi13_lt50')]
+    execution_id='s3-'+round_name+'-'+datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%SZ')
+    cells=[(round_name+'1','close','sma20'),(round_name+'2','next_open','sma20'),(round_name+'3','close','sma20_or_rsi13_lt50'),(round_name+'4','next_open','sma20_or_rsi13_lt50')]
     status=dict(execution_id=execution_id,started_at=datetime.now(timezone.utc).isoformat(),program_sha=commit,
-        manifest_sha256=_hash(manifest),formal_performance_unlocked=False,round='A',
+        manifest_sha256=_hash(manifest),formal_performance_unlocked=False,round=round_name,
         cells={c:dict(entry_mode=a,exit_mode=b,status='VERIFYING_INPUTS',completed=0) for c,a,b in cells})
     def write_status():
         target=output/'progress.json';tmp=target.with_suffix('.tmp');tmp.write_text(json.dumps(status,indent=2)+'\n');tmp.replace(target)
     write_status();print(json.dumps(status),flush=True)
     inputs=S3Inputs.open_accounting_probe(workspace,manifest,rp)
     assert len({s for _,s in inputs._panel_keys})==1916
-    assert set(inputs._bars.stock).isdisjoint(excluded) and len(set(inputs._bars.stock))==1814
+    assert set(inputs._bars.stock).isdisjoint(excluded) and len(set(inputs._bars.stock))==(1814 if round_name=='A' else 1835)
     status['input_binding']=inputs.binding_id;status['expected_sessions']=len(m['probe_sessions'])
     engines={}
     for cell,a,b in cells:
         engines[cell]=S3TradingPlanR1(inputs=inputs,run_id=execution_id+'-'+cell,entry_mode=a,exit_mode=b)
         status['cells'][cell]['status']='RUNNING';write_status()
-    print('A: all four cells constructed; full E1 calendar',len(m['probe_sessions']),flush=True)
+    print(round_name+': all four cells constructed; full E1 calendar',len(m['probe_sessions']),flush=True)
     for day in m['probe_sessions']:
         for cell,a,b in cells:
             state=status['cells'][cell]
@@ -846,7 +855,7 @@ def run_s3_diagnostic_a(*, workspace, output_dir):
                     state['coverage']=engine.cell_status()
                     if not engine.frozen:
                         state['status']='COMPLETE_DIAGNOSTIC_PENDING_REVIEW'
-                        rows=_metric_rows(engine.ledger.tables(),scope='diagnostic_A_exclude_missing_limits_102_pending_review')
+                        rows=_metric_rows(engine.ledger.tables(),scope='diagnostic_'+round_name+'_subpopulation_pending_review')
                         rows.to_json(directory/'diagnostic_metrics.json',orient='records',indent=2)
                         row=rows.iloc[0]
                         if (pd.notna(row.net_win_rate) and row.net_win_rate>.7) or (pd.notna(row.avg_loss) and row.avg_loss<.01):
@@ -862,3 +871,42 @@ def run_s3_diagnostic_a(*, workspace, output_dir):
         if not any(s['status']=='RUNNING' for s in status['cells'].values()):break
     status['finished_at']=datetime.now(timezone.utc).isoformat();write_status()
     return status
+
+
+def install_s3_timing(output_path):
+    """Observe unchanged integrity/indicator/accounting calls; nested time is explicit."""
+    import functools,time,json
+    import astraquant.research.trading_plan_r1_s3 as s3
+    target=Path(output_path);stats={};stack=[];started=time.perf_counter();last=[0.]
+    def dump(force=False):
+        now=time.perf_counter()
+        if not force and now-last[0]<2:return
+        last[0]=now
+        payload=dict(schema_version='s3_runtime_timing_v1',elapsed_seconds=now-started,
+            integrity_checks_removed=0,time_semantics='inclusive contains children; exclusive subtracts measured children',components=stats)
+        tmp=target.with_suffix('.tmp');tmp.write_text(json.dumps(payload,indent=2)+'\n');tmp.replace(target)
+    def wrap(owner,name,label):
+        original=getattr(owner,name)
+        @functools.wraps(original)
+        def observed(*args,**kwargs):
+            record=[time.perf_counter(),0.];stack.append(record)
+            try:return original(*args,**kwargs)
+            finally:
+                elapsed=time.perf_counter()-record[0];stack.pop()
+                if stack:stack[-1][1]+=elapsed
+                row=stats.setdefault(label,dict(calls=0,inclusive_seconds=0.,exclusive_seconds=0.,max_seconds=0.))
+                row['calls']+=1;row['inclusive_seconds']+=elapsed;row['exclusive_seconds']+=elapsed-record[1];row['max_seconds']=max(row['max_seconds'],elapsed)
+                dump()
+        setattr(owner,name,observed)
+    for owner,name,label in [
+        (s3,'_hash','file_hash'),(s3,'_frame_digest','frame_integrity_hash'),
+        (s3.S3Inputs,'_verify_files','validate_files'),(s3.S3Inputs,'verify','validate_inputs'),
+        (s3.S3Inputs,'_read_bars','load_join_inputs'),
+        (s3.S3TradingPlanR1,'_verify_run','validate_execution'),
+        (s3.S3TradingPlanR1,'_prices','price_frame_and_date_conversion'),
+        (s3.S3TradingPlanR1,'_features','indicators'),
+        (s3.S3TradingPlanR1,'_check_accounts','accounting'),
+        (s3.S3TradingPlanR1,'prepare','prepare'),
+        (s3.S3TradingPlanR1,'reconcile_session','reconcile')]:wrap(owner,name,label)
+    dump(force=True)
+    return dump
