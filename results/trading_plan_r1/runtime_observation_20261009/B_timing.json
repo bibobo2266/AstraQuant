@@ -1,0 +1,74 @@
+{
+  "schema_version": "s3_runtime_timing_v1",
+  "elapsed_seconds": 348.06280199700086,
+  "integrity_checks_removed": 0,
+  "time_semantics": "inclusive contains children; exclusive subtracts measured children",
+  "components": {
+    "file_hash": {
+      "calls": 1338,
+      "inclusive_seconds": 25.592563300982874,
+      "exclusive_seconds": 25.592563300982874,
+      "max_seconds": 0.20223635699949227
+    },
+    "validate_files": {
+      "calls": 46,
+      "inclusive_seconds": 26.431733893996352,
+      "exclusive_seconds": 0.8395328280130343,
+      "max_seconds": 1.0121677940005611
+    },
+    "load_join_inputs": {
+      "calls": 1,
+      "inclusive_seconds": 18.97410338699956,
+      "exclusive_seconds": 18.973841723000078,
+      "max_seconds": 18.97410338699956
+    },
+    "frame_integrity_hash": {
+      "calls": 88,
+      "inclusive_seconds": 91.86708087300394,
+      "exclusive_seconds": 91.86708087300394,
+      "max_seconds": 1.1968428139989555
+    },
+    "validate_inputs": {
+      "calls": 45,
+      "inclusive_seconds": 129.9730758629994,
+      "exclusive_seconds": 57.9477830420019,
+      "max_seconds": 3.4275530650011206
+    },
+    "validate_execution": {
+      "calls": 41,
+      "inclusive_seconds": 161.86564613100018,
+      "exclusive_seconds": 0.03983825400064234,
+      "max_seconds": 4.625008371000149
+    },
+    "price_frame_and_date_conversion": {
+      "calls": 7,
+      "inclusive_seconds": 31.020955067000614,
+      "exclusive_seconds": 3.671946555001341,
+      "max_seconds": 5.031966239999747
+    },
+    "indicators": {
+      "calls": 11273,
+      "inclusive_seconds": 88.35090144304377,
+      "exclusive_seconds": 88.35090144304377,
+      "max_seconds": 0.3910040669998125
+    },
+    "prepare": {
+      "calls": 7,
+      "inclusive_seconds": 201.28406646499934,
+      "exclusive_seconds": 26.792333052950198,
+      "max_seconds": 30.75344130099984
+    },
+    "accounting": {
+      "calls": 22,
+      "inclusive_seconds": 0.003687464999529766,
+      "exclusive_seconds": 0.003687464999529766,
+      "max_seconds": 0.0012452660012058914
+    },
+    "reconcile": {
+      "calls": 6,
+      "inclusive_seconds": 49.71014260600168,
+      "exclusive_seconds": 1.4108529780041863,
+      "max_seconds": 8.896996258999934
+    }
+  }
+}

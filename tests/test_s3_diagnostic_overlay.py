@@ -55,5 +55,9 @@ def test_shared_verified_buffers_do_not_bypass_mutation_guard(tmp_path):
     root,days=bundle(tmp_path);e=engine(root)
     other=s3.S3TradingPlanR1(inputs=e.inputs,run_id='sibling',entry_mode='next_open',exit_mode='sma20')
     other._bound_bars.loc[80,'close']=9999.
-    for run in [e,other]:
-        with pytest.raises(ValueError,match='changed verified S3'):run.prepare(days[80])
+    with pytest.raises(ValueError,match='changed verified S3'):other.prepare(days[80])
+    # pandas 3 COW may isolate the sibling; an actually changed sibling must reject.
+    if e._bound_bars.loc[80,'close']==9999.:
+        with pytest.raises(ValueError,match='changed verified S3'):e.prepare(days[80])
+    else:
+        e.prepare(days[80])

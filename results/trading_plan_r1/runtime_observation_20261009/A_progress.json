@@ -1,0 +1,41 @@
+{
+  "execution_id": "s3-A-20261009T015454Z",
+  "started_at": "2026-10-09T01:54:54.178034+00:00",
+  "program_sha": "1348090bb941baaec19284f0fd128d29036d9d42",
+  "manifest_sha256": "faefc556dc641c3f56d40564b3ef787ac6af7a09bd05ac8a6fb146266ca16dba",
+  "formal_performance_unlocked": false,
+  "round": "A",
+  "cells": {
+    "A1": {
+      "entry_mode": "close",
+      "exit_mode": "sma20",
+      "status": "RUNNING",
+      "completed": 3,
+      "current_date": "2016-01-07",
+      "holdings": [],
+      "frozen": false,
+      "first_day_readback_exact": true
+    },
+    "A2": {
+      "entry_mode": "next_open",
+      "exit_mode": "sma20",
+      "status": "QUEUED",
+      "completed": 0
+    },
+    "A3": {
+      "entry_mode": "close",
+      "exit_mode": "sma20_or_rsi13_lt50",
+      "status": "QUEUED",
+      "completed": 0
+    },
+    "A4": {
+      "entry_mode": "next_open",
+      "exit_mode": "sma20_or_rsi13_lt50",
+      "status": "QUEUED",
+      "completed": 0
+    }
+  },
+  "peak_rss_kib": 4536072,
+  "input_binding": "d9d8315a76c06e27cb6012d21396a623ac318d1975cbef691c8d15691503ce51",
+  "expected_sessions": 1468
+}

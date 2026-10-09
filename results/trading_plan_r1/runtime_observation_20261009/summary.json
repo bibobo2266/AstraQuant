@@ -1,0 +1,49 @@
+{
+  "observed_at": "2026-10-09T01:58:21.115768+00:00",
+  "executed_program_sha": "1348090bb941baaec19284f0fd128d29036d9d42",
+  "pandas22_targeted_112_passed": true,
+  "pandas22_extra_5_passed": true,
+  "pandas22_extra_overlaps_previous": 3,
+  "pandas306_targeted_passed": 114,
+  "old_exit_codes": {
+    "A": 137,
+    "B": 137
+  },
+  "old_A_unsaved_completed": [
+    7,
+    7,
+    6,
+    6
+  ],
+  "old_B_completed": [
+    0,
+    0,
+    0,
+    0
+  ],
+  "restart_requires_replay": true,
+  "source_data_rebuilt": false,
+  "integrity_checks_removed": 0,
+  "one_live_cell_per_round": true,
+  "daily_checkpoint": true,
+  "B_first_day_readback_exact": true,
+  "B_first_day_state_sha256": "a246e28addbb21c1c2582dce6b3febe4e392689fdf77d057ca54240f3d8fe1c2",
+  "B_restored_stock_count": 21,
+  "B_excluded_stock_count": 81,
+  "A_subpopulation_stocks": 1814,
+  "B_subpopulation_stocks": 1835,
+  "unknown_terms_preserved": true,
+  "metrics_not_completed": true,
+  "unused_stock_claims_issued": 0,
+  "initial_rate_seconds_per_cell_day": [
+    45,
+    60
+  ],
+  "conditional_full_round_hours": [
+    73.4,
+    97.87
+  ],
+  "estimate_assumes_same_rate_and_no_gate_stop": true,
+  "estimate_excludes_future_ledger_growth": true,
+  "accounting_time_scope": "early_days_no_holdings_no_fills_not_representative_of_later_accounting"
+}
