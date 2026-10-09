@@ -1683,3 +1683,64 @@ if __name__ == "__main__":
         _s1_main()
     else:
         main()
+
+
+def backfill_missing_limits_2016_2018(*, workspace, output_dir):
+    """Local-only extension of the accepted common-stock limit rules; unknown stays unknown."""
+    import re
+    from astraquant.research.trading_plan_r1_s3 import _hash, DIAGNOSTIC_A_MISSING_SHA
+    workspace=Path(workspace).resolve();out=Path(output_dir).resolve();out.relative_to(workspace);out.mkdir(parents=True,exist_ok=True)
+    source=workspace/'accounting-canonical-source'
+    missing_path=workspace/'AstraQuant-full/results/trading_plan_r1/accounting_export_37769333701/s3_wiring_v5/missing_limit_keys.csv'
+    if _hash(missing_path)!=DIAGNOSTIC_A_MISSING_SHA:raise ValueError('changed approved missing-key inventory')
+    missing=pd.read_csv(missing_path,dtype={'stock':str});missing['date']=pd.to_datetime(missing.date)
+    paths=[source/'raw'/f'prices_raw_{y}.parquet' for y in range(2015,2019)]
+    raw=pd.concat([pd.read_parquet(p) for p in paths],ignore_index=True)
+    raw['date']=pd.to_datetime(raw.date);raw['stock_id']=raw.stock_id.astype(str)
+    raw=raw.sort_values(['stock_id','date'])
+    if raw.duplicated(['date','stock_id']).any():raise ValueError('duplicate original RAW')
+    g=raw.groupby('stock_id',sort=False)
+    raw['previous_stock_date']=g.date.shift();raw['previous_close']=g.close.shift();raw['previous_market']=g.market.shift()
+    raw['observation_number']=g.cumcount()+1
+    days=sorted(raw.date.unique());previous_market_day=dict(zip(days[1:],days[:-1]))
+    index=raw.set_index(['date','stock_id'])
+    ep=source/'reference/corporate_actions_official.csv';events=pd.read_csv(ep,dtype=str).fillna('');events['event_date']=pd.to_datetime(events.event_date)
+    event_index={(d,s):v for (d,s),v in events.groupby(['event_date','stock_id'])}
+    derived=[];unknown=[];all_rows=[]
+    for date,stock in missing[['date','stock']].itertuples(index=False,name=None):
+        row=dict(date=str(date.date()),stock_id=stock,derived=False,status='UNKNOWN',source='',formula_version='common_stock_limit_rules_v1',reference_price=None,limit_up=None,limit_down=None,reference_input=None,dividend_reference_input=None,previous_price_date=None,reason='')
+        try:
+            bar=index.loc[(date,stock)];previous=previous_market_day.get(date)
+            if not all(pd.notna(bar[k]) and float(bar[k])>0 for k in ['open','max','min','close','Trading_Volume']):raise ValueError('invalid_or_no_volume_raw')
+            event=event_index.get((date,stock))
+            if event is not None:
+                nondiv=event[event.event_type.isin(['capital_reduction','par_value_change_split'])]
+                matches=[re.search(r'(?:^|;)\s*ref=([^;]+)',note) for note in nondiv.notes]
+                references={match.group(1).strip() for match in matches if match}
+                if len(nondiv)!=1 or len(references)!=1:raise ValueError('special_event_reference_unresolved')
+                ref=other=references.pop();rule='official_resumption_reference'
+            else:
+                if bar.observation_number<=5:raise ValueError('ipo_no_limit_status_unverified')
+                if bar.previous_stock_date!=previous:raise ValueError('previous_session_quote_missing')
+                if str(bar.previous_market).lower()!=str(bar.market).lower():raise ValueError('market_transfer_reference_unverified')
+                if pd.isna(bar.previous_close) or float(bar.previous_close)<=0:raise ValueError('no_close_official_bid_ask_inputs_unavailable')
+                ref=other=str(bar.previous_close);rule='previous_session_raw_close'
+            ref=str(ref).replace(',','');other=str(other).replace(',','')
+            up,down=_s3_limit_bounds(ref,other)
+            if float(bar['max'])>float(up)+1e-8 or float(bar['min'])<float(down)-1e-8:raise ValueError('derived_limit_outside_observed_raw_range')
+            row.update(derived=True,status='DERIVED_PENDING_REVIEW',source=rule,reference_price=float(ref),limit_up=float(up),limit_down=float(down),reference_input=ref,dividend_reference_input=other,previous_price_date=str(pd.Timestamp(bar.previous_stock_date).date()) if pd.notna(bar.previous_stock_date) else None)
+            derived.append(dict(row))
+        except (ValueError,KeyError,ArithmeticError) as error:
+            row['reason']=str(error);unknown.append(dict(row))
+        all_rows.append(row)
+    all_frame=pd.DataFrame(all_rows).sort_values(['stock_id','date']);all_frame.to_csv(out/'all_missing_keys.csv',index=False)
+    pd.DataFrame(derived).to_parquet(out/'price_limit_supplement_2016_2018.parquet',index=False)
+    pd.DataFrame(unknown).to_csv(out/'unknown.csv',index=False)
+    stock_rows=[]
+    for stock,part in all_frame.groupby('stock_id'):
+        complete=bool(part.derived.all())
+        stock_rows.append(dict(stock=stock,missing_dates=list(part.date),missing_count=len(part),derived_count=int(part.derived.sum()),unknown_count=int((~part.derived).sum()),A_status='EXCLUDED',B_candidate_status='RESTORE_PENDING_VERIFICATION' if complete else 'REMAIN_EXCLUDED_UNKNOWN',A1_signal='EXCLUDED',A2_signal='EXCLUDED',A3_signal='EXCLUDED',A4_signal='EXCLUDED',B_trade_demand_status='NOT_RUN_NOT_PROVEN_UNUSED'))
+    (out/'stock_status.json').write_text(json.dumps(stock_rows,indent=2)+'\n')
+    proof=dict(schema_version='missing_limit_backfill_v1',formula_version='common_stock_limit_rules_v1',missing_inventory_sha256=_hash(missing_path),raw_inputs=[dict(path=str(p.relative_to(workspace)),sha256=_hash(p)) for p in paths],official_events_sha256=_hash(ep),source_script_sha256=_hash(Path(__file__)),total_missing=len(missing),derived_pending_review=len(derived),unknown=len(unknown),restore_candidates=sum(x['unknown_count']==0 for x in stock_rows),remain_excluded=sum(x['unknown_count']>0 for x in stock_rows),unknown_reasons=pd.Series([x['reason'] for x in unknown]).value_counts().to_dict(),verified_for_B=False,range_check_is_not_official_reference_proof=True,outputs=[dict(path=p.name,bytes=p.stat().st_size,sha256=_hash(p)) for p in sorted(out.iterdir()) if p.is_file()])
+    (out/'manifest.json').write_text(json.dumps(proof,indent=2)+'\n')
+    print(json.dumps(proof),flush=True);return proof

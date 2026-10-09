@@ -1,0 +1,61 @@
+{
+  "schema_version": "missing_limit_backfill_v1",
+  "formula_version": "common_stock_limit_rules_v1",
+  "missing_inventory_sha256": "2135303089df2b975627934956f6b28dc11cc6b2a089ce15503204f66ce19657",
+  "raw_inputs": [
+    {
+      "path": "accounting-canonical-source/raw/prices_raw_2015.parquet",
+      "sha256": "9235f174a6021d11cacfe1901b9ace4445f01dbc595b369b845665aeb84de8c6"
+    },
+    {
+      "path": "accounting-canonical-source/raw/prices_raw_2016.parquet",
+      "sha256": "8c1d9ad7d1baae9117b6cb5caffe1ca71359673702af4889325274e4d5a0f5b2"
+    },
+    {
+      "path": "accounting-canonical-source/raw/prices_raw_2017.parquet",
+      "sha256": "1b51f311e7ca4e2ccf5d7fcf384ac2d274a8006d8d45bf7e84fc82436f40e2aa"
+    },
+    {
+      "path": "accounting-canonical-source/raw/prices_raw_2018.parquet",
+      "sha256": "06845ef8fb4bcde0869188e35d03d4c388776681c647bf96d8c58121767f68a3"
+    }
+  ],
+  "official_events_sha256": "78d481ef10a3e3e6691d803ecf2805a8096b1c4bec4f63ac4faf717c8785300c",
+  "source_script_sha256": "de5c3232cdd059e3c6f687ed78dc251594939ae0ea60941aef17affaa9bdd8b6",
+  "total_missing": 4806,
+  "derived_pending_review": 4256,
+  "unknown": 550,
+  "restore_candidates": 21,
+  "remain_excluded": 81,
+  "unknown_reasons": {
+    "invalid_or_no_volume_raw": 346,
+    "no_close_official_bid_ask_inputs_unavailable": 146,
+    "previous_session_quote_missing": 49,
+    "special_event_reference_unresolved": 6,
+    "derived_limit_outside_observed_raw_range": 3
+  },
+  "verified_for_B": false,
+  "range_check_is_not_official_reference_proof": true,
+  "outputs": [
+    {
+      "path": "all_missing_keys.csv",
+      "bytes": 635407,
+      "sha256": "b0a8880fe3a0026fa0bddf1e9dd478bf56243e6f4cafcfe20a9b9722373e2c4f"
+    },
+    {
+      "path": "price_limit_supplement_2016_2018.parquet",
+      "bytes": 82843,
+      "sha256": "d0dcc01f3a86b3f53806a4c5e69386f280bdec4a520fc2c7033f0ddbafc5dc5d"
+    },
+    {
+      "path": "stock_status.json",
+      "bytes": 135534,
+      "sha256": "299cf8bdb833dfaf0e791a2101c6f20260699af9e7cde3c8c1a4b52e949306cb"
+    },
+    {
+      "path": "unknown.csv",
+      "bytes": 52978,
+      "sha256": "7081a55b6a6416f7cb31268aec9681f9b5429ea203e459fb4c6c74136c8375ee"
+    }
+  ]
+}
