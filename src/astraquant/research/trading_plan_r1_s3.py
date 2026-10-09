@@ -42,6 +42,27 @@ EXIT_MODES = {"sma20", "sma20_or_rsi13_lt50"}
 S3_SCHEMAS = {name: cols + ("input_binding", "exit_mode", "execution_version")
               for name, cols in SCHEMAS.items()}
 _SEAL = object()
+DIAGNOSTIC_A_MISSING_SHA = '2135303089df2b975627934956f6b28dc11cc6b2a089ce15503204f66ce19657'
+
+
+def _diagnostic_a_exclusions(manifest, root):
+    """Bibobo-approved fixed exclusion overlay; never a performance receipt."""
+    overlay = manifest.get('diagnostic_overlay')
+    if overlay is None:
+        return frozenset()
+    if (manifest.get('purpose') != 's3_accounting_probe'
+            or overlay.get('version') != 'A_exclude_missing_limits_102'
+            or overlay.get('approval_issue_comment') != 6072210571
+            or overlay.get('missing_keys_sha256') != DIAGNOSTIC_A_MISSING_SHA):
+        raise ValueError('unapproved diagnostic exclusion overlay')
+    path = _inside(root, overlay['missing_keys_path'])
+    if _hash(path) != DIAGNOSTIC_A_MISSING_SHA:
+        raise ValueError('changed approved missing-limit exclusion source')
+    missing = pd.read_csv(path, dtype={'stock': str})
+    stocks = frozenset(missing.stock)
+    if len(missing) != 4806 or len(stocks) != 102 or sorted(stocks) != overlay.get('excluded_stocks'):
+        raise ValueError('changed approved 102-stock exclusion list')
+    return stocks
 
 
 def _hash(path):
@@ -266,7 +287,8 @@ class S3Inputs:
             if self.readiness.passed or receipt.get('scope') != 'bounded_real_accounting_evidence_only':
                 raise ValueError('probe receipt cannot claim full accounting clearance')
             scope = self.manifest.get('probe_sessions', [])
-            if (not 1 <= len(scope) <= 31 or scope != sorted(set(scope))
+            excluded = _diagnostic_a_exclusions(self.manifest, self.root)
+            if (not 1 <= len(scope) <= (2000 if excluded else 31) or scope != sorted(set(scope))
                     or any(not self.manifest['period']['start'] <= d <= self.manifest['period']['end'] for d in scope)):
                 raise ValueError('bounded accounting probe sessions required')
         else:
@@ -299,6 +321,7 @@ class S3Inputs:
             raise ValueError("S1 panel keys/flags absent")
         panel["date"] = pd.to_datetime(panel.date).dt.normalize()
         panel["stock"] = panel.stock.astype(str)
+        excluded = _diagnostic_a_exclusions(self.manifest, self.root)
         self._panel_keys = frozenset(zip(panel.date.map(_day), panel.stock))
         if panel.duplicated(["date", "stock"]).any():
             raise ValueError("duplicate S1 keys")
@@ -322,6 +345,8 @@ class S3Inputs:
         if limits.duplicated(["date", "stock_id"]).any():
             raise ValueError("duplicate limit keys")
         limit_panel = panel[panel.date.map(_day).isin(self.manifest['probe_sessions'])] if self.probe else panel
+        if excluded:
+            limit_panel = limit_panel[~limit_panel.stock.isin(excluded)]
         needed = pd.MultiIndex.from_frame(limit_panel[["date", "stock"]])
         if len(needed.difference(pd.MultiIndex.from_frame(limits[["date", "stock_id"]]))):
             raise ValueError("S1 keys lack exact limits")
@@ -330,6 +355,12 @@ class S3Inputs:
         bars = bars.merge(limits[["date", "stock_id", "limit_up", "limit_down"]].rename(columns={
             "stock_id": "stock", "limit_up": "limit_up_price", "limit_down": "limit_down_price"}), on=["date", "stock"], how="left", validate="one_to_one")
         bars["eligible"] = bars.eligibility.fillna(False).astype(bool)
+        if excluded:
+            # Preserve original S1/RAW bytes and market RS; execute only the approved subpopulation.
+            bars = bars[~bars.stock.isin(excluded)].copy()
+            expected_sessions = sorted(set(bars.loc[bars.date.between(start,end),'date'].map(_day)))
+            if expected_sessions != self.manifest['probe_sessions']:
+                raise ValueError('diagnostic A requires the complete fixed E1 calendar')
         if (pd.to_datetime(bars.loc[bars.eligible, "available_date"]) > bars.loc[bars.eligible, "date"]).any():
             raise ValueError("future S1 availability")
         bars["available_date"] = bars.available_date.where(bars.available_date.notna(), bars.date)
@@ -950,7 +981,9 @@ class S3TradingPlanR1(TradingPlanR1):
         status = 'INCOMPLETE' if self.frozen else 'COMPLETE_UNAFFECTED' if full else 'PARTIAL' if self.completed else 'NOT_RUN'
         return dict(status=status,input_binding=self.inputs.binding_id,entry_mode=self.entry_mode,exit_mode=self.exit_mode,
             full_e1_sessions_covered=full,completed_sessions=len(self.completed),expected_sessions=len(expected),
-            s1_population_preserved=True,unresolved_terminal_tickers=sorted({t.ticker for t in self.inputs.terminal_records
+            s1_population_preserved=not bool(self.inputs.manifest.get('diagnostic_overlay')),
+            diagnostic_overlay=self.inputs.manifest.get('diagnostic_overlay'),
+            unresolved_terminal_tickers=sorted({t.ticker for t in self.inputs.terminal_records
                 if t.effective_date is not None and str(t.effective_date)<=self.inputs.manifest['period']['end']}),
             terminal_observations=observations,held_crossings=affected,
             freeze_reason=self.freeze_reason,final_terms_status='UNKNOWN')

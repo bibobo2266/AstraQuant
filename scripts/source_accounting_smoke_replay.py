@@ -790,3 +790,75 @@ def restore_s3_evidence_transport(output_dir):
         if target.exists() and target.read_bytes()!=original:raise ValueError('existing evidence bytes differ')
         target.write_bytes(original)
     return len(inventory['files'])
+
+
+def run_s3_diagnostic_a(*, workspace, output_dir):
+    """Approved E1 diagnostic A; formal metrics remain locked, cells stop independently."""
+    import json, traceback, subprocess
+    from datetime import datetime, timezone
+    from astraquant.research.trading_plan_r1_s3 import S3Inputs,S3TradingPlanR1,_digest,_hash
+    from astraquant.research.trading_plan_r1 import _metric_rows
+    workspace=Path(workspace).resolve();output=Path(output_dir).resolve();output.relative_to(workspace)
+    output.mkdir(parents=True,exist_ok=True)
+    old=workspace/'AstraQuant-full/results/trading_plan_r1/accounting_export_37769333701/s3_wiring_v5'
+    m=json.loads((old/'manifest.json').read_text())
+    missing=old/'missing_limit_keys.csv';excluded=sorted(pd.read_csv(missing,dtype={'stock':str}).stock.unique())
+    m['diagnostic_overlay']=dict(version='A_exclude_missing_limits_102',approval_issue_comment=6072210571,
+        missing_keys_path=str(missing.relative_to(workspace)),missing_keys_sha256=_hash(missing),excluded_stocks=excluded,
+        reason='missing_exact_limits',population_label='exclude_missing_limits_102')
+    rawdates=pd.concat([pd.read_parquet(workspace/e['path'],columns=['date']) for e in m['files'] if e['role']=='raw']).date
+    m['probe_sessions']=sorted(set(pd.to_datetime(rawdates.loc[rawdates.between(m['period']['start'],m['period']['end'])]).dt.strftime('%Y-%m-%d')))
+    manifest=output/'manifest.json';manifest.write_text(json.dumps(m,indent=2)+'\n')
+    receipt=json.loads((old/'receipt.json').read_text());receipt['input_digest']=_digest(m)
+    receipt['evidence'].append(dict(kind='owner_approved_diagnostic_A',issue_comment=6072210571,formal_performance_unlocked=False))
+    rp=output/'receipt.json';rp.write_text(json.dumps(receipt,indent=2)+'\n')
+    commit=subprocess.check_output(['git','rev-parse','HEAD'],text=True).strip()
+    execution_id='s3-A-'+datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%SZ')
+    cells=[('A1','close','sma20'),('A2','next_open','sma20'),('A3','close','sma20_or_rsi13_lt50'),('A4','next_open','sma20_or_rsi13_lt50')]
+    status=dict(execution_id=execution_id,started_at=datetime.now(timezone.utc).isoformat(),program_sha=commit,
+        manifest_sha256=_hash(manifest),formal_performance_unlocked=False,round='A',
+        cells={c:dict(entry_mode=a,exit_mode=b,status='VERIFYING_INPUTS',completed=0) for c,a,b in cells})
+    def write_status():
+        target=output/'progress.json';tmp=target.with_suffix('.tmp');tmp.write_text(json.dumps(status,indent=2)+'\n');tmp.replace(target)
+    write_status();print(json.dumps(status),flush=True)
+    inputs=S3Inputs.open_accounting_probe(workspace,manifest,rp)
+    assert len({s for _,s in inputs._panel_keys})==1916
+    assert set(inputs._bars.stock).isdisjoint(excluded) and len(set(inputs._bars.stock))==1814
+    status['input_binding']=inputs.binding_id;status['expected_sessions']=len(m['probe_sessions'])
+    engines={}
+    for cell,a,b in cells:
+        engines[cell]=S3TradingPlanR1(inputs=inputs,run_id=execution_id+'-'+cell,entry_mode=a,exit_mode=b)
+        status['cells'][cell]['status']='RUNNING';write_status()
+    print('A: all four cells constructed; full E1 calendar',len(m['probe_sessions']),flush=True)
+    for day in m['probe_sessions']:
+        for cell,a,b in cells:
+            state=status['cells'][cell]
+            if state['status']!='RUNNING':continue
+            engine=engines[cell];state['current_date']=day;write_status()
+            try:
+                engine.prepare(day);engine.reconcile_session(day,observed_at=day)
+                state.update(completed=len(engine.completed),holdings=sorted(engine.positions),frozen=engine.frozen)
+                if engine.frozen:
+                    state.update(status='INCOMPLETE',stop_date=day,error=engine.freeze_reason,check_location='S3TradingPlanR1.prepare/reconcile_session',stop_evidence=engine.journal[-5:])
+                if engine.frozen or len(engine.completed)==len(m['probe_sessions']):
+                    directory=output/cell;directory.mkdir(exist_ok=True)
+                    engine.save(directory/'state.json');engine.export_tables(directory/'tables')
+                    state['coverage']=engine.cell_status()
+                    if not engine.frozen:
+                        state['status']='COMPLETE_DIAGNOSTIC_PENDING_REVIEW'
+                        rows=_metric_rows(engine.ledger.tables(),scope='diagnostic_A_exclude_missing_limits_102_pending_review')
+                        rows.to_json(directory/'diagnostic_metrics.json',orient='records',indent=2)
+                        row=rows.iloc[0]
+                        if (pd.notna(row.net_win_rate) and row.net_win_rate>.7) or (pd.notna(row.avg_loss) and row.avg_loss<.01):
+                            state.update(status='STOP_THRESHOLD_LEDGER_REVIEW',error='win_rate>70% or avg_loss<1%')
+                    pd.DataFrame([dict(stock=p.stock,quantity=p.quantity,entry_date=p.entry_date,truncated=p.truncated) for p in engine.positions.values()]).to_csv(directory/'open_positions.csv',index=False)
+            except Exception as error:
+                state.update(status='ERROR',stop_date=day,error=str(error),check_location=traceback.format_exc(),holdings=sorted(engine.positions))
+                directory=output/cell;directory.mkdir(exist_ok=True)
+                (directory/'error.json').write_text(json.dumps(state,indent=2,default=str)+'\n')
+                # Preserve unvalidated state as forensic evidence, never call it accepted.
+                (directory/'journal_unvalidated.json').write_text(json.dumps(engine.journal,indent=2,default=str)+'\n')
+            write_status();print(json.dumps(dict(cell=cell,**state),default=str),flush=True)
+        if not any(s['status']=='RUNNING' for s in status['cells'].values()):break
+    status['finished_at']=datetime.now(timezone.utc).isoformat();write_status()
+    return status
