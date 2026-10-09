@@ -1,0 +1,127 @@
+{
+  "schema_version": "s3-canonical-wiring-v4",
+  "purpose": "s3_accounting_probe",
+  "source_root": "accounting-canonical-source",
+  "source_revision": "3e7c4b6d9cde3b18942710fa977db02f89bffa0d",
+  "limit_revision": "67e069e962e365b4f4c09fa466decd66bb70fc82",
+  "period": {
+    "epoch": "E1",
+    "start": "2016-01-04",
+    "end": "2021-12-31"
+  },
+  "entry_modes": [
+    "close",
+    "next_open"
+  ],
+  "exit_modes": [
+    "sma20",
+    "sma20_or_rsi13_lt50"
+  ],
+  "files": [
+    {
+      "path": "accounting-canonical-source/raw/prices_raw_2015.parquet",
+      "role": "raw",
+      "sha256": "9235f174a6021d11cacfe1901b9ace4445f01dbc595b369b845665aeb84de8c6"
+    },
+    {
+      "path": "accounting-canonical-source/raw/prices_raw_2016.parquet",
+      "role": "raw",
+      "sha256": "8c1d9ad7d1baae9117b6cb5caffe1ca71359673702af4889325274e4d5a0f5b2"
+    },
+    {
+      "path": "accounting-canonical-source/raw/prices_raw_2017.parquet",
+      "role": "raw",
+      "sha256": "1b51f311e7ca4e2ccf5d7fcf384ac2d274a8006d8d45bf7e84fc82436f40e2aa"
+    },
+    {
+      "path": "accounting-canonical-source/raw/prices_raw_2018.parquet",
+      "role": "raw",
+      "sha256": "06845ef8fb4bcde0869188e35d03d4c388776681c647bf96d8c58121767f68a3"
+    },
+    {
+      "path": "accounting-canonical-source/raw/prices_raw_2019.parquet",
+      "role": "raw",
+      "sha256": "08993f01cfa889d12600a6b50893fab83b87516ec99c9fe7e10c5621aab6e467"
+    },
+    {
+      "path": "accounting-canonical-source/raw/prices_raw_2020.parquet",
+      "role": "raw",
+      "sha256": "f206e28600e2303b001081119d0e112ee4117e4fea03b1db191773f41f415861"
+    },
+    {
+      "path": "accounting-canonical-source/raw/prices_raw_2021.parquet",
+      "role": "raw",
+      "sha256": "344585aa37b0e2255490bfdb11d83a0d1aee69439c0ae1fa3dffd2d39ff53f55"
+    },
+    {
+      "path": "accounting-canonical-source/reference/tradability.parquet",
+      "role": "tradability",
+      "sha256": "3bba4a24ab289fe50165e121865e7bf6fd10a47993339b26fe6975878e6432d0"
+    },
+    {
+      "path": "accounting-canonical-source/reference/corporate_actions_official.csv",
+      "role": "events",
+      "sha256": "78d481ef10a3e3e6691d803ecf2805a8096b1c4bec4f63ac4faf717c8785300c"
+    },
+    {
+      "path": "accounting-canonical-source/fundamentals/dividend.parquet",
+      "role": "dividend",
+      "sha256": "f0fa98a466923b25f15135aa7f67edf0633ff00720c034f79e1bfe3851f1a415"
+    },
+    {
+      "path": "AstraQuant-full/results/trading_plan_r1/accounting_export_37769333701/s3_wiring_v5/terminal_events.csv",
+      "role": "terminal",
+      "sha256": "02d30cf5dc079a18b7ba7888568f1607e7152136aeca02b7ee06ada5ead58a5d"
+    },
+    {
+      "path": "accounting-canonical-source/reference/price_limit_2015.parquet",
+      "role": "limits",
+      "sha256": "16b5f8eff4a2be15f1b6b5d4ad79a13ddec9d510b56935b24e70dc64453bf629"
+    },
+    {
+      "path": "accounting-canonical-source/reference/price_limit_2016.parquet",
+      "role": "limits",
+      "sha256": "eae48ee242ce0757bdfa25c82a285f750baaf06d46bcc13cdbc018edfc431ed9"
+    },
+    {
+      "path": "accounting-canonical-source/reference/price_limit_2017.parquet",
+      "role": "limits",
+      "sha256": "d562549bd3ba3923692c7646516ccba292fdb86a3df01174ecbd5bf1345adec3"
+    },
+    {
+      "path": "accounting-canonical-source/reference/price_limit_2018.parquet",
+      "role": "limits",
+      "sha256": "f1d94527b506b00d3efc21b040d1ea9039fb449c53f0312b6a8bfd704c6cb9f9"
+    },
+    {
+      "path": "s1-37708776526/data/panel/eligibility_panel.parquet",
+      "role": "panel",
+      "sha256": "2fc9680a3cbb74b15d690edbeb02ed03457b26c74dd682a877b1c6e93f8dc38e"
+    },
+    {
+      "path": "AstraQuant-full/results/trading_plan_r1/limit_supplement/price_limit_supplement_2019_2021.parquet",
+      "role": "supplement",
+      "sha256": "a38f5d63726df1daf4982067b7ce592dc6893f6768af8908e5dae1302b5c0a0a"
+    },
+    {
+      "path": "accounting-export-37769333701/input_manifest.json",
+      "role": "export_manifest",
+      "sha256": "e18b21dab018c04ae5f6d05979c9d601b035bde45338ed40c42544be9337a26c"
+    },
+    {
+      "path": "accounting-export-37769333701/accounting_source_inputs.zip",
+      "role": "export_archive",
+      "sha256": "79a45e098fb55f9c358c2c8a67e58365d07277b5ba706e2768d1842d11902867"
+    }
+  ],
+  "probe_sessions": [
+    "2020-07-01",
+    "2020-07-02",
+    "2020-07-03",
+    "2020-07-06",
+    "2020-07-07",
+    "2020-07-08",
+    "2020-07-09",
+    "2020-07-10"
+  ]
+}

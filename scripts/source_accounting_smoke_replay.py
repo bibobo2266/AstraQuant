@@ -792,11 +792,11 @@ def restore_s3_evidence_transport(output_dir):
     return len(inventory['files'])
 
 
-def run_s3_diagnostic_a(*, workspace, output_dir, round_name="A", measure=False):
+def run_s3_diagnostic_a(*, workspace, output_dir, round_name="A", measure=False, max_sessions=None, checkpoint_publisher=None):
     """Approved E1 diagnostic A; formal metrics remain locked, cells stop independently."""
     import json, traceback, subprocess
     from datetime import datetime, timezone
-    from astraquant.research.trading_plan_r1_s3 import S3Inputs,S3TradingPlanR1,_digest,_hash
+    from astraquant.research.trading_plan_r1_s3 import S3Inputs,S3BatchTradingPlanR1,_digest,_hash
     from astraquant.research.trading_plan_r1 import _metric_rows
     if round_name not in {"A","B"}:raise ValueError("only approved A/B diagnostics")
     workspace=Path(workspace).resolve();output=Path(output_dir).resolve();output.relative_to(workspace)
@@ -822,9 +822,10 @@ def run_s3_diagnostic_a(*, workspace, output_dir, round_name="A", measure=False)
     receipt['evidence'].append(dict(kind='owner_approved_diagnostic_A',issue_comment=6072210571,formal_performance_unlocked=False))
     rp=output/'receipt.json';rp.write_text(json.dumps(receipt,indent=2)+'\n')
     commit=subprocess.check_output(['git','rev-parse','HEAD'],text=True).strip()
-    execution_id='s3-'+round_name+'-'+datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%SZ')
+    prior_progress=json.loads((output/'progress.json').read_text()) if (output/'progress.json').exists() else None
+    execution_id=prior_progress['execution_id'] if prior_progress else 's3-'+round_name+'-'+datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%SZ')
     cells=[(round_name+'1','close','sma20'),(round_name+'2','next_open','sma20'),(round_name+'3','close','sma20_or_rsi13_lt50'),(round_name+'4','next_open','sma20_or_rsi13_lt50')]
-    status=dict(execution_id=execution_id,started_at=datetime.now(timezone.utc).isoformat(),program_sha=commit,
+    status=dict(execution_id=execution_id,started_at=datetime.now(timezone.utc).isoformat(),program_sha=commit if not subprocess.check_output(['git','diff','--name-only'],text=True).strip() else None,program_base_sha=commit,
         manifest_sha256=_hash(manifest),formal_performance_unlocked=False,round=round_name,
         cells={c:dict(entry_mode=a,exit_mode=b,status='VERIFYING_INPUTS',completed=0) for c,a,b in cells})
     def write_status():
@@ -840,23 +841,38 @@ def run_s3_diagnostic_a(*, workspace, output_dir, round_name="A", measure=False)
     for cell,a,b in cells:
         status['cells'][cell]['status']='QUEUED'
     write_status()
+    snapshot=None
     for cell,a,b in cells:
         directory=output/cell;directory.mkdir(exist_ok=True)
-        engine=S3TradingPlanR1(inputs=inputs,run_id=execution_id+'-'+cell,entry_mode=a,exit_mode=b)
+        checkpoint=directory/'checkpoint.json'
+        engine=(S3BatchTradingPlanR1.load_checkpoint(checkpoint,inputs=inputs,run_id=execution_id+'-'+cell,entry_mode=a,exit_mode=b)
+            if checkpoint.exists() else S3BatchTradingPlanR1(inputs=inputs,run_id=execution_id+'-'+cell,entry_mode=a,exit_mode=b,snapshot=snapshot))
+        snapshot=engine._runtime
+        inputs=engine.inputs
+        gc.collect()
+        state=status['cells'][cell];state.update(completed=len(engine.completed),resumed=checkpoint.exists())
+        (directory/'runtime_manifest.json').write_text(json.dumps(engine.runtime_manifest,indent=2)+'\n')
         status['cells'][cell]['status']='RUNNING';write_status()
         print(round_name+': one live cell '+cell+'; daily checkpoint enabled',flush=True)
-        for day in m['probe_sessions']:
+        count_this_start=0
+        for day in engine.remaining_sessions():
+            if max_sessions is not None and count_this_start>=max_sessions:break
             state=status['cells'][cell]
             if state['status']!='RUNNING':continue
             state['current_date']=day;write_status()
             try:
                 engine.prepare(day);engine.reconcile_session(day,observed_at=day)
                 state.update(completed=len(engine.completed),holdings=sorted(engine.positions),frozen=engine.frozen)
-                engine.save(directory/'checkpoint.json')
+                engine.save_checkpoint(directory/'checkpoint.json')
+                count_this_start+=1
+                if checkpoint_publisher is not None:
+                    receipt=checkpoint_publisher(directory/'checkpoint.json')
+                    state['external_checkpoint']=receipt
                 if len(engine.completed)==1:
-                    restored=S3TradingPlanR1.load(directory/'checkpoint.json',inputs=inputs)
+                    restored=S3BatchTradingPlanR1.load_checkpoint(directory/'checkpoint.json',inputs=inputs)
                     restored.save(directory/'readback_first_day.json')
-                    assert (directory/'checkpoint.json').read_bytes()==(directory/'readback_first_day.json').read_bytes()
+                    engine.save(directory/'first_day_expanded.json')
+                    assert (directory/'first_day_expanded.json').read_bytes()==(directory/'readback_first_day.json').read_bytes()
                     state['first_day_readback_exact']=True
                     del restored
                 if engine.frozen:
@@ -865,9 +881,10 @@ def run_s3_diagnostic_a(*, workspace, output_dir, round_name="A", measure=False)
                     directory=output/cell;directory.mkdir(exist_ok=True)
                     engine.save(directory/'state.json');engine.export_tables(directory/'tables')
                     state['coverage']=engine.cell_status()
+                    if state['coverage'].get('diagnostic_overlay') is not None:state['coverage']['diagnostic_overlay']=m['diagnostic_overlay']
                     if not engine.frozen:
                         state['status']='COMPLETE_DIAGNOSTIC_PENDING_REVIEW'
-                        rows=_metric_rows(engine.ledger.tables(),scope='diagnostic_'+round_name+'_subpopulation_pending_review')
+                        rows=_metric_rows(engine.ledger.metric_tables(),scope='diagnostic_'+round_name+'_subpopulation_pending_review')
                         rows.to_json(directory/'diagnostic_metrics.json',orient='records',indent=2)
                         row=rows.iloc[0]
                         if (pd.notna(row.net_win_rate) and row.net_win_rate>.7) or (pd.notna(row.avg_loss) and row.avg_loss<.01):
@@ -881,7 +898,11 @@ def run_s3_diagnostic_a(*, workspace, output_dir, round_name="A", measure=False)
                 (directory/'journal_unvalidated.json').write_text(json.dumps(engine.journal,indent=2,default=str)+'\n')
             write_status();print(json.dumps(dict(cell=cell,**state),default=str),flush=True)
             if state['status']!='RUNNING':break
+        if engine.remaining_sessions() and state['status']=='RUNNING':state['status']='PAUSED_SAVED'
+        write_status()
         del engine;gc.collect()
+        if state['status']=='STOP_THRESHOLD_LEDGER_REVIEW':
+            status['stop_reason']=state['error'];break
     status['finished_at']=datetime.now(timezone.utc).isoformat();write_status()
     return status
 
@@ -923,3 +944,146 @@ def install_s3_timing(output_path):
         (s3.S3TradingPlanR1,'reconcile_session','reconcile')]:wrap(owner,name,label)
     dump(force=True)
     return dump
+
+
+def run_s3_batch_worker(*, workspace, manifest, receipt, output_dir, cell, action,
+                         interrupt_after=5):
+    """True-source before/after/restart evidence; no performance gate elevation."""
+    import json, signal, time
+    from astraquant.research.trading_plan_r1_s3 import S3Inputs, S3TradingPlanR1, S3BatchTradingPlanR1, _atomic_write
+    from astraquant.research.trading_plan_r1 import _metric_rows, _plain
+    start=time.perf_counter();w=Path(workspace).resolve();out=Path(output_dir).resolve();out.mkdir(parents=True,exist_ok=True)
+    inputs=S3Inputs.open_accounting_probe(w,manifest,receipt);loaded=time.perf_counter()-start
+    cells=[('close','sma20'),('next_open','sma20'),('close','sma20_or_rsi13_lt50'),('next_open','sma20_or_rsi13_lt50')]
+    entry,exit=cells[cell-1];run_id='ca-segment-'+str(cell)
+    if action=='baseline':
+        e=S3TradingPlanR1(inputs=inputs,run_id=run_id,entry_mode=entry,exit_mode=exit)
+    elif action=='resume':
+        e=S3BatchTradingPlanR1.load_checkpoint(out/'checkpoint.json',inputs=inputs,run_id=run_id,entry_mode=entry,exit_mode=exit)
+    else:
+        e=S3BatchTradingPlanR1(inputs=inputs,run_id=run_id,entry_mode=entry,exit_mode=exit)
+    prepared=time.perf_counter()-start
+    scope=tuple(inputs.manifest['probe_sessions'])
+    binding=inputs.binding_id
+    # Runtime owns immutable bytes; release the loader's multi-million-row mutable frame.
+    if action!='baseline':
+        del inputs
+        import gc
+        gc.collect()
+    days=(e.remaining_sessions() if action!='baseline' else scope)
+    for day in days:
+        e.prepare(day);e.reconcile_session(day,observed_at=day)
+        if action!='baseline':e.save_checkpoint(out/'checkpoint.json')
+        _atomic_write(out/'progress.json',json.dumps(dict(action=action,pid=os.getpid(),day=day,
+            completed=len(e.completed),elapsed_seconds=time.perf_counter()-start,
+            journal_events=len(e.journal),frozen=e.frozen)).encode())
+        print(action,cell,day,len(e.completed),time.perf_counter()-start,flush=True)
+        if action=='interrupt' and len(e.completed)==interrupt_after:
+            os.kill(os.getpid(),signal.SIGKILL)
+        if e.frozen:break
+    e.save(out/'state.json');e.export_tables(out/'tables')
+    metrics=_plain(_metric_rows(e.ledger.metric_tables() if action!='baseline' else e.ledger.tables(),scope='short-segment-equivalence-only').to_dict('records'))
+    _atomic_write(out/'metrics_full_precision.json',json.dumps(metrics,allow_nan=False).encode())
+    timings=dict(action=action,cell=cell,pid=os.getpid(),load_seconds=loaded,
+        day0_seconds=prepared,total_seconds=time.perf_counter()-start,completed=e.completed,
+        input_binding=binding,filled=sum(bool(r['fill']) for r in e.ledger.rows['fills']),
+        closed=sum(bool(r['fill']) and r['side']=='sell' for r in e.ledger.rows['fills']),
+        ca_events=[j for j in e.journal if j['kind'] in {'normalized_ca','reviewed_ca'}])
+    _atomic_write(out/'timing.json',json.dumps(timings,indent=2).encode())
+    return timings
+
+
+def package_checkpoint_transport(directory):
+    """Exact standalone restore set for durable GitHub publication, including all chunks."""
+    import json,base64,gzip,hashlib
+    from astraquant.research.trading_plan_r1_s3 import _atomic_write,_hash
+    root=Path(directory).resolve();head=json.loads((root/'checkpoint.json').read_text())
+    paths=[root/'checkpoint.json']+[root/r['path'] for r in head.get('checkpoint_storage',{}).get('chunks',[])]
+    inventory=[]
+    for path in paths:
+        value=path.read_bytes();packed=gzip.compress(value,mtime=0);key=hashlib.sha256(packed).hexdigest()
+        encoded=base64.b64encode(packed).decode();parts=[]
+        for i,start in enumerate(range(0,len(encoded),65536)):
+            part=root/'transport'/key/f'part-{i:03d}.b64';_atomic_write(part,(encoded[start:start+65536]+'\n').encode())
+            parts.append(dict(file=str(part.relative_to(root)),bytes=part.stat().st_size,sha256=_hash(part)))
+        inventory.append(dict(parts=parts,compressed_bytes=len(packed),compressed_sha256=key,
+            decoded_file=str(path.relative_to(root)),decoded_bytes=len(value),decoded_sha256=_hash(path)))
+    _atomic_write(root/'transport.json',json.dumps(dict(schema_version='s3_exact_transport_v1',files=inventory),indent=2).encode())
+    return inventory
+
+
+def run_s1_forward_screen(*, workspace, output_dir):
+    """Fixed S1 factor baseline; unresolved total-return labels remain explicit UNKNOWN."""
+    import json, time, numpy as np
+    from astraquant.research.trading_plan_r1_s3 import S1_SHA,_hash,_atomic_write
+    from astraquant.portfolio.normalized_ca import NormalizedCA
+    w=Path(workspace).resolve();out=Path(output_dir).resolve();out.mkdir(parents=True,exist_ok=True);started=time.perf_counter()
+    source=w/'accounting-canonical-source';panel_path=w/'s1-37708776526/data/panel/eligibility_panel.parquet'
+    export=w/'accounting-export-37769333701/input_manifest.json'
+    if _hash(panel_path)!=S1_SHA or _hash(export)!='e18b21dab018c04ae5f6d05979c9d601b035bde45338ed40c42544be9337a26c':raise ValueError('unaccepted screen source')
+    inventory=json.loads(export.read_text())
+    for entry in inventory['files']:
+        if entry['role'] in {'raw','official_events','dividend','tradability'} and _hash(source/entry['source_path'])!=entry['sha256']:raise ValueError('changed screen RAW/event input')
+    p=pd.read_parquet(panel_path).reset_index();p['stock']=p.stock.astype(str);p['date']=pd.to_datetime(p.date)
+    flags=['liq_ok','size_ok','wk_trend_ok','rs_ok','rev_ok','eps_ok','eps_acc_ok','rs_short']
+    for col in ['available_date','wk_available_date','rev_available_date','eps_available_date']:
+        if pd.to_datetime(p[col]).gt(p.date).any():raise ValueError('future signal availability in frozen S1')
+    p=p[['date','stock']+flags].copy()
+    raw=pd.concat([pd.read_parquet(source/f'raw/prices_raw_{year}.parquet',columns=['date','stock_id','close']) for year in range(2015,2022)],ignore_index=True)
+    raw['stock_id']=raw.stock_id.astype(str);raw['date']=pd.to_datetime(raw.date)
+    calendar=pd.DatetimeIndex(sorted(raw.date.unique()));stocks=sorted(p.stock.unique())
+    if raw.duplicated(['date','stock_id']).any():raise ValueError('duplicate screen price key')
+    close=raw.pivot(index='date',columns='stock_id',values='close').reindex(index=calendar,columns=stocks)
+    del raw
+    tape=pd.read_parquet(source/'reference/tradability.parquet',columns=['date','stock_id','observed_trade','valid_ohlc'])
+    tape['stock_id']=tape.stock_id.astype(str);tape['date']=pd.to_datetime(tape.date)
+    tape['valid']=tape.observed_trade.fillna(False)&tape.valid_ohlc.fillna(False)
+    observed_quotes=tape.pivot(index='date',columns='stock_id',values='valid').reindex(index=calendar,columns=stocks).fillna(False)
+    del tape
+    event_mask=pd.DataFrame(False,index=calendar,columns=stocks)
+    events=pd.read_csv(source/'reference/corporate_actions_official.csv',dtype={'stock_id':str})
+    keys=set(zip(events.stock_id,pd.to_datetime(events.event_date)))
+    keys|={(a.ticker,pd.Timestamp(a.effective_date)) for a in NormalizedCA(source/'fundamentals/dividend.parquet').actions}
+    for stock,date in keys:
+        i=calendar.searchsorted(date)
+        if stock in event_mask and i<len(calendar):event_mask.loc[calendar[i],stock]=True
+    event_count=event_mask.cumsum()
+    base=p.set_index(['date','stock']);rows=[];missing=[]
+    for horizon in [5,10,20]:
+        future=close.shift(-horizon);labels=future/close-1
+        known=close.gt(0)&future.gt(0)&observed_quotes&observed_quotes.shift(-horizon).fillna(False)&((event_count.shift(-horizon)-event_count).eq(0))
+        values=labels.stack(dropna=False).rename('label').rename_axis(['date','stock'])
+        valid=known.stack(dropna=False).rename('known').rename_axis(['date','stock'])
+        frame=base.join(values).join(valid)
+        frame['known']=frame.known.fillna(False)
+        year=frame.index.get_level_values('date').year
+        day=frame.index.get_level_values('date')
+        day_mean=frame.loc[frame.known,'label'].groupby(level='date').mean()
+        frame['control_same_day']=day.map(day_mean)
+        for factor in flags:
+            for scope,selection in [('all_E1',np.ones(len(frame),dtype=bool))]+[(str(y),year==y) for y in range(2016,2022)]:
+                selected=frame.loc[selection & frame[factor].fillna(False).astype(bool)]
+                observed=selected.loc[selected.known]
+                rows.append(dict(factor=factor,horizon_sessions=horizon,scope=scope,signal_count=len(selected),
+                    known_labels=len(observed),unknown_labels=len(selected)-len(observed),
+                    mean_return=float(observed.label.mean()) if len(observed) else None,
+                    median_return=float(observed.label.median()) if len(observed) else None,
+                    same_day_population_mean=float(observed.control_same_day.mean()) if len(observed) else None,
+                    mean_excess_same_day=float((observed.label-observed.control_same_day).mean()) if len(observed) else None))
+        holes=frame.loc[~frame.known]
+        counts=holes.groupby(level='stock').agg(label_count=('known','size'),**{f: (f,'sum') for f in flags}).reset_index()
+        counts['horizon_sessions']=horizon;missing.append(counts)
+        print('forward screen',horizon,'known',int(frame.known.sum()),'unknown',int((~frame.known).sum()),flush=True)
+    pd.DataFrame(rows).to_csv(out/'factor_numbers.csv',index=False)
+    pd.concat(missing,ignore_index=True).to_csv(out/'unknown_label_counts_by_stock.csv',index=False)
+    definitions=dict(liq_ok='5-day average volume >=1000 lots',size_ok='20-day average turnover >=TWD50m; existing turnover proxy, not market cap',
+        wk_trend_ok='previous complete week close>MA6>MA20; both MAs rise',rs_ok='original S1 market percentile >=80; original full-market denominator',
+        rev_ok='as-of announced monthly revenue YoY>20%',eps_ok='as-of announced quarterly EPS YoY>30%',
+        eps_acc_ok='as-of three quarterly EPS YoYs strictly accelerate twice',rs_short='original S1 120-day history flag; separate filter')
+    result=dict(source_panel_sha256=S1_SHA,source_export_sha256=_hash(export),source_stocks=len(stocks),source_rows=len(p),
+        horizons=[5,10,20],signal='signal-date RAW close; fixed PIT S1 flags',label='global-market trading-day t+h RAW close / t close -1, only no-event intervals',
+        unknown_policy='all corporate-event crossings, missing/zero future prices and end-of-source labels retained as UNKNOWN; no guessed total-return terms',
+        total_return_supported_event_crossings=0,holdout='not assigned; annual 2016-2021 numbers all disclosed; no fitted thresholds or holdout claim',
+        excluded_industry='excl_ok fixed True; no industry exclusion',definitions=definitions,
+        elapsed_seconds=time.perf_counter()-started,files=[dict(file=q.name,bytes=q.stat().st_size,sha256=_hash(q)) for q in [out/'factor_numbers.csv',out/'unknown_label_counts_by_stock.csv']])
+    _atomic_write(out/'manifest.json',json.dumps(result,indent=2).encode());return result

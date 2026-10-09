@@ -1,0 +1,13 @@
+{
+  "interruption_returncode": -9,
+  "checkpoint_date": "2020-07-07",
+  "checkpoint_sha256": "c38f19faab598d3b5e035f79eba0002e582bd1711889af16265ed528ab03de8f",
+  "resume_first_day": "2020-07-08",
+  "same_final_state_bytes": true,
+  "same_all_four_csv_bytes": true,
+  "duplicate_fills": 0,
+  "duplicate_events": 0,
+  "total_probe_seconds": 173.36228841200045,
+  "first_pid": 13,
+  "second_pid": 10281
+}

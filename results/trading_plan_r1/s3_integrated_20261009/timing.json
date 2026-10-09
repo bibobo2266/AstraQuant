@@ -1,0 +1,195 @@
+{
+  "old": [
+    {
+      "action": "baseline",
+      "cell": 1,
+      "pid": 2,
+      "load_seconds": 33.43369436800003,
+      "day0_seconds": 35.559919487000116,
+      "total_seconds": 466.5176057580002,
+      "completed": [
+        "2020-07-01",
+        "2020-07-02",
+        "2020-07-03",
+        "2020-07-06",
+        "2020-07-07",
+        "2020-07-08",
+        "2020-07-09",
+        "2020-07-10"
+      ],
+      "input_binding": "45651fc420b010fdfb1401cb8f417e2e4355ee74fc46c07b6bba60a619bf7a02",
+      "filled": 7,
+      "closed": 2,
+      "ca_events": [
+        {
+          "kind": "normalized_ca",
+          "ticker": "8081",
+          "day": "2020-07-07",
+          "binding": "f0fa98a466923b25f15135aa7f67edf0633ff00720c034f79e1bfe3851f1a415",
+          "action_kind": "CASH_DIVIDEND",
+          "source_row": 16675,
+          "event_id": "normalized:8081:2020-07-07:CASH_DIVIDEND",
+          "old_quantity": 421.0,
+          "new_quantity": 421.0,
+          "cash_receivable": 3157.5,
+          "old_stop": 155.31,
+          "new_stop": 147.81,
+          "trade_id": "ca-segment-1:trade:2020-07-03:8081"
+        },
+        {
+          "kind": "normalized_ca",
+          "ticker": "2421",
+          "day": "2020-07-08",
+          "binding": "f0fa98a466923b25f15135aa7f67edf0633ff00720c034f79e1bfe3851f1a415",
+          "action_kind": "CASH_DIVIDEND",
+          "source_row": 4006,
+          "event_id": "normalized:2421:2020-07-08:CASH_DIVIDEND",
+          "old_quantity": 1259.0,
+          "new_quantity": 1259.0,
+          "cash_receivable": 2518.0,
+          "old_stop": 52.359,
+          "new_stop": 50.359,
+          "trade_id": "ca-segment-1:trade:2020-07-06:2421"
+        }
+      ]
+    },
+    {
+      "action": "baseline",
+      "cell": 2,
+      "pid": 2,
+      "load_seconds": 32.83926795300022,
+      "day0_seconds": 35.32088196900031,
+      "total_seconds": 422.6105657840003,
+      "completed": [
+        "2020-07-01",
+        "2020-07-02",
+        "2020-07-03",
+        "2020-07-06",
+        "2020-07-07",
+        "2020-07-08",
+        "2020-07-09",
+        "2020-07-10"
+      ],
+      "input_binding": "45651fc420b010fdfb1401cb8f417e2e4355ee74fc46c07b6bba60a619bf7a02",
+      "filled": 4,
+      "closed": 1,
+      "ca_events": []
+    },
+    {
+      "action": "baseline",
+      "cell": 3,
+      "pid": 2,
+      "load_seconds": 34.03163701499989,
+      "day0_seconds": 36.20325161599976,
+      "total_seconds": 474.3380647509998,
+      "completed": [
+        "2020-07-01",
+        "2020-07-02",
+        "2020-07-03",
+        "2020-07-06",
+        "2020-07-07",
+        "2020-07-08",
+        "2020-07-09",
+        "2020-07-10"
+      ],
+      "input_binding": "45651fc420b010fdfb1401cb8f417e2e4355ee74fc46c07b6bba60a619bf7a02",
+      "filled": 7,
+      "closed": 2,
+      "ca_events": [
+        {
+          "kind": "normalized_ca",
+          "ticker": "8081",
+          "day": "2020-07-07",
+          "binding": "f0fa98a466923b25f15135aa7f67edf0633ff00720c034f79e1bfe3851f1a415",
+          "action_kind": "CASH_DIVIDEND",
+          "source_row": 16675,
+          "event_id": "normalized:8081:2020-07-07:CASH_DIVIDEND",
+          "old_quantity": 421.0,
+          "new_quantity": 421.0,
+          "cash_receivable": 3157.5,
+          "old_stop": 155.31,
+          "new_stop": 147.81,
+          "trade_id": "ca-segment-3:trade:2020-07-03:8081"
+        },
+        {
+          "kind": "normalized_ca",
+          "ticker": "2421",
+          "day": "2020-07-08",
+          "binding": "f0fa98a466923b25f15135aa7f67edf0633ff00720c034f79e1bfe3851f1a415",
+          "action_kind": "CASH_DIVIDEND",
+          "source_row": 4006,
+          "event_id": "normalized:2421:2020-07-08:CASH_DIVIDEND",
+          "old_quantity": 1259.0,
+          "new_quantity": 1259.0,
+          "cash_receivable": 2518.0,
+          "old_stop": 52.359,
+          "new_stop": 50.359,
+          "trade_id": "ca-segment-3:trade:2020-07-06:2421"
+        }
+      ]
+    },
+    {
+      "action": "baseline",
+      "cell": 4,
+      "pid": 2,
+      "load_seconds": 38.10550803199976,
+      "day0_seconds": 40.81547525699989,
+      "total_seconds": 439.61529738100035,
+      "completed": [
+        "2020-07-01",
+        "2020-07-02",
+        "2020-07-03",
+        "2020-07-06",
+        "2020-07-07",
+        "2020-07-08",
+        "2020-07-09",
+        "2020-07-10"
+      ],
+      "input_binding": "45651fc420b010fdfb1401cb8f417e2e4355ee74fc46c07b6bba60a619bf7a02",
+      "filled": 4,
+      "closed": 1,
+      "ca_events": []
+    }
+  ],
+  "new": [
+    {
+      "cell": 1,
+      "entry_mode": "close",
+      "exit_mode": "sma20",
+      "shared_loader_seconds": 38.55580283500058,
+      "day0_seconds": 44.618959787000676,
+      "executor_seconds": 49.95849528400049,
+      "cold_total_seconds": 88.51429811900107
+    },
+    {
+      "cell": 2,
+      "entry_mode": "next_open",
+      "exit_mode": "sma20",
+      "shared_loader_seconds": 38.55580283500058,
+      "day0_seconds": 0.03448882499924366,
+      "executor_seconds": 3.8480882089997976,
+      "cold_total_seconds": null
+    },
+    {
+      "cell": 3,
+      "entry_mode": "close",
+      "exit_mode": "sma20_or_rsi13_lt50",
+      "shared_loader_seconds": 38.55580283500058,
+      "day0_seconds": 0.03440732899980503,
+      "executor_seconds": 5.804946964999544,
+      "cold_total_seconds": null
+    },
+    {
+      "cell": 4,
+      "entry_mode": "next_open",
+      "exit_mode": "sma20_or_rsi13_lt50",
+      "shared_loader_seconds": 38.55580283500058,
+      "day0_seconds": 0.047095775000343565,
+      "executor_seconds": 4.430541476999679,
+      "cold_total_seconds": null
+    }
+  ],
+  "new_shared_cold_four_total_seconds": 102.59787477000009,
+  "scope": "8-day real-source probe; not the historic B 348s cohort; no full-period estimate",
+  "status": "pending_external_review"
+}

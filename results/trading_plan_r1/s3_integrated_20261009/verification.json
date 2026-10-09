@@ -1,0 +1,11 @@
+{
+  "pytest_passed": 197,
+  "subtests_passed": 13,
+  "elapsed_seconds": 50.7,
+  "external_review": "pending",
+  "code_sha256": {
+    "scripts/source_accounting_smoke_replay.py": "060f896ccab4f838b5bb7c75501ac894776f8b8ac533356c8cac8f34a9de122e",
+    "src/astraquant/research/trading_plan_r1_s3.py": "68cd6e0b42a3e5d3743cad4fcf0a849cf194aa849b3856496875c4b82ae8cd50",
+    "tests/test_s3_batch_runtime.py": "cd9e47985f256ebe6521c8f63ff0462db0587a3ec7689025ebd32a8c48af0d04"
+  }
+}

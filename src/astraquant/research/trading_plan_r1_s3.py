@@ -4,6 +4,7 @@ from __future__ import annotations
 import hashlib
 import json
 import math
+import os
 import subprocess
 from copy import deepcopy
 from dataclasses import asdict, dataclass, fields
@@ -93,6 +94,28 @@ def _digest(value):
     return hashlib.sha256(json.dumps(value, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
 
 
+def _atomic_write(path, data):
+    """Publish only a complete fsynced generation; keep the prior checkpoint on failure."""
+    import tempfile
+    target = Path(path)
+    target.parent.mkdir(parents=True, exist_ok=True)
+    fd, name = tempfile.mkstemp(prefix=target.name + '.', suffix='.tmp', dir=target.parent)
+    try:
+        with os.fdopen(fd, 'wb') as stream:
+            stream.write(data)
+            stream.flush()
+            os.fsync(stream.fileno())
+        os.replace(name, target)
+        directory = os.open(target.parent, os.O_RDONLY)
+        try:
+            os.fsync(directory)
+        finally:
+            os.close(directory)
+    finally:
+        if os.path.exists(name):
+            os.unlink(name)
+
+
 def _day_labels(values):
     # Convert each distinct canonical date once; preserve the original _day semantics.
     return values.map({pd.Timestamp(value): _day(value) for value in values.unique()})
@@ -141,7 +164,7 @@ def _frame_digest(frame):
         values=hashlib.sha256(pd.util.hash_pandas_object(frame, index=True).values.tobytes()).hexdigest()))
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True)
 class _InputSnapshot:
     input_binding: str
     bars_sha: str
@@ -605,7 +628,7 @@ class S3TradingPlanR1(TradingPlanR1):
             raise ValueError('fill outside bounded real accounting probe')
         if not self.inputs.manifest['period']['start']<=day<=self.inputs.manifest['period']['end']:
             raise ValueError('S3 fill outside declared E1')
-        barred=self._bound_bars[self._bound_bars.stock.eq(event['stock']) & self._bound_bars.date.map(_day).eq(day)]
+        barred=self._execution_bar(event['stock'], day)
         if (len(barred) and _has_corporate_event(barred.iloc[0].corporate_action)
                 and (day,event['stock']) not in self.applied_ca_keys):
             raise NotExecutableError('S3 source event requires resolved accounting')
@@ -630,6 +653,9 @@ class S3TradingPlanR1(TradingPlanR1):
         if not math.isclose(result.fill.fees, event["cost"], abs_tol=1e-8):
             raise ValueError("canonical cost differs from fixed R1 costs")
         return result
+
+    def _execution_bar(self, stock, day):
+        return self._bound_bars[self._bound_bars.stock.eq(stock) & self._bound_bars.date.map(_day).eq(day)]
 
     def _charge(self, row, *, price, quantity, day, observed_at):
         self._verify_run()
@@ -871,16 +897,19 @@ class S3TradingPlanR1(TradingPlanR1):
     def save(self, path):
         self.validate_tables()
         self._check_accounts()
+        state = self._state()
+        state["state_digest"] = _digest(state)
+        _atomic_write(path, json.dumps(state, allow_nan=False).encode())
+
+    def _state(self, tables=None):
         state = dict(version=VERSION, input_binding=self.inputs.binding_id, identity=self.ledger.identity,
                      declared_cell=self._declared_cell,
                      initial_cash=self.initial_cash, sessions=self.sessions, cash=self.cash,
-                     tables=self.ledger.rows, positions={s: asdict(p) for s,p in self.positions.items()},
+                     tables=self.ledger.rows if tables is None else tables, positions={s: asdict(p) for s,p in self.positions.items()},
                      plans=self.plans, pending_entries=self.pending_entries, completed=self.completed,
                      frozen=self.frozen, freeze_reason=self.freeze_reason, last_reliable_equity=self.last_reliable_equity,
                      journal=self.journal, close_exit_reasons=self.close_exit_reasons)
-        state = _plain(state)
-        state["state_digest"] = _digest(state)
-        Path(path).write_text(json.dumps(state, allow_nan=False))
+        return _plain(state)
 
     @classmethod
     def load(cls, path, *, inputs):
@@ -1031,3 +1060,702 @@ class S3TradingPlanR1(TradingPlanR1):
             result[key] = self.ledger.identity[key]
         result.attrs['unresolved_event_coverage']=coverage
         return result
+
+
+# The reference executor remains available for exact regression comparisons.
+# Batch execution consumes detached immutable bytes, never caller-owned frames.
+from collections import deque, namedtuple
+from types import MappingProxyType
+from weakref import WeakValueDictionary
+import numpy as np
+
+_BATCH_SNAPSHOTS = WeakValueDictionary()
+
+
+_FEATURE_DTYPE = np.dtype([
+    ('trigger', '?'), ('bb_upper', '<f8'), ('sma20', '<f8'), ('prev_close', '<f8'),
+    ('base_sessions', '<i8'), ('base_valid', '?'), ('pivot', '<f8'),
+    ('structure_stop', '<f8'), ('rsi13', '<f8'),
+])
+
+
+def _feature_bytes(history):
+    """Causal prefix-equivalent rolling calculations and linear-time base extrema."""
+    close = history.close
+    upper = close.rolling(21, min_periods=21).mean() + 2.1 * close.rolling(21, min_periods=21).std(ddof=0)
+    above = close.gt(upper) & np.isfinite(upper)
+    result = np.empty(len(history), dtype=_FEATURE_DTYPE)
+    result['trigger'] = (above & close.shift().le(upper.shift()) & np.isfinite(upper.shift())).to_numpy()
+    result['bb_upper'] = upper.to_numpy()
+    result['sma20'] = close.rolling(20, min_periods=20).mean().to_numpy()
+    result['prev_close'] = close.shift().to_numpy()
+    result['rsi13'] = _rsi_value(panel=history, lookback=13).to_numpy()
+    values = close.to_numpy(dtype=float)
+    missing = np.concatenate(([0], np.cumsum(np.isnan(values))))
+    last_above = -1
+    maxima, minima = deque(), deque()
+    for i, value in enumerate(values):
+        start = last_above + 1 if last_above >= 0 else i - 60
+        left = max(0, start)
+        if i and not np.isnan(values[i-1]):
+            previous = values[i-1]
+            while maxima and values[maxima[-1]] <= previous:
+                maxima.pop()
+            while minima and values[minima[-1]] >= previous:
+                minima.pop()
+            maxima.append(i-1); minima.append(i-1)
+        while maxima and maxima[0] < left:
+            maxima.popleft()
+        while minima and minima[0] < left:
+            minima.popleft()
+        result['base_sessions'][i] = i - left
+        result['base_valid'][i] = start >= 0 and missing[i] == missing[left]
+        result['pivot'][i] = values[maxima[0]] if maxima else np.nan
+        result['structure_stop'][i] = values[minima[0]] if minima else np.nan
+        if above.iloc[i]:
+            last_above = i
+    return result.tobytes()  # bytes-backed views cannot turn WRITEABLE back on.
+
+
+def _arrow_bytes(frame):
+    import pyarrow as pa
+    table = pa.Table.from_pandas(frame, preserve_index=False)
+    # Repeated binding/source strings otherwise consume hundreds of MB in daily snapshots.
+    for i, field in enumerate(table.schema):
+        if (pa.types.is_string(field.type) or pa.types.is_large_string(field.type)) and frame[field.name].nunique() < 64:
+            table = table.set_column(i, field.name, table.column(i).dictionary_encode())
+    sink = pa.BufferOutputStream()
+    with pa.ipc.new_stream(sink, table.schema) as writer:
+        writer.write_table(table)
+    return sink.getvalue().to_pybytes()
+
+
+def _arrow_frame(value, index=None):
+    import pyarrow as pa
+    table = pa.ipc.open_stream(pa.BufferReader(value)).read_all()
+    if index is not None:
+        table = table.slice(index, 1)
+    return table.to_pandas()
+
+
+def _freeze(value):
+    if isinstance(value, dict):
+        return MappingProxyType({k: _freeze(v) for k, v in value.items()})
+    if isinstance(value, (list, tuple)):
+        return tuple(_freeze(v) for v in value)
+    return value
+
+
+class _Sealed:
+    def __getattribute__(self, name):
+        value = object.__getattribute__(self, name)
+        return MappingProxyType(value) if name == '__dict__' else value
+
+    def __setattr__(self, name, value):
+        if getattr(self, '_sealed', False):
+            raise TypeError('immutable S3 runtime snapshot')
+        object.__setattr__(self, name, value)
+
+
+_RECORD_TYPES = {}
+
+
+def _immutable_record(value):
+    # Detach even frozen dataclasses: their ordinary __dict__ is otherwise writable.
+    if hasattr(value, '__dataclass_fields__'):
+        kind = type(value)
+        record = _RECORD_TYPES.get(kind)
+        if record is None:
+            record = namedtuple('Sealed' + kind.__name__, [f.name for f in fields(value)])
+            _RECORD_TYPES[kind] = record
+        return record(*(_immutable_record(getattr(value, f.name)) for f in fields(value)))
+    return value
+
+
+class _BatchReadiness(namedtuple('SealedReadiness', [f.name for f in fields(AccountingReadiness)])):
+    __slots__ = ()
+
+    @property
+    def passed(self):
+        return all(self)
+
+    @property
+    def failed_checks(self):
+        return tuple(k for k, v in zip(self._fields, self) if not v)
+
+    def require_performance_unlocked(self):
+        return AccountingReadiness.require_performance_unlocked(self)
+
+
+class _BatchNormalizedCA(_Sealed, NormalizedCA):
+    def __init__(self, original):
+        self.binding = original.binding
+        self.actions = tuple(_immutable_record(a) for a in original.actions)
+        self._sealed = True
+
+    def verify(self):
+        # Already verified and detached at Day 0. No file or all-actions hash here.
+        return None
+
+
+class _BatchReviewedCA(_Sealed, ReviewedCA):
+    def __init__(self, original):
+        self.binding = original.binding
+        self.action = _immutable_record(original.resolve('1315', '2020-10-26'))
+        self._sealed = True
+
+    def verify(self):
+        return None
+
+    def resolve(self, ticker, day):
+        if (str(ticker), str(day)) != ('1315', '2020-10-26'):
+            raise ValueError('corporate action lacks complete reviewed physical evidence')
+        return self.action
+
+
+class _BatchInputs(_Sealed, S3Inputs):
+    def __init__(self, original, runtime):
+        for name in ('binding_id', 'source_kind', 'fixture', 'probe', 'source_root', 'root',
+                     ):
+            setattr(self, name, getattr(original, name))
+        self._panel_keys = _ImmutablePanelKeys.build(original._panel_keys)
+        self._snapshot = _InputSnapshot(original.binding_id, original._snapshot.bars_sha,
+                                        self._panel_keys, original._snapshot.ca_sha)
+        self.manifest = _freeze(deepcopy(original.manifest))
+        self.inventory = _freeze(deepcopy(original.inventory))
+        self.official_event_types = MappingProxyType(dict(original.official_event_types))
+        self.terminal_records = tuple(_immutable_record(t) for t in original.terminal_records)
+        self.readiness = _BatchReadiness(*(getattr(original.readiness, f.name) for f in fields(AccountingReadiness)))
+        self.normalized_ca = None if original.normalized_ca is None else _BatchNormalizedCA(original.normalized_ca)
+        self.reviewed_ca = None if original.reviewed_ca is None else _BatchReviewedCA(original.reviewed_ca)
+        self.calendar = runtime.calendar
+        self.runtime = runtime
+        self._sealed = True
+
+    def verify(self):
+        return None
+
+    @property
+    def _bars(self):
+        # Parent initialization needs only the calendar; no mutable source frame survives.
+        return pd.DataFrame({'date': pd.to_datetime(self.calendar)})
+
+
+@dataclass(frozen=True, slots=True)
+class _ImmutablePanelKeys:
+    days: object
+    stocks: object
+    bits: bytes
+    width: int
+
+    @classmethod
+    def build(cls, keys):
+        days = {d: i for i, d in enumerate(sorted({d for d, _ in keys}))}
+        stocks = {s: i for i, s in enumerate(sorted({s for _, s in keys}))}
+        bits = np.zeros(len(days)*len(stocks), dtype=np.uint8)
+        for d, s in keys:
+            bits[days[d]*len(stocks)+stocks[s]] = 1
+        return cls(MappingProxyType(days), MappingProxyType(stocks), bits.tobytes(), len(stocks))
+
+    def __contains__(self, key):
+        day, stock = key
+        d, s = self.days.get(day), self.stocks.get(stock)
+        return d is not None and s is not None and bool(self.bits[d*self.width+s])
+
+
+@dataclass(frozen=True, slots=True, weakref_slot=True)
+class _BatchSnapshot:
+    days: object
+    stocks: object
+    features: object
+    calendar: tuple
+    day_index: object
+    cache_sha: str
+    input_binding: str
+
+    @classmethod
+    def build(cls, inputs):
+        bars = inputs._bars
+        calendar = tuple(sorted(_day(v) for v in bars.date.unique()))
+        dates = pd.to_datetime(calendar)
+        features, stocks = {}, {}
+        tape = pd.read_parquet(inputs.role('tradability'))
+        tape['stock_id'] = tape.stock_id.astype(str)
+        tape['date'] = pd.to_datetime(tape.date).dt.normalize()
+        if tape.duplicated(['stock_id', 'date']).any():
+            raise ValueError('duplicate canonical tradability keys')
+        tape = tape.set_index(['stock_id', 'date'])
+        tape_by_stock = {stock: group.droplevel('stock_id')
+                         for stock, group in tape.groupby(level='stock_id', sort=False)}
+        digest = hashlib.sha256()
+        for stock, group in bars.groupby('stock', sort=False):
+            history = group.set_index('date').reindex(dates)
+            history['stock_id'] = stock
+            encoded = _feature_bytes(history)
+            features[stock] = encoded
+            digest.update(stock.encode()); digest.update(encoded)
+            source_truth = tape_by_stock.get(stock)
+            truth = source_truth.reindex(dates) if source_truth is not None else pd.DataFrame(index=dates)
+            raw = history[['open', 'high', 'low', 'close', 'corporate_action']].copy()
+            raw = raw.rename(columns={'high': 'max', 'low': 'min'})
+            for column in ('observed_trade', 'valid_ohlc', 'buy_blocked', 'sell_blocked', 'reason'):
+                raw[column] = truth[column] if column in truth else None
+            raw['_raw_present'] = history.stock.notna()
+            raw['_tape_present'] = truth.index.isin(source_truth.index) if source_truth is not None else False
+            stocks[stock] = _arrow_bytes(raw.reset_index(drop=True))
+        days = {_day(day): _arrow_bytes(group) for day, group in bars.groupby('date', sort=False)}
+        snapshot = cls(MappingProxyType(days), MappingProxyType(stocks), MappingProxyType(features),
+                   calendar, MappingProxyType({d: i for i, d in enumerate(calendar)}), digest.hexdigest(), inputs.binding_id)
+        _BATCH_SNAPSHOTS[id(snapshot)] = snapshot
+        return snapshot
+
+
+class _BatchMarketData(ExecutionMarketData):
+    """Use the same RAW/tradability resolver against immutable Day 0 records."""
+    def __init__(self, source, snapshot):
+        super().__init__(source)
+        self.snapshot = snapshot
+
+    def _snapshot_row(self, ticker, day):
+        index = self.snapshot.day_index.get(_day(day))
+        data = self.snapshot.stocks.get(str(ticker))
+        if index is None or data is None:
+            return None
+        return _arrow_frame(data, index).iloc[0]
+
+    def _raw_row(self, ticker, session_date):
+        row = self._snapshot_row(ticker, session_date)
+        return None if row is None or not row['_raw_present'] else row
+
+    def _tradability_row(self, ticker, session_date):
+        row = self._snapshot_row(ticker, session_date)
+        return None if row is None or not row['_tape_present'] else row
+
+    def _latest_valid_raw_before(self, *, ticker, day):
+        data = self.snapshot.stocks.get(str(ticker))
+        if data is None:
+            return None
+        frame = _arrow_frame(data)
+        before = np.searchsorted(self.snapshot.calendar, _day(day))
+        for i in range(before-1, -1, -1):
+            row = frame.iloc[i]
+            session = pd.Timestamp(self.snapshot.calendar[i])
+            if row['_raw_present'] and self._bar_from_row(ticker, session, row) is not None:
+                return session, row
+        return None
+
+
+class _ChunkRows:
+    """Append-only eligibility records; durable immutable chunks keep RAM bounded."""
+    def __init__(self, root=None, references=()):
+        self.root = None if root is None else Path(root)
+        self.references = list(references)
+        self.live = []
+        self.archived = sum(r['rows'] for r in references)
+
+    def append(self, row):
+        self.live.append(row)
+
+    def batches(self):
+        import gzip
+        for reference in self.references:
+            data = gzip.decompress((self.root / reference['path']).read_bytes())
+            if hashlib.sha256(data).hexdigest() != reference['sha256']:
+                raise ValueError('changed immutable eligibility checkpoint chunk')
+            rows = json.loads(data)
+            if len(rows) != reference['rows']:
+                raise ValueError('eligibility checkpoint chunk row count mismatch')
+            yield rows
+        if self.live:
+            yield self.live
+
+    def __iter__(self):
+        for rows in self.batches():
+            yield from rows
+
+    def __len__(self):
+        return self.archived + len(self.live)
+
+    def __getitem__(self, index):
+        if isinstance(index, slice):
+            start, stop, step = index.indices(len(self))
+            if start >= self.archived:
+                return self.live[start-self.archived:stop-self.archived:step]
+            from itertools import islice
+            return list(islice(self, start, stop, step))
+        if index < 0: index += len(self)
+        if index >= self.archived:
+            return self.live[index-self.archived]
+        from itertools import islice
+        return next(islice(self, index, index+1))
+
+    def spill(self, root, references):
+        self.root = Path(root)
+        self.references.extend(references)
+        self.archived += len(self.live)
+        self.live.clear()
+
+
+class _BatchLedger(_S3Ledger):
+    def __init__(self, *args):
+        super().__init__(*args)
+        self.rows['eligibility'] = _ChunkRows()
+        self._indexes = {name: {} for name in self.schemas}
+        self._indexed_rows = self.rows
+        self.defer_tables = False
+        self._checked_shapes = set()
+
+    def _index(self):
+        if self.rows is not self._indexed_rows:
+            self._indexes = {name: {r['row_id']: r for r in rows} for name, rows in self.rows.items()}
+            if any(len(self._indexes[name]) != len(rows) for name, rows in self.rows.items()):
+                raise ValueError('duplicate restored S3 ledger key')
+            self._indexed_rows = self.rows
+
+    def find(self, table, row_id):
+        self._index()
+        hit = self._indexes[table].get(row_id)
+        if hit is True:
+            return next(r for r in self.rows[table] if r['row_id'] == row_id)
+        return hit
+
+    def add(self, table, row_id, **values):
+        self._index()
+        if row_id in self._indexes[table]:
+            raise ValueError(f'duplicate {table} row: {row_id}')
+        shape = (table, frozenset(values))
+        if shape not in self._checked_shapes:
+            unknown = set(values) - set(self.schemas[table])
+            if unknown:
+                raise ValueError(f'unknown {table} fields: {sorted(unknown)}')
+            self._checked_shapes.add(shape)
+        row = dict.fromkeys(self.schemas[table])
+        row.update(self.identity, row_id=row_id, **values)
+        self.rows[table].append(row)
+        self._indexes[table][row_id] = row
+        return row
+
+    def tables(self):
+        return {} if self.defer_tables else super().tables()
+
+    def batches(self, name):
+        rows = self.rows[name]
+        batches = rows.batches() if isinstance(rows, _ChunkRows) else [rows]
+        produced = False
+        for batch in batches:
+            produced = True
+            temporary = _S3Ledger('chunk', 'backtest')
+            temporary.rows[name] = batch
+            yield temporary.table(name)
+        if not produced:
+            yield _S3Ledger('empty', 'backtest').table(name)
+
+    def table(self, name):
+        return pd.concat(list(self.batches(name)), ignore_index=True)
+
+
+class S3BatchTradingPlanR1(S3TradingPlanR1):
+    """Sealed Day 0 input/indicator snapshot; canonical accounting remains active."""
+    def __init__(self, *, inputs, run_id, entry_mode, exit_mode, initial_cash=1_000_000,
+                 snapshot=None):
+        # Exactly the legacy verification at the loader boundary, never in the loop.
+        if not isinstance(inputs, _BatchInputs):
+            inputs.verify()
+        snapshot = snapshot or (inputs.runtime if isinstance(inputs, _BatchInputs) else None) or next((s for s in list(_BATCH_SNAPSHOTS.values())
+                                     if s.input_binding == inputs.binding_id), None)
+        if snapshot is None:
+            if isinstance(inputs, _BatchInputs):
+                raise ValueError('sealed inputs require their verified runtime snapshot')
+            snapshot = _BatchSnapshot.build(inputs)
+        if (_BATCH_SNAPSHOTS.get(id(snapshot)) is not snapshot
+                or snapshot.input_binding != inputs.binding_id):
+            raise ValueError('unverified or wrong-input S3 indicator cache')
+        sealed = inputs if isinstance(inputs, _BatchInputs) else _BatchInputs(inputs, snapshot)
+        super().__init__(inputs=sealed, run_id=run_id, entry_mode=entry_mode,
+                         exit_mode=exit_mode, initial_cash=initial_cash)
+        self._runtime = snapshot
+        self._declared_runtime = snapshot
+        self._declared_inputs = sealed
+        self._bound_bars = snapshot
+        ledger = _BatchLedger(run_id, 'backtest', 's3-r1', entry_mode)
+        ledger.identity = deepcopy(self.ledger.identity)
+        self.ledger = ledger
+        self.canonical.market_data = _BatchMarketData(SourceDataAdapter(inputs.source_root), snapshot)
+        self._declared_market = self.canonical.market_data
+        self._active_day = None
+        self.runtime_manifest = dict(input_binding=inputs.binding_id, bars_sha256=inputs._snapshot.bars_sha,
+            indicator_sha256=snapshot.cache_sha, formula='BB21/2.1/ddof0;SMA20;RSI13;causal-base-v1',
+            validation_boundary='Day0', immutable_storage='owned bytes; mapping proxies; frozen scalar instructions',
+            files=[dict(e) for e in inputs.inventory])
+        self._checkpoint_chunks = []
+        self._checkpoint_counts = {'eligibility': 0, 'equity': 0}
+        self._economics_context = None
+
+    def _check_accounts(self):
+        # Rebuild from actual current records at each gate; no historical check is skipped.
+        # Index once instead of rescanning every rejected order for each closed trade.
+        by_trade, events = {}, {}
+        for row in self.ledger.rows['fills']:
+            if row['fill']:
+                by_trade.setdefault(row['trade_id'], []).append(row)
+        journal = {}
+        for event in self.journal:
+            if event['kind'] == 'fill':
+                journal[event['id']] = event
+            elif event['kind'] in {'reviewed_ca', 'normalized_ca'}:
+                events.setdefault(event['trade_id'], []).append(event['event_id'])
+        ca = self.canonical.portfolio.corporate_actions
+        rights = {**ca.completed_cash_entitlements, **ca.cash_entitlement_receivables,
+                  **ca.completed_dividends, **ca.dividend_receivables}
+        self._economics_context = (by_trade, journal, events, rights)
+        try:
+            return super()._check_accounts()
+        finally:
+            self._economics_context = None
+
+    def _trade_economics(self, trade_id):
+        if self._economics_context is None:
+            return super()._trade_economics(trade_id)
+        by_trade, journal, events, rights = self._economics_context
+        rows = by_trade.get(trade_id, ())
+        buys = [r for r in rows if r['side'] == 'buy']
+        sells = [r for r in rows if r['side'] == 'sell']
+        if len(buys) != 1 or len(sells) != 1:
+            raise ValueError('closed trade requires one canonical entry and exit')
+        buy, sell = (journal[r['row_id']] for r in (buys[0], sells[0]))
+        entry = buy['quantity'] * buy['price'] + buy['cost']
+        proceeds = sell['quantity'] * sell['price'] - sell['cost']
+        ids = events.get(trade_id, [])
+        amount = sum(rights[event_id].amount for event_id in ids if event_id in rights)
+        pnl = proceeds + amount - entry
+        return dict(pnl=pnl, net_return=pnl / entry, cash_entitlement=amount, events=ids)
+
+    def _verify_run(self):
+        if (self.inputs is not self._declared_inputs or self._runtime is not self._declared_runtime
+                or self.inputs.runtime is not self._runtime
+                or self._bound_bars is not self._runtime
+                or self.canonical.market_data is not self._declared_market
+                or self.canonical.market_data.snapshot is not self._runtime
+                or (self.entry_mode, self.exit_mode) != self._declared_cell
+                or self.ledger.identity != self._declared_identity
+                or tuple(self.sessions) != self._declared_sessions):
+            raise ValueError('changed S3 execution cell/identity/calendar/immutable snapshot')
+
+    def _prices(self, bars):
+        self._verify_run()
+        if bars is not self._runtime:
+            raise ValueError('external bars cannot enter scoped S3')
+        frame = _arrow_frame(self._runtime.days[self._active_day])
+        frame['date'] = _day_labels(frame.date)
+        return frame
+
+    def _features(self, p, stock, day):
+        row = np.frombuffer(self._runtime.features[stock], dtype=_FEATURE_DTYPE)[self._runtime.day_index[day]]
+        return {name: row[name].item() for name in _FEATURE_DTYPE.names}
+
+    def _execution_bar(self, stock, day):
+        row = self.canonical.market_data._snapshot_row(stock, day)
+        return pd.DataFrame() if row is None else pd.DataFrame([dict(corporate_action=row.corporate_action)])
+
+    def _terminal_observation(self, terminal, day):
+        position = self.canonical.portfolio.positions.positions.get(terminal.ticker)
+        terms = next(e['sha256'] for e in self.inputs.inventory if e['role'] == 'terminal')
+        return dict(kind='terminal_observation', ticker=terminal.ticker, day=day,
+            candidate_boundary=str(terminal.suspension_from or terminal.effective_date),
+            source_status='UNKNOWN_FINAL_TERMS', binding=self.inputs.binding_id, terms_sha=terms,
+            held_quantity=0 if position is None else position.quantity,
+            trade_id=self._holding_trade_id(terminal.ticker))
+
+    def prepare(self, day):
+        self._active_day = _day(day)
+        self.ledger.defer_tables = True
+        try:
+            return super().prepare(day)
+        finally:
+            self.ledger.defer_tables = False
+
+    def reconcile_session(self, day, *, observed_at):
+        self.ledger.defer_tables = True
+        try:
+            return super().reconcile_session(day, observed_at=observed_at)
+        finally:
+            self.ledger.defer_tables = False
+
+    def remaining_sessions(self):
+        """Continue an unfinished prepared day, otherwise next declared trading session."""
+        scope = tuple(self.inputs.manifest.get('probe_sessions', [d for d in self.sessions
+            if self.inputs.manifest['period']['start'] <= d <= self.inputs.manifest['period']['end']]))
+        if self.inputs.fixture and self.completed:
+            # Engineering fixtures explicitly start after their synthetic warm-up.
+            scope = scope[scope.index(self.completed[0]):]
+        if self.completed != list(scope[:len(self.completed)]):
+            raise ValueError('checkpoint is not a completed calendar prefix')
+        if [r['date'] for r in self.ledger.rows['equity']] != self.completed:
+            raise ValueError('checkpoint equity dates differ from completed sessions')
+        if self.plans and tuple(self.plans) != scope[len(self.completed):len(self.completed)+1]:
+            raise ValueError('checkpoint prepared day is not the next uncompleted session')
+        return scope[len(self.completed):]
+
+    def _state(self, tables=None):
+        if tables is None:
+            tables = dict(self.ledger.rows)
+            tables['eligibility'] = list(tables['eligibility'])
+        return super()._state(tables=tables)
+
+    def save(self, path):
+        if len(self.ledger.rows['eligibility']) > 100_000:
+            self.save_checkpoint(path)
+        else:
+            super().save(path)
+
+    def validate_tables(self, tables=None):
+        if tables is not None:
+            return super().validate_tables(tables)
+        self._verify_run(); self._check_accounts()
+        self.ledger._index()
+        for name in S3_SCHEMAS:
+            count = 0
+            for frame in self.ledger.batches(name):
+                if tuple(frame.columns) != S3_SCHEMAS[name] or frame.row_id.duplicated().any():
+                    raise ValueError('S3 ledger schema/key mismatch')
+                if any(not frame[key].eq(value).all() for key, value in self.ledger.identity.items()):
+                    raise ValueError('S3 ledger identity/input binding mismatch')
+                if any(row_id not in self.ledger._indexes[name] for row_id in frame.row_id):
+                    raise ValueError('changed S3 ledger indexed row key')
+                count += len(frame)
+            if count != len(self.ledger._indexes[name]):
+                raise ValueError('duplicate or missing S3 ledger key')
+
+    def metric_tables(self):
+        # The eight metrics consume only fills, decisions and equity, never eligibility.
+        return {name: self.ledger.table(name) if name != 'eligibility'
+                else _S3Ledger('empty', 'backtest').table(name) for name in S3_SCHEMAS}
+
+    def export_tables(self, directory):
+        self.validate_tables()
+        target = Path(directory); target.mkdir(parents=True, exist_ok=True)
+        for name in S3_SCHEMAS:
+            first = True
+            for frame in self.ledger.batches(name):
+                for col in frame:
+                    if col in OBJECT_COLUMNS:
+                        frame[col] = frame[col].map(lambda v: json.dumps(_plain(v)))
+                    elif col not in FLOAT_COLUMNS | BOOL_COLUMNS:
+                        frame[col] = frame[col].map(lambda v: json.dumps(None if pd.isna(v) else str(v)))
+                frame.to_csv(target / f's3_{name}.csv', index=False, mode='w' if first else 'a', header=first)
+                first = False
+
+    def run_remaining(self, *, checkpoint, after_checkpoint=None, max_sessions=None):
+        done = 0
+        for day in self.remaining_sessions():
+            if self.frozen or (max_sessions is not None and done >= max_sessions):
+                break
+            self.prepare(day); self.reconcile_session(day, observed_at=day)
+            self.save_checkpoint(checkpoint)
+            if after_checkpoint is not None:
+                after_checkpoint(self, Path(checkpoint))
+            done += 1
+        return done
+
+    def save_checkpoint(self, path):
+        """Append-only tables are immutable chunks; overwrite only the small state head."""
+        import gzip
+        self._verify_run(); self._check_accounts()
+        target = Path(path); chunks = target.parent / 'checkpoint_chunks'
+        chunks.mkdir(parents=True, exist_ok=True)
+        references = list(self._checkpoint_chunks)
+        counts = dict(self._checkpoint_counts)
+        for table in ('eligibility', 'equity'):
+            rows = self.ledger.rows[table][counts[table]:]
+            if not rows:
+                continue
+            if table == 'eligibility':
+                for row in rows:
+                    if (set(row) != set(S3_SCHEMAS[table])
+                            or any(row.get(k) != v for k, v in self.ledger.identity.items())
+                            or row['row_id'] not in self.ledger._indexes[table]):
+                        raise ValueError('changed new S3 eligibility checkpoint row')
+            data = json.dumps(_plain(rows), allow_nan=False, separators=(',', ':')).encode()
+            sha = hashlib.sha256(data).hexdigest()
+            relative = 'checkpoint_chunks/' + sha + '.json.gz'
+            _atomic_write(target.parent / relative, gzip.compress(data, mtime=0))
+            references.append(dict(table=table, path=relative, sha256=sha, rows=len(rows)))
+            counts[table] += len(rows)
+        mutable = {k: v if k not in counts else [] for k, v in self.ledger.rows.items()}
+        state = self._state(tables=mutable)
+        state['checkpoint_storage'] = dict(version='s3-chunked-checkpoint-v1', chunks=references, counts=counts)
+        state['state_digest'] = _digest(state)
+        _atomic_write(target, json.dumps(state, allow_nan=False).encode())
+        # Archive the committed generation as well as the atomic latest pointer.
+        encoded = json.dumps(state, allow_nan=False).encode()
+        label = self.completed[-1] if self.completed else 'Day0'
+        _atomic_write(target.parent / 'checkpoint_heads' / (label + '-' + hashlib.sha256(encoded).hexdigest() + '.json'), encoded)
+        self._checkpoint_chunks, self._checkpoint_counts = references, counts
+        rows = self.ledger.rows['eligibility']
+        if isinstance(rows, _ChunkRows):
+            # references also contain equity chunks: select by cumulative eligibility count.
+            eligible = [r for r in references if r['table'] == 'eligibility']
+            newly = eligible[len(rows.references):]
+            for row in rows.live:
+                self.ledger._indexes['eligibility'][row['row_id']] = True
+            rows.spill(target.parent, newly)
+
+    @classmethod
+    def load_checkpoint(cls, path, *, inputs, run_id=None, entry_mode=None, exit_mode=None):
+        import gzip
+        import tempfile
+        target = Path(path).resolve()
+        state = json.loads(target.read_text())
+        identity = state.get('identity', {})
+        for key, expected in [('run_id', run_id), ('entry_mode', entry_mode), ('exit_mode', exit_mode)]:
+            if expected is not None and identity.get(key) != expected:
+                raise ValueError('checkpoint execution identity mismatch: ' + key)
+        if 'checkpoint_storage' not in state:
+            return cls.load(target, inputs=inputs)
+        digest = state.pop('state_digest', None)
+        if digest != _digest(state):
+            raise ValueError('checkpoint head integrity mismatch')
+        storage = state.pop('checkpoint_storage')
+        if storage['version'] != 's3-chunked-checkpoint-v1':
+            raise ValueError('unknown checkpoint storage')
+        eligible_index = {}
+        eligible_references = []
+        for reference in storage['chunks']:
+            file = (target.parent / reference['path']).resolve(); file.relative_to(target.parent)
+            if reference['table'] not in {'eligibility', 'equity'}:
+                raise ValueError('unexpected checkpoint chunk table')
+            data = gzip.decompress(file.read_bytes())
+            rows = json.loads(data)
+            if hashlib.sha256(data).hexdigest() != reference['sha256'] or len(rows) != reference['rows']:
+                raise ValueError('checkpoint chunk integrity mismatch')
+            if reference['table'] == 'eligibility':
+                eligible_references.append(reference)
+                for row in rows:
+                    if (set(row) != set(S3_SCHEMAS['eligibility'])
+                            or any(row.get(k) != v for k, v in identity.items())
+                            or row['row_id'] in eligible_index):
+                        raise ValueError('checkpoint eligibility schema/identity/key mismatch')
+                    eligible_index[row['row_id']] = True
+                temporary = _S3Ledger('chunk', 'backtest'); temporary.rows['eligibility'] = rows
+                temporary.table('eligibility')  # Typed loader gate, bounded to one chunk.
+            else:
+                state['tables'][reference['table']].extend(rows)
+        if any((len(eligible_index) if k == 'eligibility' else len(state['tables'][k])) != count
+               for k, count in storage['counts'].items()):
+            raise ValueError('checkpoint row count mismatch')
+        state['state_digest'] = _digest(state)
+        # Use the existing strict canonical replay/economics reader, not a second permissive loader.
+        fd, temporary = tempfile.mkstemp(dir=target.parent, suffix='.replay.json')
+        os.close(fd)
+        try:
+            Path(temporary).write_text(json.dumps(state, allow_nan=False))
+            engine = cls.load(temporary, inputs=inputs)
+        finally:
+            Path(temporary).unlink(missing_ok=True)
+        engine._checkpoint_chunks = storage['chunks']
+        engine._checkpoint_counts = storage['counts']
+        engine.ledger.rows['eligibility'] = _ChunkRows(target.parent, eligible_references)
+        engine.ledger._index()
+        engine.ledger._indexes['eligibility'] = eligible_index
+        engine.remaining_sessions()
+        return engine

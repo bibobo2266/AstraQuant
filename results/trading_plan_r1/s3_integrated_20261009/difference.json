@@ -1,0 +1,180 @@
+{
+  "period": [
+    "2020-07-01",
+    "2020-07-10"
+  ],
+  "sessions": 8,
+  "source_population": 1916,
+  "input_binding": "45651fc420b010fdfb1401cb8f417e2e4355ee74fc46c07b6bba60a619bf7a02",
+  "differences": [
+    {
+      "cell": 1,
+      "file": "state.json",
+      "old_sha256": "c8c0300f09050dfaf720e7a7f8615109d2bc5b4510bd0b22ddd6f19e1123349c",
+      "new_sha256": "c8c0300f09050dfaf720e7a7f8615109d2bc5b4510bd0b22ddd6f19e1123349c",
+      "different_bytes": 0
+    },
+    {
+      "cell": 1,
+      "file": "metrics_full_precision.json",
+      "old_sha256": "5537a9521b4f51c93f416eeaf9129bf0bc46ce29576776eca8d921912340e5bd",
+      "new_sha256": "5537a9521b4f51c93f416eeaf9129bf0bc46ce29576776eca8d921912340e5bd",
+      "different_bytes": 0
+    },
+    {
+      "cell": 1,
+      "file": "tables/s3_eligibility.csv",
+      "old_sha256": "b124d3621d4d47e3fafb2cca21bd9ab6b82a31e2bdd5b1fc264780f634fbf98c",
+      "new_sha256": "b124d3621d4d47e3fafb2cca21bd9ab6b82a31e2bdd5b1fc264780f634fbf98c",
+      "different_bytes": 0
+    },
+    {
+      "cell": 1,
+      "file": "tables/s3_decisions.csv",
+      "old_sha256": "7054c3ebc6a820e840593c48197ddda431ca3c2f9bfef3ea9e8bd62bba145b83",
+      "new_sha256": "7054c3ebc6a820e840593c48197ddda431ca3c2f9bfef3ea9e8bd62bba145b83",
+      "different_bytes": 0
+    },
+    {
+      "cell": 1,
+      "file": "tables/s3_fills.csv",
+      "old_sha256": "245918ff34225aa5acea42e80bebb0767f613556d6b9843ccdcdbc6095b95de6",
+      "new_sha256": "245918ff34225aa5acea42e80bebb0767f613556d6b9843ccdcdbc6095b95de6",
+      "different_bytes": 0
+    },
+    {
+      "cell": 1,
+      "file": "tables/s3_equity.csv",
+      "old_sha256": "031c6da20932c984c1cbc0f164a9472a01d595f6d7468b989d542a99acaa392e",
+      "new_sha256": "031c6da20932c984c1cbc0f164a9472a01d595f6d7468b989d542a99acaa392e",
+      "different_bytes": 0
+    },
+    {
+      "cell": 2,
+      "file": "state.json",
+      "old_sha256": "70fd3afaf054ac9d8e5152ce1f3d767b145615ca311d3a9ce8080aff59ed3096",
+      "new_sha256": "70fd3afaf054ac9d8e5152ce1f3d767b145615ca311d3a9ce8080aff59ed3096",
+      "different_bytes": 0
+    },
+    {
+      "cell": 2,
+      "file": "metrics_full_precision.json",
+      "old_sha256": "aec57c50f13b247f2ab314f81630b219335660fc4f8b5be9295cbaef7a622c11",
+      "new_sha256": "aec57c50f13b247f2ab314f81630b219335660fc4f8b5be9295cbaef7a622c11",
+      "different_bytes": 0
+    },
+    {
+      "cell": 2,
+      "file": "tables/s3_eligibility.csv",
+      "old_sha256": "79cfc75bbdcb5f20e274dabdd3efbf13e7b0c32e2e7a38f0ec7655fd9ae367bd",
+      "new_sha256": "79cfc75bbdcb5f20e274dabdd3efbf13e7b0c32e2e7a38f0ec7655fd9ae367bd",
+      "different_bytes": 0
+    },
+    {
+      "cell": 2,
+      "file": "tables/s3_decisions.csv",
+      "old_sha256": "cb3e08bb11b074c7f5f33ebbf0cae38aa31d54e4b1d8461cf41d6ada0720fb6e",
+      "new_sha256": "cb3e08bb11b074c7f5f33ebbf0cae38aa31d54e4b1d8461cf41d6ada0720fb6e",
+      "different_bytes": 0
+    },
+    {
+      "cell": 2,
+      "file": "tables/s3_fills.csv",
+      "old_sha256": "23a9a0186337bd3d4649cc4b5bd82c6a29f1fca11621b7aace9546591729bae2",
+      "new_sha256": "23a9a0186337bd3d4649cc4b5bd82c6a29f1fca11621b7aace9546591729bae2",
+      "different_bytes": 0
+    },
+    {
+      "cell": 2,
+      "file": "tables/s3_equity.csv",
+      "old_sha256": "0e133e58af20e3985fb9e61f8fc460fbacd9f8adf5c03ce9982f16f8cee6981d",
+      "new_sha256": "0e133e58af20e3985fb9e61f8fc460fbacd9f8adf5c03ce9982f16f8cee6981d",
+      "different_bytes": 0
+    },
+    {
+      "cell": 3,
+      "file": "state.json",
+      "old_sha256": "d52e01fce82204212e3bfb575c6dd18f8a8e97c5ecb6cda9ef87d6c950f138e9",
+      "new_sha256": "d52e01fce82204212e3bfb575c6dd18f8a8e97c5ecb6cda9ef87d6c950f138e9",
+      "different_bytes": 0
+    },
+    {
+      "cell": 3,
+      "file": "metrics_full_precision.json",
+      "old_sha256": "467c335a334f9b55f97e0626c9d0b56a7ad07e1d71e69ba35de7f63c535b61ee",
+      "new_sha256": "467c335a334f9b55f97e0626c9d0b56a7ad07e1d71e69ba35de7f63c535b61ee",
+      "different_bytes": 0
+    },
+    {
+      "cell": 3,
+      "file": "tables/s3_eligibility.csv",
+      "old_sha256": "e8354692cc70f4332c0fa7908cd1a73489b4894d8bef16e3fe5f47c8fc2a1042",
+      "new_sha256": "e8354692cc70f4332c0fa7908cd1a73489b4894d8bef16e3fe5f47c8fc2a1042",
+      "different_bytes": 0
+    },
+    {
+      "cell": 3,
+      "file": "tables/s3_decisions.csv",
+      "old_sha256": "8605294bb514d1e825f6bdc41c14dda284f4057610a41a4dfc1e3022d21d25e1",
+      "new_sha256": "8605294bb514d1e825f6bdc41c14dda284f4057610a41a4dfc1e3022d21d25e1",
+      "different_bytes": 0
+    },
+    {
+      "cell": 3,
+      "file": "tables/s3_fills.csv",
+      "old_sha256": "f4e7512018f7d0b775d2f6132331ab1134f690f4c71971490f89743044bf275a",
+      "new_sha256": "f4e7512018f7d0b775d2f6132331ab1134f690f4c71971490f89743044bf275a",
+      "different_bytes": 0
+    },
+    {
+      "cell": 3,
+      "file": "tables/s3_equity.csv",
+      "old_sha256": "1881bdcd6200432683179d4efe01ddb2703deff06f53f08380dd94ca18331386",
+      "new_sha256": "1881bdcd6200432683179d4efe01ddb2703deff06f53f08380dd94ca18331386",
+      "different_bytes": 0
+    },
+    {
+      "cell": 4,
+      "file": "state.json",
+      "old_sha256": "d5e13409cf37c950bd96d3811d8e70414446070d9418514bc8e3a35c07879b03",
+      "new_sha256": "d5e13409cf37c950bd96d3811d8e70414446070d9418514bc8e3a35c07879b03",
+      "different_bytes": 0
+    },
+    {
+      "cell": 4,
+      "file": "metrics_full_precision.json",
+      "old_sha256": "fec4e242f6e5433a28bb0f6e6a4dceaef674af36d0e8b037f26d85a26895d089",
+      "new_sha256": "fec4e242f6e5433a28bb0f6e6a4dceaef674af36d0e8b037f26d85a26895d089",
+      "different_bytes": 0
+    },
+    {
+      "cell": 4,
+      "file": "tables/s3_eligibility.csv",
+      "old_sha256": "0b2595e27440728f9c1acc9bba4d7e2c77d03ce898f79f2fea89cc298d8522ea",
+      "new_sha256": "0b2595e27440728f9c1acc9bba4d7e2c77d03ce898f79f2fea89cc298d8522ea",
+      "different_bytes": 0
+    },
+    {
+      "cell": 4,
+      "file": "tables/s3_decisions.csv",
+      "old_sha256": "d24843894d6805e06526e4cb7bd8ece7e9e8c2973e38ce9539ec023baf6be891",
+      "new_sha256": "d24843894d6805e06526e4cb7bd8ece7e9e8c2973e38ce9539ec023baf6be891",
+      "different_bytes": 0
+    },
+    {
+      "cell": 4,
+      "file": "tables/s3_fills.csv",
+      "old_sha256": "40e81fa061c2830fb76a6ba12188f39d70da5b1868e64d2a02384f0eb7f281a9",
+      "new_sha256": "40e81fa061c2830fb76a6ba12188f39d70da5b1868e64d2a02384f0eb7f281a9",
+      "different_bytes": 0
+    },
+    {
+      "cell": 4,
+      "file": "tables/s3_equity.csv",
+      "old_sha256": "62fffbbdf4130ed150b6437a67585698b24691b840e4393bcdaf98f05b0410c1",
+      "new_sha256": "62fffbbdf4130ed150b6437a67585698b24691b840e4393bcdaf98f05b0410c1",
+      "different_bytes": 0
+    }
+  ],
+  "all_same": true
+}

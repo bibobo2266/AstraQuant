@@ -1,0 +1,40 @@
+{
+  "source_panel_sha256": "2fc9680a3cbb74b15d690edbeb02ed03457b26c74dd682a877b1c6e93f8dc38e",
+  "source_export_sha256": "e18b21dab018c04ae5f6d05979c9d601b035bde45338ed40c42544be9337a26c",
+  "source_stocks": 1916,
+  "source_rows": 2597280,
+  "horizons": [
+    5,
+    10,
+    20
+  ],
+  "signal": "signal-date RAW close; fixed PIT S1 flags",
+  "label": "global-market trading-day t+h RAW close / t close -1, only no-event intervals",
+  "unknown_policy": "all corporate-event crossings, missing/zero future prices and end-of-source labels retained as UNKNOWN; no guessed total-return terms",
+  "total_return_supported_event_crossings": 0,
+  "holdout": "not assigned; annual 2016-2021 numbers all disclosed; no fitted thresholds or holdout claim",
+  "excluded_industry": "excl_ok fixed True; no industry exclusion",
+  "definitions": {
+    "liq_ok": "5-day average volume >=1000 lots",
+    "size_ok": "20-day average turnover >=TWD50m; existing turnover proxy, not market cap",
+    "wk_trend_ok": "previous complete week close>MA6>MA20; both MAs rise",
+    "rs_ok": "original S1 market percentile >=80; original full-market denominator",
+    "rev_ok": "as-of announced monthly revenue YoY>20%",
+    "eps_ok": "as-of announced quarterly EPS YoY>30%",
+    "eps_acc_ok": "as-of three quarterly EPS YoYs strictly accelerate twice",
+    "rs_short": "original S1 120-day history flag; separate filter"
+  },
+  "elapsed_seconds": 29.086663615999896,
+  "files": [
+    {
+      "file": "factor_numbers.csv",
+      "bytes": 19227,
+      "sha256": "1d5dddd88e0860041f00deec3ee822759f623b0d9ec52c5729eed15c98f4fddc"
+    },
+    {
+      "file": "unknown_label_counts_by_stock.csv",
+      "bytes": 180196,
+      "sha256": "4f9044bb700d916a4127f1d06a4e66a17091ddcb0b23f271a89887334081c7df"
+    }
+  ]
+}
