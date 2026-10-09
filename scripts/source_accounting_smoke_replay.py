@@ -855,13 +855,17 @@ def run_s3_diagnostic_a(*, workspace, output_dir, round_name="A", measure=False,
         status['cells'][cell]['status']='RUNNING';write_status()
         print(round_name+': one live cell '+cell+'; daily checkpoint enabled',flush=True)
         count_this_start=0
-        for day in engine.remaining_sessions():
-            if max_sessions is not None and count_this_start>=max_sessions:break
+        remaining=engine.remaining_sessions()
+        # A persisted final day may precede metric/export failure or process death.
+        # Re-run only finalization in that case, never the completed trading day.
+        for day in remaining or engine.completed[-1:]:
+            if remaining and max_sessions is not None and count_this_start>=max_sessions:break
             state=status['cells'][cell]
             if state['status']!='RUNNING':continue
             state['current_date']=day;write_status()
             try:
-                engine.prepare(day);engine.reconcile_session(day,observed_at=day)
+                if remaining:
+                    engine.prepare(day);engine.reconcile_session(day,observed_at=day)
                 state.update(completed=len(engine.completed),holdings=sorted(engine.positions),frozen=engine.frozen)
                 engine.save_checkpoint(directory/'checkpoint.json')
                 count_this_start+=1
@@ -884,7 +888,7 @@ def run_s3_diagnostic_a(*, workspace, output_dir, round_name="A", measure=False,
                     if state['coverage'].get('diagnostic_overlay') is not None:state['coverage']['diagnostic_overlay']=m['diagnostic_overlay']
                     if not engine.frozen:
                         state['status']='COMPLETE_DIAGNOSTIC_PENDING_REVIEW'
-                        rows=_metric_rows(engine.ledger.metric_tables(),scope='diagnostic_'+round_name+'_subpopulation_pending_review')
+                        rows=_metric_rows(engine.metric_tables(),scope='diagnostic_'+round_name+'_subpopulation_pending_review')
                         rows.to_json(directory/'diagnostic_metrics.json',orient='records',indent=2)
                         row=rows.iloc[0]
                         if (pd.notna(row.net_win_rate) and row.net_win_rate>.7) or (pd.notna(row.avg_loss) and row.avg_loss<.01):
@@ -982,7 +986,7 @@ def run_s3_batch_worker(*, workspace, manifest, receipt, output_dir, cell, actio
             os.kill(os.getpid(),signal.SIGKILL)
         if e.frozen:break
     e.save(out/'state.json');e.export_tables(out/'tables')
-    metrics=_plain(_metric_rows(e.ledger.metric_tables() if action!='baseline' else e.ledger.tables(),scope='short-segment-equivalence-only').to_dict('records'))
+    metrics=_plain(_metric_rows(e.metric_tables() if action!='baseline' else e.ledger.tables(),scope='short-segment-equivalence-only').to_dict('records'))
     _atomic_write(out/'metrics_full_precision.json',json.dumps(metrics,allow_nan=False).encode())
     timings=dict(action=action,cell=cell,pid=os.getpid(),load_seconds=loaded,
         day0_seconds=prepared,total_seconds=time.perf_counter()-start,completed=e.completed,

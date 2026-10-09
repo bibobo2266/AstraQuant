@@ -147,7 +147,7 @@ os.kill(os.getpid(),signal.SIGKILL)
     for day in days[80:]: step(e, day)
     e.save(tmp_path/'full.json');r.save(tmp_path/'resumed.json')
     assert (tmp_path/'full.json').read_bytes() == (tmp_path/'resumed.json').read_bytes()
-    # Kill during a large temporary write; atomically published head remains unchanged.
+    # Kill before fsync on a small temporary write; this is not a large-file stress test.
     before = (tmp_path/'checkpoint.json').read_bytes()
     writer = '''
 from pathlib import Path
