@@ -93,6 +93,11 @@ def _digest(value):
     return hashlib.sha256(json.dumps(value, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
 
 
+def _day_labels(values):
+    # Convert each distinct canonical date once; preserve the original _day semantics.
+    return values.map({pd.Timestamp(value): _day(value) for value in values.unique()})
+
+
 def _inside(root, path):
     target = (root / path).resolve()
     target.relative_to(root)
@@ -340,7 +345,7 @@ class S3Inputs:
         panel["date"] = pd.to_datetime(panel.date).dt.normalize()
         panel["stock"] = panel.stock.astype(str)
         excluded = _diagnostic_a_exclusions(self.manifest, self.root)
-        self._panel_keys = frozenset(zip(panel.date.map(_day), panel.stock))
+        self._panel_keys = frozenset(zip(_day_labels(panel.date), panel.stock))
         if panel.duplicated(["date", "stock"]).any():
             raise ValueError("duplicate S1 keys")
         raw = pd.concat([pd.read_parquet(_inside(self.root, e["path"])) for e in self.inventory if e["role"] == "raw"])
@@ -362,7 +367,7 @@ class S3Inputs:
         limits["stock_id"] = limits.stock_id.astype(str)
         if limits.duplicated(["date", "stock_id"]).any():
             raise ValueError("duplicate limit keys")
-        limit_panel = panel[panel.date.map(_day).isin(self.manifest['probe_sessions'])] if self.probe else panel
+        limit_panel = panel[_day_labels(panel.date).isin(self.manifest['probe_sessions'])] if self.probe else panel
         if excluded:
             limit_panel = limit_panel[~limit_panel.stock.isin(excluded)]
         needed = pd.MultiIndex.from_frame(limit_panel[["date", "stock"]])
@@ -376,7 +381,7 @@ class S3Inputs:
         if excluded:
             # Preserve original S1/RAW bytes and market RS; execute only the approved subpopulation.
             bars = bars[~bars.stock.isin(excluded)].copy()
-            expected_sessions = sorted(set(bars.loc[bars.date.between(start,end),'date'].map(_day)))
+            expected_sessions = sorted(set(_day_labels(bars.loc[bars.date.between(start,end),'date'])))
             if expected_sessions != self.manifest['probe_sessions']:
                 raise ValueError('diagnostic A requires the complete fixed E1 calendar')
         if (pd.to_datetime(bars.loc[bars.eligible, "available_date"]) > bars.loc[bars.eligible, "date"]).any():
@@ -389,8 +394,8 @@ class S3Inputs:
         event_keys = set(zip(pd.to_datetime(events.event_date).map(_day), events.stock_id))
         if self.normalized_ca is not None:
             event_keys |= {(str(a.effective_date),a.ticker) for a in self.normalized_ca.actions}
-        bars["corporate_action"] = ["source_event_requires_accounting" if (_day(d), s) in event_keys else None
-                                    for d, s in zip(bars.date, bars.stock)]
+        bars["corporate_action"] = ["source_event_requires_accounting" if (d, s) in event_keys else None
+                                    for d, s in zip(_day_labels(bars.date), bars.stock)]
         for terminal in self.terminal_records:
             cutoff = terminal.suspension_from or terminal.effective_date
             if cutoff is not None:
@@ -417,9 +422,11 @@ class S3TradingPlanR1(TradingPlanR1):
         if entry_mode not in {"close", "next_open"} or exit_mode not in EXIT_MODES:
             raise ValueError("unapproved S3 cell")
         self.inputs = inputs
-        self._bound_bars = inputs._bars.copy(deep=True)
+        # Share verified buffers, while retaining both full input and execution hashes.
+        # A mutation through either view is still rejected before execution.
+        self._bound_bars = inputs._bars.copy(deep=False)
         self._bars_sha = inputs._snapshot.bars_sha
-        sessions = sorted(self._bound_bars.date.map(_day).unique())
+        sessions = sorted(_day(value) for value in self._bound_bars.date.unique())
         super().__init__(run_id=run_id, mode="backtest", sessions=sessions, initial_cash=initial_cash,
                          portfolio_id="s3-r1", entry_mode=entry_mode)
         self.exit_mode = exit_mode
@@ -453,8 +460,8 @@ class S3TradingPlanR1(TradingPlanR1):
         self._verify_run()
         if bars is not self._bound_bars:
             raise ValueError("external bars cannot enter scoped S3")
-        p = bars.copy()
-        p["date"] = p.date.map(_day)
+        p = bars.copy(deep=False)
+        p["date"] = _day_labels(p.date)
         # Keep every market row; locate one stock without rescanning the market.
         p = p.set_index(['stock','date'],drop=False)
         p.index.names = ['_stock_feature_key','_date_feature_key']
@@ -472,7 +479,7 @@ class S3TradingPlanR1(TradingPlanR1):
             raise ValueError("S3 execution outside E1")
         if day in self.completed or day in self.plans:
             return self.ledger.tables()
-        self._prices(self._bound_bars)
+        self._verify_run()
         for sid, settlement in list(self.canonical.portfolio.settlements.pending.items()):
             if settlement.due_at <= datetime.fromisoformat(day):
                 self.canonical.portfolio.settlements.settle(sid, datetime.fromisoformat(day))
@@ -650,7 +657,7 @@ class S3TradingPlanR1(TradingPlanR1):
 
     def reconcile_session(self, day, *, observed_at):
         self._verify_run()
-        self._prices(self._bound_bars)
+        self._verify_run()
         result = super().reconcile_session(day, observed_at=observed_at)
         self._check_accounts()
         return result

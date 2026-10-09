@@ -1,0 +1,44 @@
+{
+  "schema_version": "s3_runtime_timing_v1",
+  "elapsed_seconds": 146.42375525999887,
+  "integrity_checks_removed": 0,
+  "time_semantics": "inclusive contains children; exclusive subtracts measured children",
+  "components": {
+    "file_hash": {
+      "calls": 236,
+      "inclusive_seconds": 4.493288265988667,
+      "exclusive_seconds": 4.493288265988667,
+      "max_seconds": 0.14018307000151253
+    },
+    "validate_files": {
+      "calls": 8,
+      "inclusive_seconds": 4.630146573001184,
+      "exclusive_seconds": 0.13807157500923495,
+      "max_seconds": 0.7417089940008736
+    },
+    "load_join_inputs": {
+      "calls": 1,
+      "inclusive_seconds": 55.897939172000406,
+      "exclusive_seconds": 55.89688159800244,
+      "max_seconds": 55.897939172000406
+    },
+    "frame_integrity_hash": {
+      "calls": 9,
+      "inclusive_seconds": 9.652401369001382,
+      "exclusive_seconds": 9.652401369001382,
+      "max_seconds": 1.1683002640002087
+    },
+    "validate_inputs": {
+      "calls": 7,
+      "inclusive_seconds": 19.65058885399594,
+      "exclusive_seconds": 8.075412893993416,
+      "max_seconds": 2.9545650300005946
+    },
+    "validate_execution": {
+      "calls": 1,
+      "inclusive_seconds": 3.9976851169994916,
+      "exclusive_seconds": 0.0002072830011456972,
+      "max_seconds": 3.9976851169994916
+    }
+  }
+}

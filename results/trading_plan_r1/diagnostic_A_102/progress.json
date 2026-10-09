@@ -1,0 +1,55 @@
+{
+  "execution_id": "s3-A-20261009T011613Z",
+  "started_at": "2026-10-09T01:16:13.546828+00:00",
+  "program_sha": "58428cbf12988cf1702fd4f55bd9230074557499",
+  "manifest_sha256": "faefc556dc641c3f56d40564b3ef787ac6af7a09bd05ac8a6fb146266ca16dba",
+  "formal_performance_unlocked": false,
+  "round": "A",
+  "cells": {
+    "A1": {
+      "entry_mode": "close",
+      "exit_mode": "sma20",
+      "status": "SYSTEM_TERMINATED",
+      "completed": 7,
+      "current_date": "2016-01-12",
+      "holdings": [],
+      "frozen": false,
+      "stop_reason": "process exit 137, no recoverable checkpoint"
+    },
+    "A2": {
+      "entry_mode": "next_open",
+      "exit_mode": "sma20",
+      "status": "SYSTEM_TERMINATED",
+      "completed": 7,
+      "current_date": "2016-01-12",
+      "holdings": [],
+      "frozen": false,
+      "stop_reason": "process exit 137, no recoverable checkpoint"
+    },
+    "A3": {
+      "entry_mode": "close",
+      "exit_mode": "sma20_or_rsi13_lt50",
+      "status": "SYSTEM_TERMINATED",
+      "completed": 6,
+      "current_date": "2016-01-12",
+      "holdings": [],
+      "frozen": false,
+      "stop_reason": "process exit 137, no recoverable checkpoint"
+    },
+    "A4": {
+      "entry_mode": "next_open",
+      "exit_mode": "sma20_or_rsi13_lt50",
+      "status": "SYSTEM_TERMINATED",
+      "completed": 6,
+      "current_date": "2016-01-11",
+      "holdings": [],
+      "frozen": false,
+      "stop_reason": "process exit 137, no recoverable checkpoint"
+    }
+  },
+  "input_binding": "d9d8315a76c06e27cb6012d21396a623ac318d1975cbef691c8d15691503ce51",
+  "expected_sessions": 1468,
+  "process_exit_code": 137,
+  "process_status": "SYSTEM_TERMINATED_UNSAVED",
+  "persisted_completed_sessions": 0
+}

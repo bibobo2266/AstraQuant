@@ -828,25 +828,37 @@ def run_s3_diagnostic_a(*, workspace, output_dir, round_name="A", measure=False)
         manifest_sha256=_hash(manifest),formal_performance_unlocked=False,round=round_name,
         cells={c:dict(entry_mode=a,exit_mode=b,status='VERIFYING_INPUTS',completed=0) for c,a,b in cells})
     def write_status():
+        import resource
+        status['peak_rss_kib']=resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
         target=output/'progress.json';tmp=target.with_suffix('.tmp');tmp.write_text(json.dumps(status,indent=2)+'\n');tmp.replace(target)
     write_status();print(json.dumps(status),flush=True)
     inputs=S3Inputs.open_accounting_probe(workspace,manifest,rp)
     assert len({s for _,s in inputs._panel_keys})==1916
     assert set(inputs._bars.stock).isdisjoint(excluded) and len(set(inputs._bars.stock))==(1814 if round_name=='A' else 1835)
     status['input_binding']=inputs.binding_id;status['expected_sessions']=len(m['probe_sessions'])
-    engines={}
+    import gc
     for cell,a,b in cells:
-        engines[cell]=S3TradingPlanR1(inputs=inputs,run_id=execution_id+'-'+cell,entry_mode=a,exit_mode=b)
+        status['cells'][cell]['status']='QUEUED'
+    write_status()
+    for cell,a,b in cells:
+        directory=output/cell;directory.mkdir(exist_ok=True)
+        engine=S3TradingPlanR1(inputs=inputs,run_id=execution_id+'-'+cell,entry_mode=a,exit_mode=b)
         status['cells'][cell]['status']='RUNNING';write_status()
-    print(round_name+': all four cells constructed; full E1 calendar',len(m['probe_sessions']),flush=True)
-    for day in m['probe_sessions']:
-        for cell,a,b in cells:
+        print(round_name+': one live cell '+cell+'; daily checkpoint enabled',flush=True)
+        for day in m['probe_sessions']:
             state=status['cells'][cell]
             if state['status']!='RUNNING':continue
-            engine=engines[cell];state['current_date']=day;write_status()
+            state['current_date']=day;write_status()
             try:
                 engine.prepare(day);engine.reconcile_session(day,observed_at=day)
                 state.update(completed=len(engine.completed),holdings=sorted(engine.positions),frozen=engine.frozen)
+                engine.save(directory/'checkpoint.json')
+                if len(engine.completed)==1:
+                    restored=S3TradingPlanR1.load(directory/'checkpoint.json',inputs=inputs)
+                    restored.save(directory/'readback_first_day.json')
+                    assert (directory/'checkpoint.json').read_bytes()==(directory/'readback_first_day.json').read_bytes()
+                    state['first_day_readback_exact']=True
+                    del restored
                 if engine.frozen:
                     state.update(status='INCOMPLETE',stop_date=day,error=engine.freeze_reason,check_location='S3TradingPlanR1.prepare/reconcile_session',stop_evidence=engine.journal[-5:])
                 if engine.frozen or len(engine.completed)==len(m['probe_sessions']):
@@ -868,7 +880,8 @@ def run_s3_diagnostic_a(*, workspace, output_dir, round_name="A", measure=False)
                 # Preserve unvalidated state as forensic evidence, never call it accepted.
                 (directory/'journal_unvalidated.json').write_text(json.dumps(engine.journal,indent=2,default=str)+'\n')
             write_status();print(json.dumps(dict(cell=cell,**state),default=str),flush=True)
-        if not any(s['status']=='RUNNING' for s in status['cells'].values()):break
+            if state['status']!='RUNNING':break
+        del engine;gc.collect()
     status['finished_at']=datetime.now(timezone.utc).isoformat();write_status()
     return status
 

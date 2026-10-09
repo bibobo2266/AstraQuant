@@ -42,3 +42,18 @@ def test_reviewed_b_restoration_and_tamper_rejection():
     with pytest.raises(ValueError):s3._diagnostic_a_exclusions(wrong,root)
     wrong=json.loads(json.dumps(m));wrong['diagnostic_overlay']['version']='A_exclude_missing_limits_102'
     with pytest.raises(ValueError,match='cannot alter fixed A'):s3._diagnostic_a_exclusions(wrong,root)
+
+
+def test_distinct_date_conversion_preserves_owner_values_and_index():
+    from astraquant.research.trading_plan_r1 import _day
+    values=pd.Series(pd.to_datetime(['2016-01-04','2016-01-04','2021-12-31']),index=[4,8,9])
+    pd.testing.assert_series_equal(s3._day_labels(values),values.map(_day))
+
+
+def test_shared_verified_buffers_do_not_bypass_mutation_guard(tmp_path):
+    from test_trading_plan_r1_s3 import bundle,engine
+    root,days=bundle(tmp_path);e=engine(root)
+    other=s3.S3TradingPlanR1(inputs=e.inputs,run_id='sibling',entry_mode='next_open',exit_mode='sma20')
+    other._bound_bars.loc[80,'close']=9999.
+    for run in [e,other]:
+        with pytest.raises(ValueError,match='changed verified S3'):run.prepare(days[80])
