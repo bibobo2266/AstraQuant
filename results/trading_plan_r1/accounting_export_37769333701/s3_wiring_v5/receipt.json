@@ -1,0 +1,32 @@
+{
+  "schema_version": "s3-accounting-receipt-v1",
+  "input_digest": "2506ed4f715332733669f0e2c1fa971e6ca422d52d09226b559d0f250e9d5408",
+  "scope": "bounded_real_accounting_evidence_only",
+  "checks": {
+    "signal_source_declared": false,
+    "entry_raw": false,
+    "stop_observation_raw": false,
+    "exit_raw": false,
+    "sizing_raw": false,
+    "mark_raw": false,
+    "share_count_reconciles": false,
+    "cash_reconciles": false,
+    "receivables_reconcile": false,
+    "corporate_actions_reconcile": false,
+    "nav_reconciles": false,
+    "no_adjusted_execution_fallback": false,
+    "canonical_execution_path_active": false,
+    "normalized_ca_view_active": false,
+    "ca_payment_dates_settle": false,
+    "pit_unsafe_ca_excluded": false,
+    "terminal_security_lifecycle_active": false,
+    "long_horizon_canonical_probe_passed": false
+  },
+  "evidence": [
+    {
+      "kind": "full_period_clearance_not_issued",
+      "source_manifest_sha256": "e18b21dab018c04ae5f6d05979c9d601b035bde45338ed40c42544be9337a26c",
+      "reason": "This receipt binds the real evidence probe; full E1 and unresolved event acceptance remain unverified."
+    }
+  ]
+}

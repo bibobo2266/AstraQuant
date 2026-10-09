@@ -1,0 +1,72 @@
+{
+  "execution_base_sha": "7929b77062d08d9553f834b0161538151c64c318",
+  "regressions": [
+    {
+      "pandas": "2.2.3",
+      "passed": 779,
+      "skipped": 10,
+      "subtests_passed": 13,
+      "duration_seconds": 128.0,
+      "actual_common_data_tests_executed": 3
+    },
+    {
+      "pandas": "3.0.6",
+      "passed": 779,
+      "skipped": 10,
+      "subtests_passed": 13,
+      "duration_seconds": 141.98,
+      "actual_common_data_tests_executed": 3
+    }
+  ],
+  "environment": {
+    "ASTRAQUANT_REAL_CASE_ROOT": "/workspace/scratch/4498b78b33c4",
+    "old_pythonpath": "/workspace/scratch/4498b78b33c4/task-python-deps:src",
+    "new_pythonpath": "/workspace/scratch/4498b78b33c4/pandas3-deps:/workspace/scratch/4498b78b33c4/task-python-deps:src"
+  },
+  "test_command": [
+    "python3",
+    "-m",
+    "pytest",
+    "-q",
+    "tests"
+  ],
+  "new_tests": 20,
+  "targeted_tests": {
+    "passed": 109,
+    "duration_seconds": 47.53,
+    "included_in_full_counts": true
+  },
+  "source_coverage_file": "source_coverage.json",
+  "real_s3_probe_status": "EXECUTED_EVIDENCE_ONLY_PENDING_SOL_R",
+  "real_s3_recipe": "import runpy; runpy.run_path('scripts/source_accounting_smoke_replay.py')['run_s3_restore_probe'](workspace='/workspace/scratch/4498b78b33c4',output_dir='/workspace/scratch/4498b78b33c4/AstraQuant-full/results/trading_plan_r1/accounting_export_37769333701/s3_wiring_v5')",
+  "formal_four_cells_executed": 0,
+  "workflow_dispatches": 0,
+  "full_accounting_gate_passed": false,
+  "execution_id": "real-s3-restore-20190918",
+  "sessions": [
+    "2019-09-18",
+    "2019-09-19",
+    "2019-09-20",
+    "2019-09-23",
+    "2019-09-24",
+    "2019-09-25",
+    "2019-09-26"
+  ],
+  "exact_state_replay_equal": true,
+  "csv_readback_equal": true,
+  "csv_bytes_equal": true,
+  "baseline_resumed_from_verified_state": true,
+  "full_e1": false,
+  "checks_exercised_window_only": 12,
+  "checks_not_fully_exercised": 6,
+  "transport": {
+    "decoded_files": 11,
+    "pieces": 44,
+    "roundtrip_exact": true,
+    "changed_piece_rejected": true,
+    "github_utf8_reader_roundtrip": true,
+    "reader_blob_sha": "d6e5886d4142917ebe9bbb23b81278d7e0693dc1",
+    "reader_piece_bytes": 65537
+  },
+  "transport_restore_recipe": "import runpy; runpy.run_path('scripts/source_accounting_smoke_replay.py')['restore_s3_evidence_transport']('results/trading_plan_r1/accounting_export_37769333701/s3_wiring_v5')"
+}

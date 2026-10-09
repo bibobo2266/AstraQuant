@@ -62,6 +62,17 @@ def _finite(value: Any) -> bool:
         return False
 
 
+def _has_corporate_event(value: Any) -> bool:
+    """Missing scalar markers never denote an event, including inferred strings."""
+    if value is None:
+        return False
+    if isinstance(value, (dict, list, tuple, set)):
+        return bool(value)
+    if pd.isna(value):
+        return False
+    return bool(value.strip()) if isinstance(value, str) else bool(value)
+
+
 def _plain(value: Any) -> Any:
     if isinstance(value, dict):
         return {str(k): _plain(v) for k, v in value.items()}
@@ -194,7 +205,7 @@ class TradingPlanR1:
             return "suspended"
         if not _finite(bar.get("volume")) or float(bar["volume"]) <= 0:
             return "no_volume"
-        if bar.get("corporate_action"):
+        if _has_corporate_event(bar.get("corporate_action")):
             return "unsupported_corporate_action"
         return ""
 

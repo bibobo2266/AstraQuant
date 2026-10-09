@@ -29,7 +29,7 @@ from astraquant.research.technical_components import _rsi_value
 from astraquant.research.trading_plan_r1 import (
     BOOL_COLUMNS, COMMISSION, FEES, FLOAT_COLUMNS, OBJECT_COLUMNS, RULE_VERSION,
     SCHEMAS, SLIPPAGE, TAX, Position, SharedLedger, TradingPlanR1, _day, _finite,
-    _metric_rows, _plain,
+    _metric_rows, _plain, _has_corporate_event,
 )
 from astraquant.validation.accounting_gate import AccountingReadiness
 
@@ -125,16 +125,22 @@ class S3Inputs:
         return cls._open(root, manifest, receipt, fixture=True)
 
     @classmethod
-    def _open(cls, root, manifest, receipt, *, fixture):
+    def open_accounting_probe(cls, root, manifest, receipt):
+        """Real frozen-export evidence only; never unlocks strategy performance."""
+        return cls._open(root, manifest, receipt, fixture=False, probe=True)
+
+    @classmethod
+    def _open(cls, root, manifest, receipt, *, fixture, probe=False):
         self = object.__new__(cls)
         self.root = Path(root).resolve()
         self.manifest_path = _inside(self.root, manifest)
         self.receipt_path = _inside(self.root, receipt)
         self.manifest = json.loads(self.manifest_path.read_text())
-        self.fixture = fixture
-        self.source_kind = "s3_engineering_fixture" if fixture else "s3_real"
+        self.fixture, self.probe = fixture, probe
+        self._declared_route = (fixture, probe)
+        self.source_kind = "s3_engineering_fixture" if fixture else "s3_real_accounting_probe" if probe else "s3_real"
         m = self.manifest
-        expected_purpose = "s3_engineering_fixture" if fixture else "s3_source"
+        expected_purpose = "s3_engineering_fixture" if fixture else "s3_accounting_probe" if probe else "s3_source"
         if m.get("schema_version") != VERSION or m.get("purpose") != expected_purpose:
             raise ValueError("unauthorized S3 input purpose/version")
         period = resolve_historical_effect_period("E1")
@@ -206,8 +212,9 @@ class S3Inputs:
             raise ValueError("unverified S3 binding")
         if (_digest(self.manifest) != self.input_digest or self.inventory != self.manifest["files"]
                 or self.binding_id != _digest(dict(input=self.input_digest, receipt=self._receipt_sha))
-                or self.manifest["purpose"] != ("s3_engineering_fixture" if self.fixture else "s3_source")
-                or self.source_kind != ("s3_engineering_fixture" if self.fixture else "s3_real")):
+                or (self.fixture, self.probe) != self._declared_route
+                or self.manifest["purpose"] != ("s3_engineering_fixture" if self.fixture else "s3_accounting_probe" if self.probe else "s3_source")
+                or self.source_kind != ("s3_engineering_fixture" if self.fixture else "s3_real_accounting_probe" if self.probe else "s3_real")):
             raise ValueError("changed S3 binding identity")
         if _hash(self.manifest_path) != self._manifest_sha or _hash(self.receipt_path) != self._receipt_sha:
             raise ValueError("changed input manifest/accounting receipt")
@@ -219,7 +226,7 @@ class S3Inputs:
             if self.role(role) != (self.source_root / relative).resolve():
                 raise ValueError("inventory does not bind canonical source path")
         for entry in self.inventory:
-            if entry["role"] not in {"raw", "tradability", "events", "limits", "panel", "supplement", "reviewed_ca_overlay", "dividend", "terminal"}:
+            if entry["role"] not in {"raw", "tradability", "events", "limits", "panel", "supplement", "reviewed_ca_overlay", "dividend", "terminal", "export_manifest", "export_archive"}:
                 raise ValueError("unknown S3 input role")
             if entry["role"] in {"raw", "limits"}:
                 directory = "raw" if entry["role"] == "raw" else "reference"
@@ -232,14 +239,17 @@ class S3Inputs:
                 raise ValueError('inventory does not bind canonical dividend path')
             if _hash(self.role('terminal')) != '02d30cf5dc079a18b7ba7888568f1607e7152136aeca02b7ee06ada5ead58a5d':
                 raise ValueError('wrong frozen terminal evidence bytes')
-            revision = subprocess.check_output(["git", "-C", str(self.source_root), "rev-parse", "HEAD"], text=True).strip()
-            if revision != SOURCE_REVISION:
-                raise ValueError("wrong immutable RAW source checkout")
-            top = Path(subprocess.check_output(["git", "-C", str(self.source_root), "rev-parse", "--show-toplevel"], text=True).strip())
-            paths = [str(_inside(self.root, e["path"]).relative_to(top)) for e in self.inventory
-                     if e["role"] in {"raw", "tradability", "events", "limits", "dividend"}]
-            subprocess.run(["git", "-C", str(top), "ls-files", "--error-unmatch", "--", *paths], check=True, capture_output=True)
-            subprocess.run(["git", "-C", str(top), "diff", "--quiet", "HEAD", "--", *paths], check=True)
+            if self.probe:
+                self._verify_export_provenance()
+            else:
+                revision = subprocess.check_output(["git", "-C", str(self.source_root), "rev-parse", "HEAD"], text=True).strip()
+                if revision != SOURCE_REVISION:
+                    raise ValueError("wrong immutable RAW source checkout")
+                top = Path(subprocess.check_output(["git", "-C", str(self.source_root), "rev-parse", "--show-toplevel"], text=True).strip())
+                paths = [str(_inside(self.root, e["path"]).relative_to(top)) for e in self.inventory
+                         if e["role"] in {"raw", "tradability", "events", "limits", "dividend"}]
+                subprocess.run(["git", "-C", str(top), "ls-files", "--error-unmatch", "--", *paths], check=True, capture_output=True)
+                subprocess.run(["git", "-C", str(top), "diff", "--quiet", "HEAD", "--", *paths], check=True)
             raw_names = {Path(e["path"]).name for e in self.inventory if e["role"] == "raw"}
             if raw_names != {f"prices_raw_{y}.parquet" for y in range(2015, 2022)}:
                 raise ValueError("incomplete E1 RAW/warmup inventory")
@@ -252,7 +262,36 @@ class S3Inputs:
         if not receipt.get("evidence"):
             raise ValueError("accounting evidence provenance required")
         self.readiness = AccountingReadiness(**checks)
-        self.readiness.require_performance_unlocked()
+        if self.probe:
+            if self.readiness.passed or receipt.get('scope') != 'bounded_real_accounting_evidence_only':
+                raise ValueError('probe receipt cannot claim full accounting clearance')
+            scope = self.manifest.get('probe_sessions', [])
+            if (not 1 <= len(scope) <= 31 or scope != sorted(set(scope))
+                    or any(not self.manifest['period']['start'] <= d <= self.manifest['period']['end'] for d in scope)):
+                raise ValueError('bounded accounting probe sessions required')
+        else:
+            self.readiness.require_performance_unlocked()
+
+    def _verify_export_provenance(self):
+        # Same immutable bytes already independently accepted as the original ZIP.
+        # Production still requires the pristine Git checkout and unlocked gate.
+        if (_hash(self.role('export_manifest')) != 'e18b21dab018c04ae5f6d05979c9d601b035bde45338ed40c42544be9337a26c'
+                or _hash(self.role('export_archive')) != '79a45e098fb55f9c358c2c8a67e58365d07277b5ba706e2768d1842d11902867'):
+            raise ValueError('unreviewed frozen accounting export')
+        original = json.loads(self.role('export_manifest').read_text())
+        role_map = {'raw':'raw','limits':'limits','tradability':'tradability','events':'official_events','dividend':'dividend'}
+        for entry in self.inventory:
+            if entry['role'] in role_map:
+                relative = str(_inside(self.root, entry['path']).relative_to(self.source_root))
+                source = [e for e in original['files'] if e['role']==role_map[entry['role']] and e['source_path']==relative]
+                if len(source)!=1 or entry['sha256']!=source[0]['sha256']:
+                    raise ValueError('probe inventory differs from accepted source export')
+        actual = {(e['role'],str(_inside(self.root,e['path']).relative_to(self.source_root)))
+                  for e in self.inventory if e['role'] in role_map}
+        expected = {(role, e['source_path']) for role, source_role in role_map.items()
+                    for e in original['files'] if e['role']==source_role}
+        if actual != expected:
+            raise ValueError('incomplete frozen accounting probe inventory')
 
     def _read_bars(self):
         panel = pd.read_parquet(self.role("panel")).reset_index()
@@ -282,7 +321,8 @@ class S3Inputs:
         limits["stock_id"] = limits.stock_id.astype(str)
         if limits.duplicated(["date", "stock_id"]).any():
             raise ValueError("duplicate limit keys")
-        needed = pd.MultiIndex.from_frame(panel[["date", "stock"]])
+        limit_panel = panel[panel.date.map(_day).isin(self.manifest['probe_sessions'])] if self.probe else panel
+        needed = pd.MultiIndex.from_frame(limit_panel[["date", "stock"]])
         if len(needed.difference(pd.MultiIndex.from_frame(limits[["date", "stock_id"]]))):
             raise ValueError("S1 keys lack exact limits")
         raw = raw.rename(columns={"stock_id": "stock", "max": "high", "min": "low", "Trading_Volume": "volume"})
@@ -366,6 +406,9 @@ class S3TradingPlanR1(TradingPlanR1):
             raise ValueError("external bars cannot enter scoped S3")
         p = bars.copy()
         p["date"] = p.date.map(_day)
+        # Keep every market row; locate one stock without rescanning the market.
+        p = p.set_index(['stock','date'],drop=False)
+        p.index.names = ['_stock_feature_key','_date_feature_key']
         return p
 
     def prepare_session(self, bars, day):
@@ -374,6 +417,8 @@ class S3TradingPlanR1(TradingPlanR1):
     def prepare(self, day):
         self._verify_run()
         day = _day(day)
+        if self.inputs.probe and day not in self.inputs.manifest['probe_sessions']:
+            raise ValueError('session outside bounded real accounting probe')
         if not self.inputs.manifest["period"]["start"] <= day <= self.inputs.manifest["period"]["end"]:
             raise ValueError("S3 execution outside E1")
         if day in self.completed or day in self.plans:
@@ -462,8 +507,10 @@ class S3TradingPlanR1(TradingPlanR1):
         return today[[((day, stock) in self.inputs._panel_keys or stock in holding) for stock in today.stock]]
 
     def _features(self, p, stock, day):
-        result = super()._features(p, stock, day)
-        history = p[p.stock.eq(stock) & p.date.le(day)].set_index("date").reindex(self.sessions[:self.sessions.index(day)+1])
+        stock_prices = (p.xs(stock,level='_stock_feature_key')
+                        if '_stock_feature_key' in p.index.names else p[p.stock.eq(stock)])
+        result = super()._features(stock_prices, stock, day)
+        history = stock_prices[stock_prices.date.le(day)].set_index("date").reindex(self.sessions[:self.sessions.index(day)+1])
         history["stock_id"] = stock
         result["rsi13"] = float(_rsi_value(panel=history, lookback=13).iloc[-1])
         return result
@@ -498,10 +545,12 @@ class S3TradingPlanR1(TradingPlanR1):
     def _execute(self, event):
         self._verify_run()
         day, side = event["day"], event["side"]
+        if self.inputs.probe and day not in self.inputs.manifest['probe_sessions']:
+            raise ValueError('fill outside bounded real accounting probe')
         if not self.inputs.manifest['period']['start']<=day<=self.inputs.manifest['period']['end']:
             raise ValueError('S3 fill outside declared E1')
         barred=self._bound_bars[self._bound_bars.stock.eq(event['stock']) & self._bound_bars.date.map(_day).eq(day)]
-        if (len(barred) and barred.iloc[0].corporate_action
+        if (len(barred) and _has_corporate_event(barred.iloc[0].corporate_action)
                 and (day,event['stock']) not in self.applied_ca_keys):
             raise NotExecutableError('S3 source event requires resolved accounting')
         at = datetime.fromisoformat(day + ("T09:00:00" if event["field"] == "open" else "T13:30:00"))
@@ -911,6 +960,9 @@ class S3TradingPlanR1(TradingPlanR1):
         self._check_accounts()
         if self.inputs.fixture:
             raise ValueError("engineering fixtures cannot produce S3 performance")
+        if self.inputs.probe:
+            raise ValueError('real accounting probes cannot produce S3 performance')
+        self.inputs.readiness.require_performance_unlocked()
         if self.frozen:
             raise ValueError("unresolved holding path blocks S3 performance")
         coverage=self.cell_status()

@@ -587,3 +587,206 @@ def run_real_flow_probe(*, source_root, manifest_path, archive, panel, output):
 
 if __name__ == "__main__":
     main()
+
+
+def run_s3_restore_probe(*, workspace, output_dir, resume_baseline=False):
+    """Bounded real S3 lifecycle evidence using the already reviewed export bytes.
+
+    All S1 stocks remain present; neither four cells nor full E1 performance is run.
+    The starting receipt explicitly keeps all unverified full-period gates false.
+    """
+    import gc
+    import json
+    import zipfile
+    from dataclasses import fields
+    from astraquant.research.trading_plan_r1_s3 import (
+        S3Inputs, S3TradingPlanR1, write_source_manifest, _digest, _hash)
+    from astraquant.validation.accounting_gate import AccountingReadiness
+
+    workspace, output = Path(workspace).resolve(), Path(output_dir).resolve()
+    output.relative_to(workspace)
+    output.mkdir(parents=True, exist_ok=True)
+    source = workspace/'accounting-canonical-source'
+    export = workspace/'accounting-export-37769333701'
+    archive = export/'accounting_source_inputs.zip'
+    _, original, _, terminal_bytes = _verify_frozen_probe_inputs(
+        source_root=source,manifest_path=export/'input_manifest.json',archive=archive)
+    # Restore existing ZIP members only, checking the accepted manifest hash first.
+    with zipfile.ZipFile(archive) as z:
+        for item in original['files']:
+            if item['role']=='limits':
+                p=source/item['source_path'];p.parent.mkdir(parents=True,exist_ok=True)
+                value=z.read('source/'+item['source_path'])
+                import hashlib
+                if hashlib.sha256(value).hexdigest()!=item['sha256']:
+                    raise ValueError('changed frozen limit member')
+                if p.exists() and p.read_bytes()!=value:
+                    raise ValueError('existing source limit differs from original ZIP')
+                if not p.exists():p.write_bytes(value)
+    terminal=output/'terminal_events.csv'
+    terminal.write_bytes(terminal_bytes)
+    panel=workspace/'s1-37708776526/data/panel/eligibility_panel.parquet'
+    supplement=workspace/'AstraQuant-full/results/trading_plan_r1/limit_supplement/price_limit_supplement_2019_2021.parquet'
+    dates=pd.read_parquet(source/'raw/prices_raw_2019.parquet',columns=['date']).date
+    sessions=sorted(set(dates.loc[dates.between('2019-09-18','2019-09-26')].dt.strftime('%Y-%m-%d')))
+    manifest_path=output/'manifest.json'
+    m=write_source_manifest(workspace,source_root=source,panel=panel,supplement=supplement,
+        terminal_events=terminal,output=manifest_path)
+    m['purpose']='s3_accounting_probe';m['probe_sessions']=sessions
+    for p,role in [(export/'input_manifest.json','export_manifest'),(archive,'export_archive')]:
+        m['files'].append(dict(path=str(p.relative_to(workspace)),role=role,sha256=_hash(p)))
+    manifest_path.write_text(json.dumps(m,indent=2)+'\n')
+    receipt_path=output/'receipt.json'
+    receipt=dict(schema_version='s3-accounting-receipt-v1',input_digest=_digest(m),
+        scope='bounded_real_accounting_evidence_only',
+        checks={f.name:False for f in fields(AccountingReadiness)},
+        evidence=[dict(kind='full_period_clearance_not_issued',
+            source_manifest_sha256=_hash(export/'input_manifest.json'),
+            reason='This receipt binds the real evidence probe; full E1 and unresolved event acceptance remain unverified.')])
+    receipt_path.write_text(json.dumps(receipt,indent=2)+'\n')
+    print('S3 probe: verifying frozen inputs',flush=True)
+    inputs=S3Inputs.open_accounting_probe(workspace,manifest_path,receipt_path)
+    print('S3 probe: verified; starting baseline',flush=True)
+    population=dict(panel_keys=len(inputs._panel_keys),stocks=len({s for _,s in inputs._panel_keys}),
+        kept_terminal_stocks={t:any(s==t for _,s in inputs._panel_keys) for t in ['6286','5305']})
+    missing_limits=inputs._bars[inputs._bars.eligibility.notna() & inputs._bars.limit_up_price.isna()]
+    population.update(full_period_panel_keys_without_limits=len(missing_limits),
+        missing_limits_all_ineligible=not bool(missing_limits.eligible.any()),
+        probe_window_keys_without_limits=int(missing_limits.date.dt.strftime('%Y-%m-%d').isin(sessions).sum()),
+        full_period_missing_limit_key_sample=missing_limits[['date','stock']].head(10).assign(
+            date=lambda f:f.date.dt.strftime('%Y-%m-%d')).to_dict('records'))
+    audit=[]
+    checkpoint=output/'checkpoint.json'
+    def snapshot(engine,day):
+        p=engine.canonical.portfolio
+        return dict(day=day,settled_cash=engine._available_cash(),projected_cash=engine.cash,
+            pending_payables=p.cash.pending_payables,pending_receivables=p.cash.pending_receivables,
+            quantities={k:v.quantity for k,v in engine.positions.items()},
+            equity=engine.ledger.rows['equity'][-1],frozen=engine.frozen)
+    if resume_baseline:
+        # Verify the actual saved run rather than repeat or replace its evidence.
+        e=S3TradingPlanR1.load(output/'baseline_final.json',inputs=inputs)
+        if (e.completed!=sessions or e.ledger.identity['run_id']!='real-s3-restore-20190918'
+                or e._declared_cell!=('close','sma20')):
+            raise ValueError('saved baseline is not the declared real probe')
+        audit.append(dict(scope='verified_loaded_final_baseline',**snapshot(e,sessions[-1])))
+    else:
+        e=S3TradingPlanR1(inputs=inputs,run_id='real-s3-restore-20190918',entry_mode='close',exit_mode='sma20')
+        for index,day in enumerate(sessions):
+            e.prepare(day);e.reconcile_session(day,observed_at=day);e.validate_tables()
+            audit.append(snapshot(e,day))
+            print('S3 probe: baseline',day,'frozen',e.frozen,flush=True)
+            if index==1:e.save(checkpoint)
+        e.save(output/'baseline_final.json')
+    e.export_tables(output/'baseline_csv')
+    before=json.loads((output/'baseline_final.json').read_text())
+    coverage=e.cell_status()
+    try:e.metrics()
+    except ValueError as error:metric_rejection=str(error)
+    else:raise AssertionError('accounting probe unexpectedly unlocked performance')
+    del e,inputs;gc.collect()
+    print('S3 probe: reopening frozen inputs',flush=True)
+    reopened=S3Inputs.open_accounting_probe(workspace,manifest_path,receipt_path)
+    restored=S3TradingPlanR1.load(checkpoint,inputs=reopened)
+    loaded_fills=len([j for j in restored.journal if j['kind']=='fill'])
+    restored_audit=[snapshot(restored,sessions[1])]
+    # Repeat the loaded day first: no duplicate fills/settlements/rights.
+    journal=list(restored.journal)
+    restored.prepare(sessions[1]);restored.reconcile_session(sessions[1],observed_at=sessions[1])
+    assert restored.journal==journal
+    for day in sessions[2:]:
+        restored.prepare(day);restored.reconcile_session(day,observed_at=day);restored.validate_tables()
+        restored_audit.append(snapshot(restored,day))
+        print('S3 probe: restored',day,'frozen',restored.frozen,flush=True)
+    restored.save(output/'restored_final.json');restored.export_tables(output/'restored_csv')
+    after=json.loads((output/'restored_final.json').read_text())
+    assert after==before
+    decoded=restored.read_tables(output/'restored_csv')
+    for name,frame in restored.ledger.tables().items():
+        pd.testing.assert_frame_equal(frame,decoded[name])
+        assert (output/'baseline_csv'/f's3_{name}.csv').read_bytes()==(output/'restored_csv'/f's3_{name}.csv').read_bytes()
+    fills=[r for r in after['tables']['fills'] if r['fill']]
+    assert any(r['side']=='buy' for r in fills), 'real S3 probe requires actual generated buy fill'
+    assert any(r['side']=='sell' for r in fills), 'real S3 probe requires actual generated sell fill'
+    assert any(j['kind']=='settle' for j in after['journal']), 'real S3 probe requires actual settlement'
+    ca=[j for j in after['journal'] if j['kind'] in {'normalized_ca','reviewed_ca'}]
+    observed={name:'EXERCISED_WINDOW_ONLY' for name in [
+        'signal_source_declared','entry_raw','stop_observation_raw','exit_raw','sizing_raw','mark_raw',
+        'share_count_reconciles','cash_reconciles','receivables_reconcile','nav_reconciles',
+        'no_adjusted_execution_fallback','canonical_execution_path_active']}
+    observed.update(corporate_actions_reconcile='EXERCISED_WINDOW_ONLY' if ca else 'NOT_EXERCISED_NO_HELD_EVENT',
+        normalized_ca_view_active='EXERCISED_WINDOW_ONLY' if any(j['kind']=='normalized_ca' for j in ca) else 'BOUND_NOT_EXERCISED',
+        ca_payment_dates_settle='EXERCISED_WINDOW_ONLY' if any(j['kind'].endswith('ca_payment') for j in after['journal']) else 'NOT_EXERCISED_NO_DUE_RIGHT',
+        pit_unsafe_ca_excluded='EXERCISED_WINDOW_ONLY' if any(j['kind']=='unresolved_ca' for j in after['journal']) else 'NOT_EXERCISED_NO_HELD_UNSAFE_EVENT',
+        terminal_security_lifecycle_active='UNKNOWN_FINAL_TERMS_HOLDINGS_OBSERVED_ONLY',
+        long_horizon_canonical_probe_passed='NOT_EXERCISED_BOUNDED_WINDOW')
+    assert set(observed)==set(receipt['checks'])
+    result=dict(schema_version='real_s3_restore_probe_v1',execution_base_sha='7929b77062d08d9553f834b0161538151c64c318',
+        source_kind=reopened.source_kind,input_binding=reopened.binding_id,sessions=sessions,population=population,
+        full_e1=False,four_cells_executed=0,accounting_gate_passed=False,
+        metric_rejection=metric_rejection,loaded_fills=loaded_fills,
+        exact_state_replay_equal=True,csv_readback_equal=True,csv_bytes_equal=True,
+        checks=observed,audit=audit,baseline_resumed_from_verified_state=resume_baseline,
+        restored_audit=restored_audit,baseline_equity=before['tables']['equity'],
+        fills=fills,journal=after['journal'],coverage=coverage,
+        checkpoint_sha256=_hash(checkpoint),final_state_sha256=_hash(output/'restored_final.json'),
+        file_evidence=[dict(path=str(p.relative_to(workspace)),bytes=p.stat().st_size,sha256=_hash(p))
+            for p in [manifest_path,receipt_path,checkpoint,output/'baseline_final.json',output/'restored_final.json']])
+    (output/'evidence.json').write_text(json.dumps(result,indent=2)+'\n')
+    return result
+
+
+def package_s3_restore_evidence(output_dir):
+    """Small UTF-8 pieces that GitHub readers can return without binary decoding."""
+    import base64
+    import gzip
+    import hashlib
+    import json
+    from astraquant.research.trading_plan_r1_s3 import _hash
+    output=Path(output_dir)
+    paths=[output/name for name in ['checkpoint.json','baseline_final.json','restored_final.json']]
+    paths+=sorted(output.glob('*_csv/*.csv'))
+    inventory=[]
+    for path in paths:
+        original=path.read_bytes();packed=gzip.compress(original,mtime=0)
+        key=hashlib.sha256(packed).hexdigest();encoded=base64.b64encode(packed).decode('ascii')
+        directory=output/'transport'/key;directory.mkdir(parents=True,exist_ok=True)
+        parts=[]
+        for index,start in enumerate(range(0,len(encoded),65536)):
+            part=directory/f'part-{index:03d}.b64';part.write_text(encoded[start:start+65536]+'\n')
+            parts.append(dict(file=str(part.relative_to(output)),bytes=part.stat().st_size,sha256=_hash(part)))
+        if gzip.decompress(base64.b64decode(''.join((output/p['file']).read_text().strip() for p in parts)))!=original:
+            raise ValueError('S3 transport bytes differ from executed evidence')
+        inventory.append(dict(parts=parts,compressed_bytes=len(packed),compressed_sha256=key,
+            decoded_file=str(path.relative_to(output)),decoded_bytes=len(original),decoded_sha256=_hash(path)))
+    (output/'transport.json').write_text(json.dumps(dict(schema_version='s3_exact_transport_v1',files=inventory),indent=2)+'\n')
+    return inventory
+
+
+def restore_s3_evidence_transport(output_dir):
+    """Verify every piece and reproduce the exact original state/CSV files."""
+    import base64
+    import gzip
+    import hashlib
+    import json
+    output=Path(output_dir).resolve();inventory=json.loads((output/'transport.json').read_text())
+    if inventory['schema_version']!='s3_exact_transport_v1':raise ValueError('unknown evidence transport')
+    def inside(name):
+        path=(output/name).resolve();path.relative_to(output);return path
+    for item in inventory['files']:
+        encoded=[]
+        for part in item['parts']:
+            data=inside(part['file']).read_bytes()
+            if len(data)!=part['bytes'] or hashlib.sha256(data).hexdigest()!=part['sha256']:
+                raise ValueError('changed S3 evidence piece')
+            encoded.append(data.decode('ascii').strip())
+        packed=base64.b64decode(''.join(encoded),validate=True)
+        if len(packed)!=item['compressed_bytes'] or hashlib.sha256(packed).hexdigest()!=item['compressed_sha256']:
+            raise ValueError('changed compressed S3 evidence')
+        original=gzip.decompress(packed)
+        if len(original)!=item['decoded_bytes'] or hashlib.sha256(original).hexdigest()!=item['decoded_sha256']:
+            raise ValueError('changed decoded S3 evidence')
+        target=inside(item['decoded_file']);target.parent.mkdir(parents=True,exist_ok=True)
+        if target.exists() and target.read_bytes()!=original:raise ValueError('existing evidence bytes differ')
+        target.write_bytes(original)
+    return len(inventory['files'])
