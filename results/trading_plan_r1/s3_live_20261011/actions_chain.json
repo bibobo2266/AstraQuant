@@ -1,24 +1,12 @@
 {
   "chain_id": "s3-actions-20261011",
-  "segment": 1,
+  "segment": 2,
   "next_segment": 2,
-  "status": "READY",
-  "owner_run_id": "38123562697",
-  "code_commit": "2f69bc01c760e1fef68bddc1b66776dd9255b195",
-  "jobs_started": 2,
-  "automatic_retry": false,
-  "failure": {
-    "type": "RuntimeError",
-    "error": "8436:unresolved_ca: normalized fractional-share terms are UNKNOWN",
-    "actions_run_id": "38123562697",
-    "saved_day": "2018-08-06",
-    "saved_sessions": 634,
-    "frozen": true,
-    "checkpoint_commit": "6305a580ceb158a50e28c9264996ac4839c6e0e0",
-    "failure_artifact_id": 11696901584
-  },
+  "status": "ACTIVE",
+  "owner_run_id": "38129411955",
+  "code_commit": "d2c53c3627a8359ccfbf906ef5a0fc0c051f3725",
+  "jobs_started": 3,
   "blocked_cells": [
     "A1"
-  ],
-  "owner_authorization": "2026-10-11T17:41:31+08:00: continue unaffected cells; event-only 8436 evidence; no earlier replay"
+  ]
 }
