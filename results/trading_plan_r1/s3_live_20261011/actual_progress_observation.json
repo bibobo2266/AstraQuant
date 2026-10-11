@@ -1,0 +1,38 @@
+{
+  "A_id": "s3-A-20261011T045203Z",
+  "B_id": "s3-B-20261011T045202Z",
+  "A1_local_checkpoint_completed": 40,
+  "A1_local_checkpoint_day": "2016-03-08",
+  "A1_remote_receipt": {
+    "commit": "6ccf5cd88e89277c35493c3b948ca270cf658a14",
+    "repo": "bibobo2266/AstraQuant",
+    "path": "results/trading_plan_r1/s3_live_20261011/A/A1/transport.json",
+    "transport_sha256": "e4c83cb31eb0c0bab50d178ceaf45a1f6179b617079f413d5bfd40f0aae8ae6c",
+    "checkpoint_sha256": "f4ecc342317e44751c77942d383968894ae359b262c6e20046899084da25c612",
+    "saved_completed_day": "2016-01-29",
+    "saved_completed_sessions": 20,
+    "local_completed_sessions": 20,
+    "readback_verified": true,
+    "remote_interval_sessions": 20,
+    "publisher_sha256": "3dd7b481231eadb69d6b1d326d7ad147d512c2d1269d367dfdd24e8c07b59a64"
+  },
+  "B1_remote_receipt": {
+    "commit": "487e32a33a0b7b6951634670ab936eb98e27f4c2",
+    "repo": "bibobo2266/AstraQuant",
+    "path": "results/trading_plan_r1/s3_live_20261011/B/B1/transport.json",
+    "transport_sha256": "ec4a96e21dbd04fed008ed142c3df1ca5f4bfe9b1fbe14ca946f660e832c867e",
+    "checkpoint_sha256": "47de2319a8437762f072cd7ace298e25106d983aa408b8fe37ac2da161aa20d7",
+    "saved_completed_day": "2016-01-04",
+    "saved_completed_sessions": 1,
+    "local_completed_sessions": 1,
+    "readback_verified": true,
+    "remote_interval_sessions": 20,
+    "publisher_sha256": "3dd7b481231eadb69d6b1d326d7ad147d512c2d1269d367dfdd24e8c07b59a64",
+    "pinned_parts_verified": 4,
+    "pinned_restored_files_verified": 3
+  },
+  "service_sha256": "81640b58e9b46cc46090f8340d260558dde86d3a9a4c64e190e31b87a12c7dcf",
+  "worker_session": 17861,
+  "continuation": "same engine publishes every20 days and continues; sequential A then B",
+  "other_cells": "0 days, queued"
+}
