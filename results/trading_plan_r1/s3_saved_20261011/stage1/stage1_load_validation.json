@@ -1,0 +1,32 @@
+{
+  "stage": 1,
+  "program_base_sha": "07a4c33169b5a368f9abd32fc63569fadda8c833",
+  "actual_program_sha": "0e42594871dfc0cc0d33b144a94a272afb02ff81",
+  "source_loader_returned": true,
+  "input_digest": "af1711d8b1e948491d6bec12d1f96471bb4d77ee88e54bcd9e28844d920b91e7",
+  "binding": "d9d8315a76c06e27cb6012d21396a623ac318d1975cbef691c8d15691503ce51",
+  "panel_population": 1916,
+  "execution_population": 1814,
+  "probe_sessions": 1468,
+  "first_day": "2016-01-04",
+  "last_day": "2021-12-30",
+  "period": {
+    "epoch": "E1",
+    "start": "2016-01-04",
+    "end": "2021-12-31"
+  },
+  "formal_performance_unlocked": false,
+  "tests_rerun": false,
+  "errors": [
+    {
+      "error": "probe inventory differs from accepted source export",
+      "resolution": "Restored canonical raw/reference/fundamentals directories; symlink source/ prefix removed; original file bytes unchanged",
+      "resolved": true
+    },
+    {
+      "error": "AssertionError after source loader returned: diagnostic required last session to equal period end",
+      "resolution": "Use actual source calendar; period end is a bound, not a required quote date; no strategy or calendar changes",
+      "resolved": true
+    }
+  ]
+}
