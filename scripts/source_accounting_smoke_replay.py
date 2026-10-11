@@ -792,7 +792,7 @@ def restore_s3_evidence_transport(output_dir):
     return len(inventory['files'])
 
 
-def run_s3_diagnostic_a(*, workspace, output_dir, round_name="A", measure=False, max_sessions=None, checkpoint_publisher=None):
+def run_s3_diagnostic_a(*, workspace, output_dir, round_name="A", measure=False, max_sessions=None, checkpoint_publisher=None, stop_requested=None, cell_names=None, stop_on_failure=False):
     """Approved E1 diagnostic A; formal metrics remain locked, cells stop independently."""
     import json, traceback, subprocess
     from datetime import datetime, timezone
@@ -843,6 +843,8 @@ def run_s3_diagnostic_a(*, workspace, output_dir, round_name="A", measure=False,
     write_status()
     snapshot=None
     for cell,a,b in cells:
+        if cell_names is not None and cell not in cell_names:continue
+        if stop_requested is not None and stop_requested():break
         directory=output/cell;directory.mkdir(exist_ok=True)
         checkpoint=directory/'checkpoint.json'
         engine=(S3BatchTradingPlanR1.load_checkpoint(checkpoint,inputs=inputs,run_id=execution_id+'-'+cell,entry_mode=a,exit_mode=b)
@@ -860,6 +862,7 @@ def run_s3_diagnostic_a(*, workspace, output_dir, round_name="A", measure=False,
         # Re-run only finalization in that case, never the completed trading day.
         for day in remaining or engine.completed[-1:]:
             if remaining and max_sessions is not None and count_this_start>=max_sessions:break
+            if remaining and stop_requested is not None and stop_requested():break
             state=status['cells'][cell]
             if state['status']!='RUNNING':continue
             state['current_date']=day;write_status()
@@ -903,10 +906,15 @@ def run_s3_diagnostic_a(*, workspace, output_dir, round_name="A", measure=False,
             write_status();print(json.dumps(dict(cell=cell,**state),default=str),flush=True)
             if state['status']!='RUNNING':break
         if engine.remaining_sessions() and state['status']=='RUNNING':state['status']='PAUSED_SAVED'
+        if checkpoint_publisher is not None and checkpoint.exists() and state['status']=='PAUSED_SAVED' and stop_requested is not None:
+            state['external_checkpoint']=checkpoint_publisher(checkpoint, force=True)
         write_status()
         del engine;gc.collect()
         if state['status']=='STOP_THRESHOLD_LEDGER_REVIEW':
             status['stop_reason']=state['error'];break
+        if stop_on_failure and state['status'] in {'ERROR','INCOMPLETE'}:
+            status['stop_reason']=state.get('error');break
+        if stop_requested is not None and stop_requested():break
     status['finished_at']=datetime.now(timezone.utc).isoformat();write_status()
     return status
 

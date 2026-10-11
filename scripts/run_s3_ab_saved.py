@@ -57,7 +57,8 @@ class GitHubCheckpointPublisher:
         for attempt in range(3):
             try:
                 with urllib.request.urlopen(request, timeout=45) as result:
-                    return json.load(result)
+                    raw=result.read()
+                    return json.loads(raw) if raw else None
             except urllib.error.HTTPError as error:
                 detail=error.read().decode(errors='replace')[:500]
                 if error.code in {429,500,502,503,504} and attempt<2:
@@ -66,6 +67,8 @@ class GitHubCheckpointPublisher:
 
     def read_file(self, commit, path):
         item=self.api('GET','contents/'+urllib.parse.quote(path, safe='/')+'?ref='+commit)
+        if not item.get('content') and item.get('sha'):
+            item=self.api('GET','git/blobs/'+item['sha'])
         if item.get('encoding')!='base64' or not item.get('content'):
             raise ValueError('GitHub text readback absent: '+path)
         return base64.b64decode(item['content'])
@@ -96,13 +99,15 @@ class GitHubCheckpointPublisher:
             return new['sha']
         raise RuntimeError('remote branch changed repeatedly')
 
-    def __call__(self, checkpoint):
+    def __call__(self, checkpoint, *, force=False):
         checkpoint=Path(checkpoint).resolve()
         checkpoint.relative_to(self.local_root)
         state=json.loads(checkpoint.read_text());cell=checkpoint.parent.name
         completed=state['completed'];count=len(completed)
         remaining=[d for d in state['sessions'] if d>=completed[0] and d not in completed]
-        if (cell in self.receipts and count%self.interval and not state['frozen'] and remaining):
+        if (not force and cell in self.receipts and count%self.interval and not state['frozen'] and remaining):
+            return self.receipts[cell]
+        if cell in self.receipts and self.receipts[cell]['checkpoint_sha256']==sha(checkpoint.read_bytes()):
             return self.receipts[cell]
         package_checkpoint_transport(checkpoint.parent)
         manifest=(checkpoint.parent/'transport.json').read_bytes();inventory=json.loads(manifest)
@@ -121,6 +126,20 @@ class GitHubCheckpointPublisher:
         revision=self.publish_files(files, 'Save '+state['identity']['run_id']+' through '+completed[-1]+' [skip ci]')
         if self.read_file(revision,remote+'/transport.json')!=manifest:
             raise ValueError('remote transport readback mismatch')
+        # Verify the actual pinned head, not just a receipt/manifest string.
+        import gzip
+        head=next(item for item in inventory['files'] if item['decoded_file']=='checkpoint.json')
+        encoded=[]
+        for part in head['parts']:
+            value=self.read_file(revision,remote+'/'+part['file'])
+            if len(value)!=part['bytes'] or sha(value)!=part['sha256']:
+                raise ValueError('remote head part mismatch')
+            encoded.append(value.decode('ascii').strip())
+        packed=base64.b64decode(''.join(encoded),validate=True)
+        if len(packed)!=head['compressed_bytes'] or sha(packed)!=head['compressed_sha256']:
+            raise ValueError('remote compressed head mismatch')
+        decoded=gzip.decompress(packed)
+        if decoded!=checkpoint.read_bytes():raise ValueError('remote checkpoint readback mismatch')
         receipt=dict(commit=revision,repo=REPO,path=remote+'/transport.json',
                      transport_sha256=sha(manifest),checkpoint_sha256=sha(checkpoint.read_bytes()),
                      saved_completed_day=completed[-1],saved_completed_sessions=count,

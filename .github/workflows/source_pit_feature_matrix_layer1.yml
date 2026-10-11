@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       stage:
-        description: "S1 panel, source preflight, frozen limits or complete accounting inputs (no effects)"
+        description: "Frozen S1/input exports or Owner-approved fixed S3 continuation"
         required: false
         default: s1
         type: choice
@@ -13,6 +13,15 @@ on:
           - s3_source_preflight
           - s3_limit_inputs
           - s3_accounting_inputs
+          - s3_resume
+      s3_chain:
+        description: "Authorized S3 chain identity; retain across continuation"
+        required: false
+        default: s3-actions-20261011
+      s3_segment:
+        description: "Zero-based S3 segment; maximum 72, initial 0 is real SIGKILL pilot"
+        required: false
+        default: "0"
 
 permissions:
   contents: read
@@ -23,7 +32,7 @@ concurrency:
 
 jobs:
   build:
-    if: ${{ github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/research/trading-plan-r1' }}
+    if: ${{ github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/research/trading-plan-r1' && inputs.stage != 's3_resume' }}
     runs-on: ubuntu-latest
     timeout-minutes: 90
     steps:
@@ -134,3 +143,104 @@ jobs:
             AstraQuant/configs/research/pit_feature_matrix_layer1_v1.yaml
           if-no-files-found: warn
           retention-days: 90
+
+  s3_resume:
+    if: ${{ github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/research/trading-plan-r1' && inputs.stage == 's3_resume' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    permissions:
+      contents: write
+      actions: write
+      issues: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      S3_CHAIN: ${{ inputs.s3_chain }}
+      S3_SEGMENT: ${{ inputs.s3_segment }}
+    steps:
+      - name: Start bounded S3 wall clock
+        run: echo "S3_JOB_EPOCH=$(date +%s)" >> "$GITHUB_ENV"
+
+      - name: Checkout latest durable S3 generation
+        uses: actions/checkout@v4
+        with:
+          path: AstraQuant
+          ref: research/trading-plan-r1
+          persist-credentials: false
+
+      - name: Set up Python for S3
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: AstraQuant/pyproject.toml
+
+      - name: Install S3 runtime
+        working-directory: AstraQuant
+        run: python -m pip install --quiet -e ".[dev]"
+
+      - name: Restore accepted S1 artifact without rebuilding
+        uses: actions/download-artifact@v4
+        with:
+          repository: bibobo2266/AstraQuant
+          github-token: ${{ github.token }}
+          run-id: 37708776526
+          artifact-ids: 11520573912
+          path: fixed-inputs/s1
+          merge-multiple: true
+
+      - name: Restore accepted accounting export without refreshing sources
+        uses: actions/download-artifact@v4
+        with:
+          repository: bibobo2266/AstraQuant
+          github-token: ${{ github.token }}
+          run-id: 37769333701
+          artifact-ids: 11547312869
+          path: fixed-inputs/accounting
+          merge-multiple: true
+
+      - name: Verify orchestration safeguards
+        working-directory: AstraQuant
+        run: python -m pytest -q tests/test_s3_actions_continuation.py tests/test_s3_diagnostic_runner_finish.py
+
+      - name: Execute real interruption pilot or bounded S3 continuation
+        id: s3
+        working-directory: AstraQuant
+        run: python scripts/run_s3_actions.py --phase execute --workspace "$GITHUB_WORKSPACE" --chain "$S3_CHAIN" --segment "$S3_SEGMENT"
+
+      - name: Upload S3 receipts and new immutable checkpoint parts
+        id: s3_artifact
+        if: ${{ success() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: s3-${{ inputs.s3_chain }}-${{ inputs.s3_segment }}-${{ github.run_id }}
+          path: AstraQuant/s3-action-artifact/
+          if-no-files-found: error
+          retention-days: ${{ steps.s3.outputs.complete == 'true' && 90 || 7 }}
+          compression-level: 6
+
+      - name: Continue same workflow only after verified artifact upload
+        if: ${{ success() }}
+        working-directory: AstraQuant
+        env:
+          S3_ARTIFACT_ID: ${{ steps.s3_artifact.outputs.artifact-id }}
+        run: python scripts/run_s3_actions.py --phase continue --chain "$S3_CHAIN" --segment "$S3_SEGMENT" --artifact-id "$S3_ARTIFACT_ID"
+
+      - name: Preserve raw S3 failure evidence
+        if: ${{ failure() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: s3-error-${{ github.run_id }}
+          path: |
+            AstraQuant/results/trading_plan_r1/s3_live_20261011/actions_error.json
+            AstraQuant/results/trading_plan_r1/s3_live_20261011/actions_chain.json
+            AstraQuant/results/trading_plan_r1/s3_live_20261011/A/progress.json
+            AstraQuant/results/trading_plan_r1/s3_live_20261011/B/progress.json
+          if-no-files-found: warn
+          retention-days: 7
+
+      - name: Report failed Actions run on sole delivery issue
+        if: ${{ failure() }}
+        working-directory: AstraQuant
+        run: |
+          gh api --method POST repos/bibobo2266/AstraQuant/issues/6/comments --silent \
+            -f body="Sol-E｜Actions失敗停止，無自動重啟；原始錯誤請讀 https://github.com/bibobo2266/AstraQuant/actions/runs/$GITHUB_RUN_ID 。"

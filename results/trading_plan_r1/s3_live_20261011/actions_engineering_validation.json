@@ -1,0 +1,38 @@
+{
+  "status": "ENGINEERING_VERIFIED_PILOT_PENDING",
+  "owner_approval_issue_comment": 6106816531,
+  "tests": {
+    "passed": 55,
+    "elapsed_seconds": 56.68,
+    "suites": [
+      "test_s3_actions_continuation.py",
+      "test_s3_diagnostic_runner_finish.py",
+      "test_s3_batch_runtime.py",
+      "test_s3_normalized_restore.py"
+    ]
+  },
+  "checks": [
+    "py_compile",
+    "git diff --check",
+    "workflow YAML parsed",
+    "actions/download-artifact v4 official action.yml inputs verified"
+  ],
+  "files": {
+    ".github/workflows/source_pit_feature_matrix_layer1.yml": "880189f4d515186cb995bb61c2fbcb2425937595be637b33083e474b2f6ed7dc",
+    "scripts/run_s3_actions.py": "1532ff529675c64da9ba07a9f6b2faf82e935d3a454f9154290d361e14481bec",
+    "scripts/run_s3_ab_saved.py": "eaf434ea0b2545d9ca9fcb51f87cc57c668219d2a7e9d9db73cedf23e6983d4d",
+    "scripts/source_accounting_smoke_replay.py": "a4b7162e309e9a302a8945e5d62b6f88c59d2fabda489efcbcd92e01d8dc665c",
+    "tests/test_s3_actions_continuation.py": "a2da283a4b2e291b99f98dd904a07435aa694e47030abe6f4ff675e92e0c4051"
+  },
+  "strategy_core_modified": false,
+  "real_pilot_executed": false,
+  "limits": {
+    "jobs": 72,
+    "intermediate_artifact_bytes": 536870912,
+    "intermediate_retention_days": 7,
+    "final_artifact_bytes": 2147483648,
+    "final_retention_days": 90,
+    "approved_incremental_storage_usd": 5
+  },
+  "existing_source_upload_preserved": true
+}
