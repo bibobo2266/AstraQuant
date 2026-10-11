@@ -74,6 +74,9 @@ def _has_corporate_event(value: Any) -> bool:
 
 
 def _plain(value: Any) -> Any:
+    # Most persisted ledger leaves are already plain scalar values.
+    if type(value) in (str, int, bool, type(None)):
+        return value
     if isinstance(value, dict):
         return {str(k): _plain(v) for k, v in value.items()}
     if isinstance(value, (list, tuple)):

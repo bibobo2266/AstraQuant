@@ -1028,16 +1028,43 @@ def package_checkpoint_transport(directory):
     import json,base64,gzip,hashlib
     from astraquant.research.trading_plan_r1_s3 import _atomic_write,_hash
     root=Path(directory).resolve();head=json.loads((root/'checkpoint.json').read_text())
+    previous = {}
+    if (root/'transport.json').exists():
+        prior = json.loads((root/'transport.json').read_text())
+        if prior.get('schema_version') == 's3_exact_transport_v1':
+            previous = {item['decoded_file']: item for item in prior['files']}
     paths=[root/'checkpoint.json']+[root/r['path'] for r in head.get('checkpoint_storage',{}).get('chunks',[])]
     inventory=[]
     for path in paths:
-        value=path.read_bytes();packed=gzip.compress(value,mtime=0);key=hashlib.sha256(packed).hexdigest()
+        value=path.read_bytes();value_sha=hashlib.sha256(value).hexdigest()
+        name=str(path.relative_to(root));cached=previous.get(name)
+        # Reuse bytes only after checking both the source and every stored part.
+        # This retains tamper detection, without recompressing/fsyncing old chunks.
+        if cached and cached['decoded_sha256']==value_sha and cached['decoded_bytes']==len(value):
+            intact=True;encoded_parts=[]
+            for p in cached['parts']:
+                part=(root/p['file']).resolve();part.relative_to(root)
+                data=part.read_bytes() if part.exists() else b''
+                if len(data)!=p['bytes'] or hashlib.sha256(data).hexdigest()!=p['sha256']:
+                    intact=False;break
+                encoded_parts.append(data.strip())
+            if intact:
+                try:
+                    packed=base64.b64decode(b''.join(encoded_parts),validate=True)
+                    intact=(len(packed)==cached['compressed_bytes']
+                            and hashlib.sha256(packed).hexdigest()==cached['compressed_sha256']
+                            and gzip.decompress(packed)==value)
+                except (ValueError,OSError,EOFError):
+                    intact=False
+                if intact:
+                    inventory.append(cached);continue
+        packed=gzip.compress(value,mtime=0);key=hashlib.sha256(packed).hexdigest()
         encoded=base64.b64encode(packed).decode();parts=[]
         for i,start in enumerate(range(0,len(encoded),65536)):
             part=root/'transport'/key/f'part-{i:03d}.b64';_atomic_write(part,(encoded[start:start+65536]+'\n').encode())
             parts.append(dict(file=str(part.relative_to(root)),bytes=part.stat().st_size,sha256=_hash(part)))
         inventory.append(dict(parts=parts,compressed_bytes=len(packed),compressed_sha256=key,
-            decoded_file=str(path.relative_to(root)),decoded_bytes=len(value),decoded_sha256=_hash(path)))
+            decoded_file=name,decoded_bytes=len(value),decoded_sha256=value_sha))
     _atomic_write(root/'transport.json',json.dumps(dict(schema_version='s3_exact_transport_v1',files=inventory),indent=2).encode())
     return inventory
 

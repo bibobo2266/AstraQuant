@@ -1685,9 +1685,9 @@ class S3BatchTradingPlanR1(S3TradingPlanR1):
         state = self._state(tables=mutable)
         state['checkpoint_storage'] = dict(version='s3-chunked-checkpoint-v1', chunks=references, counts=counts)
         state['state_digest'] = _digest(state)
-        _atomic_write(target, json.dumps(state, allow_nan=False).encode())
-        # Archive the committed generation as well as the atomic latest pointer.
         encoded = json.dumps(state, allow_nan=False).encode()
+        _atomic_write(target, encoded)
+        # Archive the committed generation as well as the atomic latest pointer.
         label = self.completed[-1] if self.completed else 'Day0'
         _atomic_write(target.parent / 'checkpoint_heads' / (label + '-' + hashlib.sha256(encoded).hexdigest() + '.json'), encoded)
         self._checkpoint_chunks, self._checkpoint_counts = references, counts
