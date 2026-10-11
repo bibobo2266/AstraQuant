@@ -1,0 +1,14 @@
+{
+  "tests": 21,
+  "passed": 21,
+  "elapsed_seconds": 3.33,
+  "actual_A2_completion": false,
+  "engineering_proof": [
+    "terminal buy maturity2022-01-04 remains pending atE1 close",
+    "old checkpoint resumes only2021-12-30",
+    "full versus resumed state and fourCSV byte-identical",
+    "calendar provenance tampering rejected"
+  ],
+  "trading_period_unchanged": true,
+  "source_price_refresh": false
+}

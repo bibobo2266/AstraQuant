@@ -155,7 +155,7 @@ def publisher(rnd):
             if receipt['commit'] != previous:
                 issue(self, '新保存日固定讀回head SHA通過；run ' + os.environ['GITHUB_RUN_ID']
                       + '；' + json.dumps(receipt, ensure_ascii=False)
-                      + '；實讀各格 ' + json.dumps(inventory(), ensure_ascii=False))
+                      + '；各格本地checkpoint（遠端以各格transport／receipt還原為準） ' + json.dumps(inventory(), ensure_ascii=False))
             return receipt
     pub = ReportingPublisher(token_file=token_path(), local_root=ROOT / rnd, remote_root=REMOTE + '/' + rnd)
     revision = subprocess.check_output(['git', 'rev-parse', 'HEAD'], text=True).strip()
@@ -428,6 +428,24 @@ def execute(workspace, chain_id, index):
     persist(api, [CONTROL], f'Claim S3 hosted segment {index} run {run_id}')
     before = {str(p.relative_to(REPO)): sha(p.read_bytes()) for p in ROOT.rglob('*') if p.is_file()}
     bootstrap(workspace)
+    # Re-enable only the exact repaired terminal-calendar failure, never CA cells.
+    a_progress=json.loads((ROOT/'A/progress.json').read_text())
+    a2=a_progress.get('cells',{}).get('A2',{})
+    if ('A2' in control['blocked_cells'] and a2.get('stop_date')=='2021-12-30'
+            and a2.get('error')=='S3 source calendar lacks T+2 settlement sessions'):
+        from astraquant.research.e1_settlement_calendar import verified_tail,PROOF_SHA
+        verified_tail()
+        h=json.loads((ROOT/'A/A2/checkpoint.json').read_text())
+        if h['frozen']:raise ValueError('terminal-calendar repair cannot unfreeze accounting failure')
+        control['blocked_cells'].remove('A2')
+        write_json(CONTROL,control)
+        repair=dict(cell='A2',proof_sha256=PROOF_SHA,restored_completed=len(h['completed']),
+            restored_last_day=h['completed'][-1],first_uncompleted_day=h['sessions'][h['sessions'].index(h['completed'][-1])+1],
+            prior_trading_dates_not_replayed=True,
+            necessary_rebuild='only unpersisted1461–1467 if restored head still1460; no dates at/before restored checkpoint')
+        write_json(ROOT/'actions_terminal_calendar_repair.json',repair)
+        persist(api,[CONTROL,ROOT/'actions_terminal_calendar_repair.json'],'Activate verified terminal-calendar A2 repair')
+        issue(api,'A2已核官方交割尾曆，從最新有效遠端head接續 '+json.dumps(repair,ensure_ascii=False))
     initial = inventory()
     with ExitStack() as stack:
         for rnd in IDS:

@@ -644,15 +644,27 @@ class S3TradingPlanR1(TradingPlanR1):
             raise ValueError("R1 fill is not the governed RAW price")
         intent = OrderIntent(event["id"]+":intent", event["stock"], side, event["quantity"], at, "S3 fixed R1")
         index = self.sessions.index(day)
-        if index+2>=len(self.sessions) and not self.inputs.fixture:
-            raise NotExecutableError('S3 source calendar lacks T+2 settlement sessions')
-        due = self.sessions[index+2] if index+2 < len(self.sessions) else _day(pd.Timestamp(day)+pd.offsets.BDay(2))
+        due, tail = self._settlement_due(day)
+        if tail is not None:
+            self._settlement_tail = tail
         args = dict(intent=intent, signal=self.signal, order_id=event["id"]+":order", fill_id=event["id"]+":fill",
                     submitted_at=at, session_date=day, settlement=SettlementInstruction(event["id"]+":settle", datetime.fromisoformat(due)))
         result = self.canonical.execute_stop(**args, stop_price=event["stop_price"]) if event["use"] == "stop" else self.canonical.execute(**args, use=PriceUse(event["use"]), field=event["field"])
         if not math.isclose(result.fill.fees, event["cost"], abs_tol=1e-8):
             raise ValueError("canonical cost differs from fixed R1 costs")
         return result
+
+    def _settlement_due(self, day):
+        index=self.sessions.index(day)
+        if index+2<len(self.sessions):
+            return self.sessions[index+2],None
+        if self.inputs.fixture:
+            return _day(pd.Timestamp(day)+pd.offsets.BDay(2)),None
+        from astraquant.research.e1_settlement_calendar import terminal_due
+        try:
+            return terminal_due(self.sessions,day,self.inputs.manifest['period'])
+        except ValueError as error:
+            raise NotExecutableError('S3 source calendar lacks T+2 settlement sessions: '+str(error)) from error
 
     def _execution_bar(self, stock, day):
         return self._bound_bars[self._bound_bars.stock.eq(stock) & self._bound_bars.date.map(_day).eq(day)]
@@ -909,6 +921,8 @@ class S3TradingPlanR1(TradingPlanR1):
                      plans=self.plans, pending_entries=self.pending_entries, completed=self.completed,
                      frozen=self.frozen, freeze_reason=self.freeze_reason, last_reliable_equity=self.last_reliable_equity,
                      journal=self.journal, close_exit_reasons=self.close_exit_reasons)
+        if getattr(self,'_settlement_tail',None) is not None:
+            state['settlement_calendar']=self._settlement_tail
         return _plain(state)
 
     @classmethod
@@ -985,6 +999,8 @@ class S3TradingPlanR1(TradingPlanR1):
                     raise ValueError('saved blocked execution no longer rejects')
             else:
                 raise ValueError('unknown canonical journal event')
+        if state.get('settlement_calendar')!=getattr(engine,'_settlement_tail',None):
+            raise ValueError('saved terminal settlement calendar provenance mismatch')
         engine.close_exit_reasons = state["close_exit_reasons"]
         for reason in engine.close_exit_reasons.values():
             if reason not in {"sma20_next_open", "rsi13_lt50_next_open"}:

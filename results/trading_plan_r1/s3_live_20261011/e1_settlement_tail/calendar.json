@@ -1,0 +1,34 @@
+{
+  "schema": "e1-settlement-tail-v1",
+  "period": {
+    "epoch": "E1",
+    "start": "2016-01-04",
+    "end": "2021-12-31"
+  },
+  "calendar_end": "2021-12-30",
+  "tail_sessions": [
+    "2022-01-03",
+    "2022-01-04"
+  ],
+  "due_dates": {
+    "2021-12-29": "2022-01-03",
+    "2021-12-30": "2022-01-04"
+  },
+  "scope": "settlement instructions only; no trades, prices, indicators, or settled cash credited beyond E1",
+  "derivation": "Jan3 explicitly first trading day in both official schedules; Jan4 ordinary Tuesday and no closure in either official schedule; Dec31 observed New Year holiday in TPEx111 schedule",
+  "sources": [
+    {
+      "file": "twse_2022.json",
+      "sha256": "c49edf8212319a24ce1a964e4997b86409971c79cc300bb3e614749ccf7bce8d",
+      "bytes": 1589,
+      "url": "https://www.twse.com.tw/holidaySchedule/holidaySchedule?date=20220101&response=json"
+    },
+    {
+      "file": "tpex_111.html",
+      "sha256": "7bc7da269f04f5d9c2454a362e7ecec8b80fd2bce8f385de033de26e6aa479a5",
+      "bytes": 6248,
+      "url": "https://www.tpex.org.tw/storage/zh-tw/web/bulletin/trading_date/trading_date_111.htm"
+    }
+  ],
+  "owner_approval": "2026-10-11 Asia/Taipei: only official terminal settlement calendar; trading period unchanged"
+}
