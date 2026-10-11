@@ -1,0 +1,21 @@
+{
+  "cell": "A2",
+  "full_period_complete": true,
+  "completed_days": 1468,
+  "last_day": "2021-12-30",
+  "fixed_commit": "133bce48713d2f3009f32557aec7a38d3387aa39",
+  "head_sha256": "aac2240050f0fed74dbf1f640ebbe11ec3aace4c2bbce905d531430ed5873b84",
+  "metrics": {
+    "closed_count": 88,
+    "net_win_rate": 0.3636363636,
+    "avg_win": 0.188052037,
+    "avg_loss": 0.0613062302,
+    "payoff_ratio": 3.0674213088,
+    "expectancy": 0.0293695033,
+    "median_holding_sessions": 10.5,
+    "capital_occupied_position_days": 1165.0
+  },
+  "open_count": 1,
+  "proof_sha256": "54a15d9fe4b6cfc9013e6ab2ec7718863a261cc48d27c619a4b46f71100b7186",
+  "evidence": "fixed remote head digest, required equity chunks, saved fills/decisions metrics and unique ledger row IDs independently checked; zero trading dates replayed"
+}
