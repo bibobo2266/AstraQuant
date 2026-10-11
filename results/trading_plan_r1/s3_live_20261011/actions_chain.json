@@ -1,13 +1,22 @@
 {
   "chain_id": "s3-actions-20261011",
   "segment": 6,
-  "next_segment": 6,
-  "status": "ACTIVE",
+  "next_segment": 7,
+  "status": "SAVED",
   "owner_run_id": "38145630113",
   "code_commit": "5ee23de3061ae538b30da236c4650507ea38d084",
   "jobs_started": 8,
   "blocked_cells": [
     "A1",
     "A3"
+  ],
+  "complete": false,
+  "advanced": 422,
+  "requires_artifact_success": true,
+  "runnable_cells": [
+    "B1",
+    "B2",
+    "B3",
+    "B4"
   ]
 }
