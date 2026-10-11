@@ -82,14 +82,35 @@ class GitHubCheckpointPublisher:
         for attempt in range(3):
             ref=self.api('GET','git/ref/heads/'+BRANCH)
             parent=ref['object']['sha']; commit=self.api('GET','git/commits/'+parent)
-            entries=[dict(path=p,mode='100644',type='blob',content=b.decode('utf-8')) for p,b in changed.items()]
+            entries=[]
+            for p,b in changed.items():
+                if p.endswith('/progress.json'):
+                    # Preserve the exact bytes at the metadata boundary; do not
+                    # rely on inline tree text encoding or a large tree listing.
+                    blob=self.api('POST','git/blobs',dict(content=base64.b64encode(b).decode('ascii'),encoding='base64'))
+                    if blob['sha']!=git_blob(b):
+                        raise ValueError('created progress blob hash mismatch: '+p)
+                    actual=self.api('GET','git/blobs/'+blob['sha'])
+                    if actual.get('encoding')!='base64' or base64.b64decode(actual['content'])!=b:
+                        raise ValueError('created progress blob byte readback mismatch: '+p)
+                    entries.append(dict(path=p,mode='100644',type='blob',sha=blob['sha']))
+                else:
+                    entries.append(dict(path=p,mode='100644',type='blob',content=b.decode('utf-8')))
             tree=self.api('POST','git/trees',dict(base_tree=commit['tree']['sha'],tree=entries))
             returned={x['path']:x['sha'] for x in tree['tree'] if x['type']=='blob'}
-            if not set(changed)<=set(returned):
-                returned={x['path']:x['sha'] for x in self.api('GET','git/trees/'+tree['sha']+'?recursive=1')['tree'] if x['type']=='blob'}
             for p,b in changed.items():
-                if returned.get(p)!=git_blob(b):raise ValueError('remote blob hash mismatch: '+p)
+                actual_sha=returned.get(p)
+                if actual_sha is None:
+                    actual_sha=self._tree_path_sha(tree['sha'],p)
+                if actual_sha!=git_blob(b):
+                    diagnostic=dict(path=p,expected_blob_sha=git_blob(b),returned_blob_sha=actual_sha,
+                        tree_sha=tree['sha'],tree_truncated=tree.get('truncated'),input_bytes=len(b))
+                    raise ValueError('remote blob hash mismatch: '+json.dumps(diagnostic,sort_keys=True))
             new=self.api('POST','git/commits',dict(message=message,tree=tree['sha'],parents=[parent]))
+            # Verify progress from the fixed candidate commit before moving ref.
+            for p,b in changed.items():
+                if p.endswith('/progress.json') and self.read_file(new['sha'],p)!=b:
+                    raise ValueError('candidate commit progress byte readback mismatch: '+p)
             try:
                 self.api('PATCH','git/refs/heads/'+BRANCH,dict(sha=new['sha'],force=False))
             except RuntimeError:
@@ -98,6 +119,21 @@ class GitHubCheckpointPublisher:
             self.known.update({p:git_blob(b) for p,b in changed.items()})
             return new['sha']
         raise RuntimeError('remote branch changed repeatedly')
+
+    def _tree_path_sha(self, tree_sha, path):
+        """Walk bounded directories when a recursive tree listing omits a path."""
+        components=path.split('/')
+        current=tree_sha
+        for index,name in enumerate(components):
+            listing=self.api('GET','git/trees/'+current)
+            item=next((row for row in listing['tree'] if row['path']==name),None)
+            if item is None:
+                raise ValueError('remote tree path absent: '+path)
+            if index==len(components)-1:
+                if item['type']!='blob':raise ValueError('remote tree path is not blob: '+path)
+                return item['sha']
+            if item['type']!='tree':raise ValueError('remote tree directory is not tree: '+path)
+            current=item['sha']
 
     def __call__(self, checkpoint, *, force=False):
         checkpoint=Path(checkpoint).resolve()

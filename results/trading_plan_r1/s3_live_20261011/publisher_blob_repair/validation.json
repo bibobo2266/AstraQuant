@@ -1,0 +1,18 @@
+{
+  "input_bytes": 3286,
+  "input_blob_sha": "53fb21b5532a3e4e2261a03a69b1770a66e24d2f",
+  "returned_blob_sha": "53fb21b5532a3e4e2261a03a69b1770a66e24d2f",
+  "returned_bytes": 3286,
+  "returned_actual_blob_sha": "53fb21b5532a3e4e2261a03a69b1770a66e24d2f",
+  "exact_byte_equal": true,
+  "tree_sha": "6a494e4616a706eb36b410b5d5e8776fedcad8c1",
+  "branch_updated": false,
+  "first_difference": null,
+  "explicit_base64_blob_sha": "53fb21b5532a3e4e2261a03a69b1770a66e24d2f",
+  "explicit_blob_exact_readback": true,
+  "unit_tests": 33,
+  "unit_elapsed_seconds": 15.28,
+  "original_returned_sha_not_recorded": true,
+  "same_workflow_only": true,
+  "accounting_hash_checks_preserved": true
+}

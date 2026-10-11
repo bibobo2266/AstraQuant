@@ -1,0 +1,12 @@
+{
+  "cell": "B1",
+  "commit": "a879caea0303b732a26407d1ce783f73684aa0bd",
+  "completed": 620,
+  "last_day": "2018-07-17",
+  "head_sha256": "44f3f27387fa2b26a87f79b3f5c02cc3271cdd564227418a52c9b3a24a29d541",
+  "fills": 65,
+  "holdings": 1,
+  "head_digest_and_transport_parts_verified": true,
+  "latest_remote_transport_equal": true,
+  "necessary_rebuild": "621\u2013634 lost; no dates <=620 replayed"
+}

@@ -200,7 +200,7 @@ jobs:
 
       - name: Verify orchestration safeguards
         working-directory: AstraQuant
-        run: python -m pytest -q tests/test_s3_actions_continuation.py tests/test_s3_diagnostic_runner_finish.py tests/test_s3_checkpoint_efficiency.py tests/test_s3_terminal_calendar.py
+        run: python -m pytest -q tests/test_s3_actions_continuation.py tests/test_s3_diagnostic_runner_finish.py tests/test_s3_checkpoint_efficiency.py tests/test_s3_terminal_calendar.py tests/test_s3_publisher_integrity.py
 
       - name: Execute real interruption pilot or bounded S3 continuation
         id: s3

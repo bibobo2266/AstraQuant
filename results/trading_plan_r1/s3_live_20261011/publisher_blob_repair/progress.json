@@ -1,0 +1,61 @@
+{
+  "execution_id": "s3-B-20261011T045202Z",
+  "started_at": "2026-10-11T15:10:13.808793+00:00",
+  "program_sha": null,
+  "program_base_sha": "a20a91fd6cc2ec0bbb72cc8ec52cdbf47840bae7",
+  "manifest_sha256": "352f5e02bd5f3c11c479a2c88b58252423b1d7ef4423a5541fcbe22362495cd2",
+  "formal_performance_unlocked": false,
+  "round": "B",
+  "cells": {
+    "B1": {
+      "entry_mode": "close",
+      "exit_mode": "sma20",
+      "status": "ERROR",
+      "completed": 634,
+      "resumed": true,
+      "current_date": "2018-08-06",
+      "holdings": [
+        "8436",
+        "8942"
+      ],
+      "frozen": true,
+      "external_checkpoint": {
+        "commit": "a879caea0303b732a26407d1ce783f73684aa0bd",
+        "repo": "bibobo2266/AstraQuant",
+        "path": "results/trading_plan_r1/s3_live_20261011/B/B1/transport.json",
+        "transport_sha256": "ee7deb6b3644266fa830e42baa495bba90333c9707697e6022b19e783a02710a",
+        "checkpoint_sha256": "44f3f27387fa2b26a87f79b3f5c02cc3271cdd564227418a52c9b3a24a29d541",
+        "saved_completed_day": "2018-07-17",
+        "saved_completed_sessions": 620,
+        "local_completed_sessions": 620,
+        "readback_verified": true,
+        "remote_interval_sessions": 20,
+        "publisher_sha256": "eaf434ea0b2545d9ca9fcb51f87cc57c668219d2a7e9d9db73cedf23e6983d4d"
+      },
+      "stop_date": "2018-08-06",
+      "error": "remote blob hash mismatch: results/trading_plan_r1/s3_live_20261011/B/progress.json",
+      "check_location": "Traceback (most recent call last):\n  File \"/home/runner/work/AstraQuant/AstraQuant/AstraQuant/scripts/source_accounting_smoke_replay.py\", line 891, in run_s3_diagnostic_a\n    receipt=checkpoint_publisher(directory/'checkpoint.json')\n            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/runner/work/AstraQuant/AstraQuant/AstraQuant/scripts/run_s3_actions.py\", line 175, in __call__\n    receipt = super().__call__(path, force=force)\n              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/runner/work/AstraQuant/AstraQuant/AstraQuant/scripts/run_s3_ab_saved.py\", line 126, in __call__\n    revision=self.publish_files(files, 'Save '+state['identity']['run_id']+' through '+completed[-1]+' [skip ci]')\n             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/runner/work/AstraQuant/AstraQuant/AstraQuant/scripts/run_s3_ab_saved.py\", line 91, in publish_files\n    if returned.get(p)!=git_blob(b):raise ValueError('remote blob hash mismatch: '+p)\n                                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nValueError: remote blob hash mismatch: results/trading_plan_r1/s3_live_20261011/B/progress.json\n"
+    },
+    "B2": {
+      "entry_mode": "next_open",
+      "exit_mode": "sma20",
+      "status": "QUEUED",
+      "completed": 0
+    },
+    "B3": {
+      "entry_mode": "close",
+      "exit_mode": "sma20_or_rsi13_lt50",
+      "status": "QUEUED",
+      "completed": 0
+    },
+    "B4": {
+      "entry_mode": "next_open",
+      "exit_mode": "sma20_or_rsi13_lt50",
+      "status": "QUEUED",
+      "completed": 0
+    }
+  },
+  "peak_rss_kib": 4860480,
+  "input_binding": "90e896b29fd5f0dad18b72ab34b59cd92fc782bf1e308d4ef67e92a6a46e2b15",
+  "expected_sessions": 1468
+}
