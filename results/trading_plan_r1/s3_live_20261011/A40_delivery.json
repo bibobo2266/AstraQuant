@@ -1,0 +1,33 @@
+{
+  "A1_remote": {
+    "pinned_commit": "0397af3925429c37ae0ac5d90779c108176b2277",
+    "completed": 40,
+    "last_completed_day": "2016-03-08",
+    "positions": 0,
+    "frozen": false,
+    "checkpoint_sha256": "7756212de0edf4ce29202f1c26147e8a84da007ca83a0fee40d6624c7c8f02cb",
+    "manifest_sha256": "f61dd603cbda2346eac73f358ae648d20f0f66a7b38ff83a4c9edbcfafb6d2b1",
+    "head_part_compressed_decoded_size_and_sha": true,
+    "scope": "pinned remote head and manifest; full ledger chunks not re-downloaded in this check",
+    "filled": 0,
+    "closed": 0,
+    "order_rows": 1945,
+    "nonfill_reasons": {
+      "not_eligible_or_not_available": 1942,
+      "invalid_geometry": 3
+    },
+    "execution_id": "s3-A-20261011T045203Z-A1"
+  },
+  "A1_local": {
+    "completed": 60,
+    "last_completed_day": "2016-04-07",
+    "positions": 0,
+    "filled": 0,
+    "closed": 0
+  },
+  "B1_correction_commit": "0ed1c36653ebbc80b272d0efb6c6cfca3a61e6d0",
+  "B1_pinned_manifest_sha256": "9fc4a68d5c5e51bc1adb59ad2207f4d10e33e6dcd830754d1561e6b143ce4626",
+  "B1_corrected_receipt_readback_verified": true,
+  "worker_session": 17861,
+  "other_cells": "queued, zero days"
+}
