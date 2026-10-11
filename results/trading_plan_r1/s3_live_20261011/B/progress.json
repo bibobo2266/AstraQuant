@@ -11,23 +11,22 @@
       "entry_mode": "close",
       "exit_mode": "sma20",
       "status": "RUNNING",
-      "completed": 219,
+      "completed": 239,
       "resumed": true,
-      "current_date": "2016-11-28",
+      "current_date": "2016-12-26",
       "holdings": [
-        "1569",
-        "6116"
+        "8358"
       ],
       "frozen": false,
       "external_checkpoint": {
-        "commit": "39dc880b8c4a367d88e5ee41714eba95a8488188",
+        "commit": "b5d20e575bd8012a459b97eb46fc5354660930fb",
         "repo": "bibobo2266/AstraQuant",
         "path": "results/trading_plan_r1/s3_live_20261011/B/B1/transport.json",
-        "transport_sha256": "a2139ec08bd02bd887369cedec63d7a12c7c8d9181f64a595669eebeb0ba8c2c",
-        "checkpoint_sha256": "c020636eec36e4f1e2cdb75c9def5c8acf3fd5272c8c9e671534795208c5f5fb",
-        "saved_completed_day": "2016-10-31",
-        "saved_completed_sessions": 200,
-        "local_completed_sessions": 200,
+        "transport_sha256": "c4cec64f6230741ab0f3eb22fbf4ac288a41bbfea345d61c8bb7aff4fe841708",
+        "checkpoint_sha256": "b32bc7b13f72e4a8498e0155e1e700cf40097bd62a2f2cb6d665ea33e89bc55b",
+        "saved_completed_day": "2016-11-28",
+        "saved_completed_sessions": 220,
+        "local_completed_sessions": 220,
         "readback_verified": true,
         "remote_interval_sessions": 20,
         "publisher_sha256": "eaf434ea0b2545d9ca9fcb51f87cc57c668219d2a7e9d9db73cedf23e6983d4d"
