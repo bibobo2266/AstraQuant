@@ -1,8 +1,8 @@
 {
   "execution_id": "s3-B-20261011T045202Z",
-  "started_at": "2026-10-11T04:52:02.838922+00:00",
-  "program_sha": "fd0d6113ca471af144ae5fcfbefca199ef14c210",
-  "program_base_sha": "fd0d6113ca471af144ae5fcfbefca199ef14c210",
+  "started_at": "2026-10-11T15:10:13.808793+00:00",
+  "program_sha": null,
+  "program_base_sha": "a20a91fd6cc2ec0bbb72cc8ec52cdbf47840bae7",
   "manifest_sha256": "352f5e02bd5f3c11c479a2c88b58252423b1d7ef4423a5541fcbe22362495cd2",
   "formal_performance_unlocked": false,
   "round": "B",
@@ -11,9 +11,22 @@
       "entry_mode": "close",
       "exit_mode": "sma20",
       "status": "RUNNING",
-      "completed": 0,
-      "resumed": false,
-      "current_date": "2016-01-04"
+      "completed": 19,
+      "resumed": true,
+      "current_date": "2016-01-29",
+      "holdings": [],
+      "frozen": false,
+      "external_checkpoint": {
+        "commit": "a20a91fd6cc2ec0bbb72cc8ec52cdbf47840bae7",
+        "repo": "bibobo2266/AstraQuant",
+        "path": "results/trading_plan_r1/s3_live_20261011/B/B1/transport.json",
+        "transport_sha256": "9fc4a68d5c5e51bc1adb59ad2207f4d10e33e6dcd830754d1561e6b143ce4626",
+        "checkpoint_sha256": "47de2319a8437762f072cd7ace298e25106d983aa408b8fe37ac2da161aa20d7",
+        "saved_completed_day": "2016-01-04",
+        "saved_completed_sessions": 1,
+        "local_completed_sessions": 1,
+        "readback_verified": true
+      }
     },
     "B2": {
       "entry_mode": "next_open",
@@ -34,7 +47,7 @@
       "completed": 0
     }
   },
-  "peak_rss_kib": 4615920,
+  "peak_rss_kib": 4860480,
   "input_binding": "90e896b29fd5f0dad18b72ab34b59cd92fc782bf1e308d4ef67e92a6a46e2b15",
   "expected_sessions": 1468
 }
