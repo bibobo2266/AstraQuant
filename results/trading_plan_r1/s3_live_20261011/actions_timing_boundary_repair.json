@@ -1,0 +1,29 @@
+{
+  "original_control": {
+    "chain_id": "s3-actions-20261011",
+    "segment": 5,
+    "next_segment": 5,
+    "status": "BLOCKED",
+    "owner_run_id": "38140649667",
+    "code_commit": "3d676f58c47cb9d5e973e3009b1eb1a5c1efc9f6",
+    "jobs_started": 6,
+    "blocked_cells": [
+      "A1",
+      "A3"
+    ],
+    "failure": {
+      "type": "ValueError",
+      "error": "duplicate measured completed day",
+      "actions_run_id": "38140649667"
+    },
+    "automatic_retry": false
+  },
+  "verified_stopped_run": 38140649667,
+  "attempt": 2,
+  "fix_commit": "963ec6dcaef04f206d18431136aa2de5649a0b41",
+  "checks": "27 passed in9.41s without scripts PYTHONPATH",
+  "scope": "align measured history to restored checkpoint; no trading/source changes",
+  "remote_head_still": 1460,
+  "necessary_rebuild": "unpersisted1461–1467; never dates<=1460",
+  "retry": "same failed job only; budget jobs_started preserved"
+}
