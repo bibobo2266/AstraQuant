@@ -130,6 +130,9 @@ def test_segment_skips_blocked_cell_and_continues_other_round(tmp_path, monkeypa
     cells = {r+str(i): {'completed': 0, 'frozen': False} for r in 'AB' for i in range(1,5)}
     cells['A1'].update(completed=634, frozen=True)
     cells['A4']['completed'] = 1468
+    delivered = tmp_path/'A'/'A4'/'cell_delivery.json'
+    delivered.parent.mkdir(parents=True)
+    delivered.write_text('{}')
     monkeypatch.setattr(module, 'inventory', lambda: cells)
     monkeypatch.setattr(module, 'publisher', lambda rnd: None)
     calls = []
@@ -142,3 +145,74 @@ def test_segment_skips_blocked_cell_and_continues_other_round(tmp_path, monkeypa
     assert calls[0]['cell_names'] == {'A3'}
     assert calls[1]['cell_names'] == {'B1', 'B2', 'B3', 'B4'}
     assert all(c['stop_on_failure'] is False for c in calls)
+
+
+def test_measurement_preserves_real_checkpoint_and_all_ledger_bytes(tmp_path, monkeypatch):
+    actions_module()  # Make sibling instrumentation importable.
+    runner, output, scope, _ = runner_fixture(tmp_path, monkeypatch, (104.,101.,99.), 'A')
+    measured = tmp_path/'measured'
+    for directory in (output, measured):
+        directory.mkdir()
+        (directory/'progress.json').write_text(json.dumps({'execution_id':'parity-fixed-id'}))
+    runner.run_s3_diagnostic_a(workspace=tmp_path, output_dir=output, cell_names={'A1'})
+    rows, completed = [], []
+    runner.run_s3_diagnostic_a(workspace=tmp_path, output_dir=measured, cell_names={'A1'},
+        day_observer=lambda cell,row:rows.append(row),
+        cell_finished=lambda cell,directory,state:completed.append(cell))
+    assert completed == ['A1']
+    assert [r['day'] for r in rows] == scope
+    assert all(r['wall_seconds'] >= sum(r[p] for p in ['calculation','validation','local_save','remote_save']) for r in rows)
+    for name in ['checkpoint.json', 'state.json', 'diagnostic_metrics.json']:
+        assert (output/'A1'/name).read_bytes() == (measured/'A1'/name).read_bytes()
+    tables = list((output/'A1/tables').glob('*.csv'))
+    assert len(tables) == 4
+    for path in tables:
+        assert path.read_bytes() == (measured/'A1/tables'/path.name).read_bytes()
+
+
+def test_timing_estimates_only_same_cell_after_contiguous100_days(tmp_path, monkeypatch):
+    module = actions_module()
+    monkeypatch.setattr(module, 'ROOT', tmp_path)
+    path = tmp_path/'A/A2/day_timing.json'
+    path.parent.mkdir(parents=True)
+    rows = [dict(day=str(i), completed=i, wall_seconds=4, calculation=2,
+                 validation=.5, local_save=.5, remote_save=1, other_seconds=0) for i in range(1,101)]
+    path.write_text(json.dumps({'records':rows}))
+    result = module.timing_summary({'A2':{'completed':100}, 'A3':{'completed':0}})
+    assert result['A2']['remaining_seconds'] == (1468-100)*4
+    assert result['A2']['seconds']['wall_seconds'] == 400
+    assert result['A3']['remaining_seconds'] is None
+    rows[-1]['completed'] = 102
+    path.write_text(json.dumps({'records':rows}))
+    assert module.timing_summary({'A2':{'completed':102}})['A2']['remaining_seconds'] is None
+
+
+def test_cell_delivery_pins_eight_columns_four_ledgers_and_is_idempotent(tmp_path, monkeypatch):
+    module = actions_module()
+    monkeypatch.setattr(module, 'REPO', tmp_path)
+    monkeypatch.setenv('GITHUB_RUN_ID', '42')
+    directory = tmp_path/'A2'
+    (directory/'tables').mkdir(parents=True)
+    columns = ['closed_count','net_win_rate','avg_win','avg_loss','payoff_ratio','expectancy',
+               'median_holding_sessions','capital_occupied_position_days']
+    metric = {key:1 for key in columns}
+    metric.update(closed_count=10, open_count=2, net_win_rate=.8, avg_loss=.02)
+    (directory/'diagnostic_metrics.json').write_text(json.dumps([metric]))
+    (directory/'checkpoint.json').write_text(json.dumps({'frozen':False,'completed':list(range(1468))}))
+    for name in ['fills','decisions','equity','eligibility']:
+        (directory/'tables'/('s3_'+name+'.csv')).write_text('canonical '+name)
+    saves, messages = [], []
+    monkeypatch.setattr(module, 'persist', lambda api,paths,message:saves.append(paths) or 'fixed-result')
+    monkeypatch.setattr(module, 'issue', lambda api,message:messages.append(message))
+    pub = lambda path,force: {'commit':'fixed-checkpoint','readback_verified':True}
+    module.deliver_cell(pub, 'A2', directory, {'status':'STOP_THRESHOLD_LEDGER_REVIEW',
+                                             'threshold_ledger_check':'revalidated'})
+    report = json.loads((directory/'cell_delivery.json').read_text())
+    assert list(report['metrics']) == columns
+    assert report['metrics']['closed_count'] == 10 and report['open_count'] == 2
+    assert report['threshold_review'] and report['threshold_ledger_check'] == 'revalidated'
+    assert len(report['tables']) == 4
+    assert len(saves) == len(messages) == 1
+    assert (tmp_path/'s3-action-artifact/A2_ledgers.tar.gz').exists()
+    module.deliver_cell(pub, 'A2', directory, {})
+    assert len(saves) == len(messages) == 1

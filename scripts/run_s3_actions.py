@@ -276,14 +276,86 @@ def segment(workspace, seconds):
         if time.monotonic() >= deadline:
             break
         selected = {cell for cell, state in cells.items() if cell.startswith(rnd)
-                    and cell not in blocked and not state.get('frozen') and state['completed'] < 1468}
+                    and cell not in blocked and not state.get('frozen')
+                    and (state['completed'] < 1468 or not (ROOT/rnd/cell/'cell_delivery.json').exists())}
         if not selected:
             continue
+        pub = publisher(rnd)
         status = run_s3_diagnostic_a(workspace=workspace, output_dir=ROOT / rnd, round_name=rnd,
-            checkpoint_publisher=publisher(rnd), stop_requested=lambda: time.monotonic() >= deadline,
-            cell_names=selected, stop_on_failure=False)
+            checkpoint_publisher=pub, stop_requested=lambda: time.monotonic() >= deadline,
+            cell_names=selected, stop_on_failure=False,
+            day_observer=lambda cell, row: observe_day(rnd, cell, row),
+            cell_finished=lambda cell, directory, state: deliver_cell(pub, cell, directory, state))
         states[rnd] = status
     return states
+
+
+def observe_day(rnd, cell, row):
+    path = ROOT/rnd/cell/'day_timing.json'
+    data = json.loads(path.read_text()) if path.exists() else {'records': []}
+    if any(r['completed'] == row['completed'] for r in data['records']):
+        raise ValueError('duplicate measured completed day')
+    row['actions_run_id'] = os.environ['GITHUB_RUN_ID']
+    data['records'] = (data['records'] + [row])[-100:]
+    data['scope'] = 'exclusive engine phases; remote_save includes pinned readback/issue; artifact upload not measured here'
+    write_json(path, data)
+
+
+def timing_summary(cells):
+    reports = {}
+    for cell, state in cells.items():
+        path = ROOT/cell[0]/cell/'day_timing.json'
+        rows = json.loads(path.read_text())['records'] if path.exists() else []
+        contiguous = len(rows) == 100 and all(b['completed'] == a['completed'] + 1
+                                             for a, b in zip(rows, rows[1:]))
+        totals = {key: sum(row[key] for row in rows) for key in
+                  ['wall_seconds', 'calculation', 'validation', 'local_save', 'remote_save', 'other_seconds']}
+        reports[cell] = dict(measured_days=len(rows), last_measured_day=rows[-1]['day'] if rows else None,
+            seconds=totals, artifact_upload_seconds=None,
+            remaining_seconds=(max(0, 1468-state['completed'])*totals['wall_seconds']/100
+                               if contiguous and not state.get('frozen') else None),
+            estimate_scope='same-cell latest100 extrapolation; future blocks/setup/artifact upload excluded')
+    return reports
+
+
+def deliver_cell(pub, cell, directory, state):
+    path = directory/'cell_delivery.json'
+    if path.exists():
+        return
+    metric = json.loads((directory/'diagnostic_metrics.json').read_text())[0]
+    checkpoint = json.loads((directory/'checkpoint.json').read_text())
+    if checkpoint['frozen'] or len(checkpoint['completed']) != 1468:
+        raise ValueError('incomplete cell cannot deliver final metrics')
+    receipt = pub(directory/'checkpoint.json', force=True)
+    columns = ['closed_count', 'net_win_rate', 'avg_win', 'avg_loss', 'payoff_ratio',
+               'expectancy', 'median_holding_sessions', 'capital_occupied_position_days']
+    tables = {p.name: {'bytes': p.stat().st_size, 'sha256': sha(p.read_bytes())}
+              for p in sorted((directory/'tables').glob('*.csv'))}
+    if len(tables) != 4:
+        raise ValueError('four ledgers required for cell delivery')
+    flagged = ((metric['net_win_rate'] is not None and metric['net_win_rate'] > .7)
+               or (metric['avg_loss'] is not None and metric['avg_loss'] < .01))
+    # The pinned transport already holds the complete canonical four-table ledger.
+    # CSV archive is retained in the next bounded segment artifact as a convenience.
+    target = REPO/'s3-action-artifact'
+    target.mkdir(exist_ok=True)
+    archive_path = target/(cell+'_ledgers.tar.gz')
+    with tarfile.open(archive_path, 'w:gz') as archive:
+        for p in sorted((directory/'tables').glob('*.csv')):
+            archive.add(p, arcname=str(p.relative_to(directory)))
+    delivery = dict(cell=cell, metrics={key:metric[key] for key in columns},
+        open_count=metric['open_count'], threshold_review=flagged,
+        threshold_ledger_check=state.get('threshold_ledger_check'), checkpoint=receipt, tables=tables,
+        csv_archive_sha256=sha(archive_path.read_bytes()), csv_artifact='uploaded at segment boundary',
+        actions_run_id=os.environ['GITHUB_RUN_ID'], closed_scope='closed filled exits only; open positions excluded')
+    write_json(path, delivery)
+    metrics_path = directory/'diagnostic_metrics.json'
+    revision = persist(pub, [path, metrics_path], 'Deliver completed S3 cell '+cell)
+    issue(pub, '單格完成立即交付 '+cell+'；八欄 '+json.dumps(delivery['metrics'], ensure_ascii=False)
+          + '；未平倉不入closed勝率；門檻回查='+str(flagged)
+          + '；固定結果commit '+revision+'；四份帳本CSV SHA '+json.dumps(tables)
+          + '；可還原完整canonical帳本 '+json.dumps(receipt, ensure_ascii=False)
+          + '；CSV壓縮檔於本段artifact上傳，不等其他格。')
 
 
 def stage_artifact(before, complete):
@@ -297,6 +369,8 @@ def stage_artifact(before, complete):
         allowed = (path.name in {'actions_chain.json', 'actions_pilot_evidence.json', 'actions_segment_receipt.json',
                     'actions_sources_verified.json', 'progress.json', 'error.json', 'transport.json',
                     'diagnostic_metrics.json', 'open_positions.csv'} or 'transport/' in relative)
+        if path.name in {'cell_delivery.json', 'day_timing.json'}:
+            allowed = True
         if complete and path.name in {'A_B_eight_columns.csv', 'A_B_final_manifest.json'}:
             allowed = True
         if not allowed or before.get(relative) == sha(path.read_bytes()):
@@ -388,9 +462,11 @@ def execute(workspace, chain_id, index):
         elapsed_seconds=time.monotonic() - started, states=states,
         persistence='hosted Actions; no chat-side service dependency',
         post_chat_observation='requires later independent observation; run ID alone is not evidence')
+    receipt['timing'] = timing_summary(final)
     write_json(CONTROL, control)
     write_json(ROOT / 'actions_segment_receipt.json', receipt)
     evidence_paths=[CONTROL, ROOT / 'actions_segment_receipt.json', ROOT / 'actions_sources_verified.json']
+    evidence_paths += list(ROOT.glob('[AB]/[AB][1-4]/day_timing.json'))
     if complete:evidence_paths += [ROOT/'A_B_eight_columns.csv', ROOT/'A_B_final_manifest.json']
     revision = persist(api, evidence_paths,
                        f'Save S3 hosted segment {index} actual progress')
@@ -400,6 +476,8 @@ def execute(workspace, chain_id, index):
     issue(api, f'Actions段{index}／run {run_id} 已保存並固定讀回；commit {revision}；實際{advanced}新日，耗時{receipt["elapsed_seconds"]:.2f}秒。'
                + json.dumps(final, ensure_ascii=False) + ('；真SIGKILL→恢復完整state/全部CSV逐位元相同。' if index == 0 else '')
                + '；artifact成功才接下一段，RUNNING/啟動ID不作跨聊天證據。')
+    issue(api, '最近完成日分項實測／各格條件估時 '+json.dumps(receipt['timing'], ensure_ascii=False)
+          +'；不足連續100日不估時；上傳於下一步獨立量測。')
 
 
 def continue_chain(chain_id, index, artifact_id):
@@ -411,10 +489,32 @@ def continue_chain(chain_id, index, artifact_id):
     expected = f's3-{chain_id}-{index}-{os.environ["GITHUB_RUN_ID"]}'
     if artifact['name'] != expected or artifact['expired'] or artifact['workflow_run']['id'] != int(os.environ['GITHUB_RUN_ID']):
         raise ValueError('uploaded artifact identity mismatch')
+    try:
+        jobs = api.api('GET', 'actions/runs/'+os.environ['GITHUB_RUN_ID']+'/jobs')
+        upload_measurement_error = None
+    except Exception as error:
+        # Missing timing metadata cannot interrupt an accepted checkpoint chain.
+        jobs = {}
+        upload_measurement_error = type(error).__name__+': '+str(error)
+    from datetime import datetime
+    uploads = []
+    for job in jobs.get('jobs', []):
+        for step in job.get('steps', []):
+            if 'upload' in step.get('name', '').lower() and step.get('conclusion') == 'success':
+                start, end = step.get('started_at'), step.get('completed_at')
+                if start and end:
+                    uploads.append(dict(job_id=job['id'], step=step['name'], started_at=start,
+                        completed_at=end, seconds=(datetime.fromisoformat(end.replace('Z','+00:00'))
+                                                 -datetime.fromisoformat(start.replace('Z','+00:00'))).total_seconds()))
+    timing_path = ROOT/'actions_upload_timing.json'
+    write_json(timing_path, dict(actions_run_id=os.environ['GITHUB_RUN_ID'], artifact_id=artifact_id,
+        uploads=uploads, measurement_error=upload_measurement_error,
+        scope='Actions API completed upload step; seconds resolution; empty means unmeasured'))
     control['artifact_id'] = artifact_id
     control['status'] = 'COMPLETE' if control['complete'] else ('BUDGET_EXHAUSTED' if index + 1 >= MAX_SEGMENTS or control['jobs_started'] >= MAX_SEGMENTS else ('WAITING_EVIDENCE' if not control.get('runnable_cells', [True]) else 'READY'))
     write_json(CONTROL, control)
-    persist(api, [CONTROL], f'Confirm S3 segment {index} artifact and continuation boundary')
+    persist(api, [CONTROL, timing_path], f'Confirm S3 segment {index} artifact and continuation boundary')
+    issue(api, '本段artifact上傳獨立實測 '+json.dumps(uploads, ensure_ascii=False))
     if control['status'] != 'READY':
         issue(api, control['status'] + '；' + json.dumps(inventory(), ensure_ascii=False))
         return

@@ -792,9 +792,9 @@ def restore_s3_evidence_transport(output_dir):
     return len(inventory['files'])
 
 
-def run_s3_diagnostic_a(*, workspace, output_dir, round_name="A", measure=False, max_sessions=None, checkpoint_publisher=None, stop_requested=None, cell_names=None, stop_on_failure=False):
+def run_s3_diagnostic_a(*, workspace, output_dir, round_name="A", measure=False, max_sessions=None, checkpoint_publisher=None, stop_requested=None, cell_names=None, stop_on_failure=False, day_observer=None, cell_finished=None):
     """Approved E1 diagnostic A; formal metrics remain locked, cells stop independently."""
-    import json, traceback, subprocess
+    import json, traceback, subprocess, time
     from datetime import datetime, timezone
     from astraquant.research.trading_plan_r1_s3 import S3Inputs,S3BatchTradingPlanR1,_digest,_hash
     from astraquant.research.trading_plan_r1 import _metric_rows
@@ -851,6 +851,11 @@ def run_s3_diagnostic_a(*, workspace, output_dir, round_name="A", measure=False,
             if checkpoint.exists() else S3BatchTradingPlanR1(inputs=inputs,run_id=execution_id+'-'+cell,entry_mode=a,exit_mode=b,snapshot=snapshot))
         snapshot=engine._runtime
         inputs=engine.inputs
+        clock = None
+        if day_observer is not None:
+            from s3_phase_timing import PhaseClock
+            clock = PhaseClock()
+            clock.attach(engine)
         gc.collect()
         state=status['cells'][cell];state.update(completed=len(engine.completed),resumed=checkpoint.exists())
         (directory/'runtime_manifest.json').write_text(json.dumps(engine.runtime_manifest,indent=2)+'\n')
@@ -866,6 +871,9 @@ def run_s3_diagnostic_a(*, workspace, output_dir, round_name="A", measure=False,
             state=status['cells'][cell]
             if state['status']!='RUNNING':continue
             state['current_date']=day;write_status()
+            day_started = time.perf_counter() if clock else None
+            prior_timing = clock.snapshot() if clock else None
+            prior_completed = len(engine.completed)
             try:
                 if remaining:
                     engine.prepare(day);engine.reconcile_session(day,observed_at=day)
@@ -873,7 +881,11 @@ def run_s3_diagnostic_a(*, workspace, output_dir, round_name="A", measure=False,
                 engine.save_checkpoint(directory/'checkpoint.json')
                 count_this_start+=1
                 if checkpoint_publisher is not None:
-                    receipt=checkpoint_publisher(directory/'checkpoint.json')
+                    if clock:
+                        with clock.phase('remote_save'):
+                            receipt=checkpoint_publisher(directory/'checkpoint.json')
+                    else:
+                        receipt=checkpoint_publisher(directory/'checkpoint.json')
                     state['external_checkpoint']=receipt
                 if len(engine.completed)==1:
                     restored=S3BatchTradingPlanR1.load_checkpoint(directory/'checkpoint.json',inputs=inputs)
@@ -895,7 +907,9 @@ def run_s3_diagnostic_a(*, workspace, output_dir, round_name="A", measure=False,
                         rows.to_json(directory/'diagnostic_metrics.json',orient='records',indent=2)
                         row=rows.iloc[0]
                         if (pd.notna(row.net_win_rate) and row.net_win_rate>.7) or (pd.notna(row.avg_loss) and row.avg_loss<.01):
+                            engine.validate_tables()
                             state.update(status='STOP_THRESHOLD_LEDGER_REVIEW',error='win_rate>70% or avg_loss<1%')
+                            state['threshold_ledger_check']='canonical ledger keys/schema/accounts revalidated; open positions excluded from closed metrics'
                     pd.DataFrame([dict(stock=p.stock,quantity=p.quantity,entry_date=p.entry_date,truncated=p.truncated) for p in engine.positions.values()]).to_csv(directory/'open_positions.csv',index=False)
             except Exception as error:
                 state.update(status='ERROR',stop_date=day,error=str(error),check_location=traceback.format_exc(),holdings=sorted(engine.positions))
@@ -904,11 +918,15 @@ def run_s3_diagnostic_a(*, workspace, output_dir, round_name="A", measure=False,
                 # Preserve unvalidated state as forensic evidence, never call it accepted.
                 (directory/'journal_unvalidated.json').write_text(json.dumps(engine.journal,indent=2,default=str)+'\n')
             write_status();print(json.dumps(dict(cell=cell,**state),default=str),flush=True)
+            if clock and len(engine.completed) > prior_completed:
+                day_observer(cell, clock.row(day, len(engine.completed), day_started, prior_timing))
             if state['status']!='RUNNING':break
         if engine.remaining_sessions() and state['status']=='RUNNING':state['status']='PAUSED_SAVED'
         if checkpoint_publisher is not None and checkpoint.exists() and state['status']=='PAUSED_SAVED' and stop_requested is not None:
             state['external_checkpoint']=checkpoint_publisher(checkpoint, force=True)
         write_status()
+        if cell_finished is not None and len(engine.completed)==len(m['probe_sessions']) and not engine.frozen and state['status']!='ERROR':
+            cell_finished(cell, directory, state)
         del engine;gc.collect()
         if state['status']=='STOP_THRESHOLD_LEDGER_REVIEW':
             status['stop_reason']=state['error'];break
