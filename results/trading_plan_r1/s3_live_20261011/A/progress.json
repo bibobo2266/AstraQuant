@@ -16,29 +16,36 @@
     "A2": {
       "entry_mode": "next_open",
       "exit_mode": "sma20",
-      "status": "RUNNING",
-      "completed": 1459,
+      "status": "ERROR",
+      "completed": 1467,
       "resumed": true,
-      "current_date": "2021-12-20",
+      "current_date": "2021-12-30",
       "holdings": [],
       "frozen": false,
       "external_checkpoint": {
-        "commit": "e86014235ce29e6b0da2e66e24a6b38749e450bc",
+        "commit": "3097858ab8991fcf202d301448f63afec7ffb079",
         "repo": "bibobo2266/AstraQuant",
         "path": "results/trading_plan_r1/s3_live_20261011/A/A2/transport.json",
-        "transport_sha256": "edb8e66485ca71a0937d2545f977621f93c2e3bbfd771e2560f74617026c1f06",
-        "checkpoint_sha256": "65e1bbe802869cf81642d61caaf2e79184f02b022ce7b34aa1bbb8775a51218a",
-        "saved_completed_day": "2021-12-01",
-        "saved_completed_sessions": 1447,
-        "local_completed_sessions": 1447,
-        "readback_verified": true
-      }
+        "transport_sha256": "e80948003e2c20bdf2ffd35247aa8e6d9d1f8aea287184889f746662188a3d9d",
+        "checkpoint_sha256": "20c9e560965df2f95d81494926286b0b96f43ea55f3ec9f68102a1ef6ba2f148",
+        "saved_completed_day": "2021-12-20",
+        "saved_completed_sessions": 1460,
+        "local_completed_sessions": 1460,
+        "readback_verified": true,
+        "remote_interval_sessions": 20,
+        "publisher_sha256": "eaf434ea0b2545d9ca9fcb51f87cc57c668219d2a7e9d9db73cedf23e6983d4d"
+      },
+      "stop_date": "2021-12-30",
+      "error": "S3 source calendar lacks T+2 settlement sessions",
+      "check_location": "Traceback (most recent call last):\n  File \"/home/runner/work/AstraQuant/AstraQuant/AstraQuant/scripts/source_accounting_smoke_replay.py\", line 879, in run_s3_diagnostic_a\n    engine.prepare(day);engine.reconcile_session(day,observed_at=day)\n                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/runner/work/AstraQuant/AstraQuant/AstraQuant/scripts/s3_phase_timing.py\", line 33, in measured\n    return fn(*args, **kwargs)\n           ^^^^^^^^^^^^^^^^^^^\n  File \"/home/runner/work/AstraQuant/AstraQuant/AstraQuant/src/astraquant/research/trading_plan_r1_s3.py\", line 1580, in reconcile_session\n    return super().reconcile_session(day, observed_at=observed_at)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/runner/work/AstraQuant/AstraQuant/AstraQuant/src/astraquant/research/trading_plan_r1_s3.py\", line 687, in reconcile_session\n    result = super().reconcile_session(day, observed_at=observed_at)\n             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/runner/work/AstraQuant/AstraQuant/AstraQuant/src/astraquant/research/trading_plan_r1.py\", line 537, in reconcile_session\n    spent = -self._charge(row, price=price, quantity=qty, day=day, observed_at=observed_at)\n             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/runner/work/AstraQuant/AstraQuant/AstraQuant/src/astraquant/research/trading_plan_r1_s3.py\", line 671, in _charge\n    self._execute(event)\n  File \"/home/runner/work/AstraQuant/AstraQuant/AstraQuant/src/astraquant/research/trading_plan_r1_s3.py\", line 648, in _execute\n    raise NotExecutableError('S3 source calendar lacks T+2 settlement sessions')\nastraquant.execution.fills.NotExecutableError: S3 source calendar lacks T+2 settlement sessions\n"
     },
     "A3": {
       "entry_mode": "close",
       "exit_mode": "sma20_or_rsi13_lt50",
-      "status": "QUEUED",
-      "completed": 0
+      "status": "RUNNING",
+      "completed": 0,
+      "resumed": false,
+      "current_date": "2016-01-04"
     },
     "A4": {
       "entry_mode": "next_open",
