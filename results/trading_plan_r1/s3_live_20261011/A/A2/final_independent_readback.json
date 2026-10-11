@@ -17,5 +17,6 @@
   },
   "open_count": 1,
   "proof_sha256": "54a15d9fe4b6cfc9013e6ab2ec7718863a261cc48d27c619a4b46f71100b7186",
-  "evidence": "fixed remote head digest, required equity chunks, saved fills/decisions metrics and unique ledger row IDs independently checked; zero trading dates replayed"
+  "eligibility_rows_verified": 2460161,
+  "evidence": "fixed remote head digest, all four table transport/raw chunks and unique ledger row IDs independently checked; saved fills/decisions/equity metrics recomputed; zero trading dates replayed"
 }
