@@ -1,15 +1,15 @@
 {
   "chain_id": "s3-actions-20261011",
-  "segment": 0,
-  "actions_run_id": "38123251108",
+  "segment": 2,
+  "actions_run_id": "38129411955",
   "initial_cells": {
     "A1": {
-      "completed": 100,
-      "last_day": "2016-06-03",
-      "fills": 0,
-      "holdings": 0,
-      "frozen": false,
-      "checkpoint_sha256": "65e99feae26baa667609b21bfcb979188b48a642545ac2e88b8c1da465ab02be"
+      "completed": 634,
+      "last_day": "2018-08-06",
+      "fills": 66,
+      "holdings": 2,
+      "frozen": true,
+      "checkpoint_sha256": "0775cd352c3241d5422515608aae75153e414bde97a1f8af565f00da3ef78eb4"
     },
     "A2": {
       "completed": 0,
@@ -58,18 +58,20 @@
   },
   "cells": {
     "A1": {
-      "completed": 102,
-      "last_day": "2016-06-06",
-      "fills": 0,
-      "holdings": 0,
-      "frozen": false,
-      "checkpoint_sha256": "4754f75ea91684e855ea8a696b9ab5d1e2044800d62b3196ab1f26627af604cb"
+      "completed": 634,
+      "last_day": "2018-08-06",
+      "fills": 66,
+      "holdings": 2,
+      "frozen": true,
+      "checkpoint_sha256": "0775cd352c3241d5422515608aae75153e414bde97a1f8af565f00da3ef78eb4"
     },
     "A2": {
-      "completed": 0,
-      "last_day": null,
-      "fills": 0,
-      "holdings": 0
+      "completed": 1053,
+      "last_day": "2020-04-28",
+      "fills": 103,
+      "holdings": 1,
+      "frozen": false,
+      "checkpoint_sha256": "4132309099d9bef8f713d274df6f544490a2346eccf84174a5f171e003efe8ee"
     },
     "A3": {
       "completed": 0,
@@ -110,69 +112,68 @@
       "holdings": 0
     }
   },
-  "advanced": 2,
+  "advanced": 1053,
   "complete": false,
-  "elapsed_seconds": 260.469049217,
+  "elapsed_seconds": 3583.9592007300002,
   "states": {
-    "pilot": {
-      "full_state_equal": true,
-      "all_tables_equal": true,
-      "state_sha256": "4754f75ea91684e855ea8a696b9ab5d1e2044800d62b3196ab1f26627af604cb",
-      "table_sha256": {
-        "s3_decisions.csv": "fe7c55eb6de090510be8b0597966c413674b0f89a0a5934c4fa7cd3bc4f19640",
-        "s3_eligibility.csv": "ea83c4e3f1890442ff7f0efb6e96b8f06dbc6d6d04963ebb02d7080527fba5ab",
-        "s3_equity.csv": "858995cf4206b78f44c4b5a131e406083de6b04e94c2ca5dab5058a612851e2b",
-        "s3_fills.csv": "ef2874eee139b858ddcc317db1938a08af2d2259a8b377efdfad64b1ede99264"
-      },
-      "real_sigkill": [
-        {
-          "action": "baseline",
-          "actual_exit": 0,
-          "expected_exit": 0
+    "A": {
+      "execution_id": "s3-A-20261011T045203Z",
+      "started_at": "2026-10-11T09:45:10.172474+00:00",
+      "program_sha": null,
+      "program_base_sha": "d2c53c3627a8359ccfbf906ef5a0fc0c051f3725",
+      "manifest_sha256": "faefc556dc641c3f56d40564b3ef787ac6af7a09bd05ac8a6fb146266ca16dba",
+      "formal_performance_unlocked": false,
+      "round": "A",
+      "cells": {
+        "A1": {
+          "entry_mode": "close",
+          "exit_mode": "sma20",
+          "status": "QUEUED",
+          "completed": 0
         },
-        {
-          "action": "interrupt",
-          "actual_exit": -9,
-          "expected_exit": -9
+        "A2": {
+          "entry_mode": "next_open",
+          "exit_mode": "sma20",
+          "status": "PAUSED_SAVED",
+          "completed": 1053,
+          "resumed": false,
+          "current_date": "2020-04-28",
+          "holdings": [
+            "2368"
+          ],
+          "frozen": false,
+          "external_checkpoint": {
+            "commit": "3d2679a7ad67bc82aa91524486b6898c20162a03",
+            "repo": "bibobo2266/AstraQuant",
+            "path": "results/trading_plan_r1/s3_live_20261011/A/A2/transport.json",
+            "transport_sha256": "997722192b98062971502ddb1fb92a7ba3bb472dac134a1e512508b9a11ddfcb",
+            "checkpoint_sha256": "4132309099d9bef8f713d274df6f544490a2346eccf84174a5f171e003efe8ee",
+            "saved_completed_day": "2020-04-28",
+            "saved_completed_sessions": 1053,
+            "local_completed_sessions": 1053,
+            "readback_verified": true,
+            "remote_interval_sessions": 20,
+            "publisher_sha256": "eaf434ea0b2545d9ca9fcb51f87cc57c668219d2a7e9d9db73cedf23e6983d4d"
+          },
+          "first_day_readback_exact": true
         },
-        {
-          "action": "resume",
-          "actual_exit": 0,
-          "expected_exit": 0
+        "A3": {
+          "entry_mode": "close",
+          "exit_mode": "sma20_or_rsi13_lt50",
+          "status": "QUEUED",
+          "completed": 0
+        },
+        "A4": {
+          "entry_mode": "next_open",
+          "exit_mode": "sma20_or_rsi13_lt50",
+          "status": "QUEUED",
+          "completed": 0
         }
-      ],
-      "start_completed": 100,
-      "saved_after_interrupt": 101,
-      "completed": 102,
-      "next_completed_days": [
-        "2016-06-04",
-        "2016-06-06"
-      ],
-      "remote_checkpoint": {
-        "commit": "f259cb884b91a585f5ebba935b98155000c88db9",
-        "repo": "bibobo2266/AstraQuant",
-        "path": "results/trading_plan_r1/s3_live_20261011/A/A1/transport.json",
-        "transport_sha256": "c26578f65caee7f2e1acf7161ba77e9b6c8f6838927ce88dbbbeec454a92753f",
-        "checkpoint_sha256": "4754f75ea91684e855ea8a696b9ab5d1e2044800d62b3196ab1f26627af604cb",
-        "saved_completed_day": "2016-06-06",
-        "saved_completed_sessions": 102,
-        "local_completed_sessions": 102,
-        "readback_verified": true,
-        "remote_interval_sessions": 20,
-        "publisher_sha256": "eaf434ea0b2545d9ca9fcb51f87cc57c668219d2a7e9d9db73cedf23e6983d4d"
       },
-      "duplicates": {
-        "eligibility": 0,
-        "decisions": 0,
-        "fills": 0,
-        "equity": 0
-      },
-      "fills": 0,
-      "holdings": 0,
-      "baseline_seconds": 89.56389813899999,
-      "resume_seconds": 87.86726658399999,
-      "total_seconds": 254.01600027,
-      "scope": "same fixed real A1 data and original run ID; empty holdings if reported; not a claim of new holding/event coverage"
+      "peak_rss_kib": 4816712,
+      "input_binding": "d9d8315a76c06e27cb6012d21396a623ac318d1975cbef691c8d15691503ce51",
+      "expected_sessions": 1468,
+      "finished_at": "2026-10-11T10:44:40.695815+00:00"
     }
   },
   "persistence": "hosted Actions; no chat-side service dependency",
