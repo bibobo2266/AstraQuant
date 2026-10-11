@@ -1,8 +1,8 @@
 {
   "execution_id": "s3-A-20261011T045203Z",
-  "started_at": "2026-10-11T08:06:21.602986+00:00",
+  "started_at": "2026-10-11T09:45:10.172474+00:00",
   "program_sha": null,
-  "program_base_sha": "2f69bc01c760e1fef68bddc1b66776dd9255b195",
+  "program_base_sha": "d2c53c3627a8359ccfbf906ef5a0fc0c051f3725",
   "manifest_sha256": "faefc556dc641c3f56d40564b3ef787ac6af7a09bd05ac8a6fb146266ca16dba",
   "formal_performance_unlocked": false,
   "round": "A",
@@ -10,34 +10,16 @@
     "A1": {
       "entry_mode": "close",
       "exit_mode": "sma20",
-      "status": "RUNNING",
-      "completed": 633,
-      "resumed": true,
-      "current_date": "2018-08-06",
-      "holdings": [
-        "8436",
-        "8942"
-      ],
-      "frozen": false,
-      "external_checkpoint": {
-        "commit": "77bcf9e712356808c9be5de5f43f1f8597a69b6b",
-        "repo": "bibobo2266/AstraQuant",
-        "path": "results/trading_plan_r1/s3_live_20261011/A/A1/transport.json",
-        "transport_sha256": "fc86264b526cf4afe161f4be84da197cb95ec7159e2eaaa788b6b238a1ece277",
-        "checkpoint_sha256": "3c63f3ebd152b16645cf2cc592a5f18fd4c81e53f50fdd428df35ab1d38546d9",
-        "saved_completed_day": "2018-07-17",
-        "saved_completed_sessions": 620,
-        "local_completed_sessions": 620,
-        "readback_verified": true,
-        "remote_interval_sessions": 20,
-        "publisher_sha256": "eaf434ea0b2545d9ca9fcb51f87cc57c668219d2a7e9d9db73cedf23e6983d4d"
-      }
+      "status": "QUEUED",
+      "completed": 0
     },
     "A2": {
       "entry_mode": "next_open",
       "exit_mode": "sma20",
-      "status": "QUEUED",
-      "completed": 0
+      "status": "RUNNING",
+      "completed": 0,
+      "resumed": false,
+      "current_date": "2016-01-04"
     },
     "A3": {
       "entry_mode": "close",
@@ -52,7 +34,7 @@
       "completed": 0
     }
   },
-  "peak_rss_kib": 4807556,
+  "peak_rss_kib": 4816712,
   "input_binding": "d9d8315a76c06e27cb6012d21396a623ac318d1975cbef691c8d15691503ce51",
   "expected_sessions": 1468
 }
