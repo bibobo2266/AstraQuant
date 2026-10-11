@@ -153,14 +153,32 @@ class GitHubCheckpointPublisher:
         return target/'checkpoint.json'
 
 
-def verify_next_day(publisher, output, workspace):
+def verify_next_day(publisher, output, workspace, *, inputs=None):
     from astraquant.research.trading_plan_r1_s3 import S3Inputs,S3BatchTradingPlanR1
-    inputs=S3Inputs.open_accounting_probe(workspace,output/'manifest.json',output/'receipt.json')
+    if inputs is None:
+        inputs=S3Inputs.open_accounting_probe(workspace,output/'manifest.json',output/'receipt.json')
     evidence=[]
     for cell, receipt in publisher.receipts.items():
         with tempfile.TemporaryDirectory(dir=output,prefix='remote-readback-') as directory:
             remote=publisher.download(receipt,directory)
-            a=S3BatchTradingPlanR1.load_checkpoint(output/cell/'checkpoint.json',inputs=inputs)
+            # Remote publication can lag the latest local head by 19 sessions.
+            # Compare the exact immutable local generation that was published.
+            current=output/cell/'checkpoint.json'
+            local=(current if sha(current.read_bytes())==receipt['checkpoint_sha256'] else
+                   output/cell/'checkpoint_heads'/(
+                       receipt['saved_completed_day']+'-'+receipt['checkpoint_sha256']+'.json'))
+            if not local.exists() or sha(local.read_bytes())!=receipt['checkpoint_sha256']:
+                raise ValueError('matching local published generation unavailable')
+            saved=Path(directory)/'local-saved';saved.mkdir()
+            (saved/'checkpoint.json').write_bytes(local.read_bytes())
+            local_state=json.loads(local.read_bytes())
+            if local_state['completed'][-1]!=receipt['saved_completed_day']:
+                raise ValueError('published local/remote save day mismatch')
+            for chunk in local_state.get('checkpoint_storage',{}).get('chunks',[]):
+                target=saved/chunk['path'];target.resolve().relative_to(saved.resolve())
+                target.parent.mkdir(parents=True,exist_ok=True)
+                os.link(output/cell/chunk['path'],target)
+            a=S3BatchTradingPlanR1.load_checkpoint(saved/'checkpoint.json',inputs=inputs)
             b=S3BatchTradingPlanR1.load_checkpoint(remote,inputs=inputs)
             day=a.remaining_sessions()[0]
             assert b.remaining_sessions()[0]==day
@@ -170,6 +188,8 @@ def verify_next_day(publisher, output, workspace):
             first=(Path(directory)/'local-next.json').read_bytes()
             assert first==(Path(directory)/'remote-next.json').read_bytes()
             evidence.append(dict(cell=cell,remote_checkpoint=receipt,next_day=day,
+                                 compared_saved_day=receipt['saved_completed_day'],
+                                 compared_checkpoint_sha256=receipt['checkpoint_sha256'],
                                  next_day_state_sha256=sha(first),exact_state_equal=True))
             del a,b
     target=output/'remote_readback_next_day.json'
