@@ -1,0 +1,9 @@
+{
+  "cell": "A2",
+  "proof_sha256": "54a15d9fe4b6cfc9013e6ab2ec7718863a261cc48d27c619a4b46f71100b7186",
+  "restored_completed": 1460,
+  "restored_last_day": "2021-12-20",
+  "first_uncompleted_day": "2021-12-21",
+  "prior_trading_dates_not_replayed": true,
+  "necessary_rebuild": "only unpersisted1461–1467 if restored head still1460; no dates at/before restored checkpoint"
+}
