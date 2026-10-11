@@ -851,13 +851,18 @@ def run_s3_diagnostic_a(*, workspace, output_dir, round_name="A", measure=False,
             if checkpoint.exists() else S3BatchTradingPlanR1(inputs=inputs,run_id=execution_id+'-'+cell,entry_mode=a,exit_mode=b,snapshot=snapshot))
         snapshot=engine._runtime
         inputs=engine.inputs
+        state=status['cells'][cell];state.update(completed=len(engine.completed),resumed=checkpoint.exists())
         clock = None
         if day_observer is not None:
-            from s3_phase_timing import PhaseClock
-            clock = PhaseClock()
-            clock.attach(engine)
+            try:
+                from s3_phase_timing import PhaseClock
+                clock = PhaseClock()
+                clock.attach(engine)
+            except Exception as timing_error:
+                state['timing_error']=type(timing_error).__name__+': '+str(timing_error)
+                clock=None
+                day_observer=None
         gc.collect()
-        state=status['cells'][cell];state.update(completed=len(engine.completed),resumed=checkpoint.exists())
         (directory/'runtime_manifest.json').write_text(json.dumps(engine.runtime_manifest,indent=2)+'\n')
         status['cells'][cell]['status']='RUNNING';write_status()
         print(round_name+': one live cell '+cell+'; daily checkpoint enabled',flush=True)
@@ -918,8 +923,18 @@ def run_s3_diagnostic_a(*, workspace, output_dir, round_name="A", measure=False,
                 # Preserve unvalidated state as forensic evidence, never call it accepted.
                 (directory/'journal_unvalidated.json').write_text(json.dumps(engine.journal,indent=2,default=str)+'\n')
             write_status();print(json.dumps(dict(cell=cell,**state),default=str),flush=True)
-            if clock and len(engine.completed) > prior_completed:
-                day_observer(cell, clock.row(day, len(engine.completed), day_started, prior_timing))
+            if clock and day_observer is not None and len(engine.completed) > prior_completed:
+                try:
+                    day_observer(cell, clock.row(day, len(engine.completed), day_started, prior_timing))
+                except Exception as timing_error:
+                    # Measurement is optional; account/checkpoint failures above
+                    # remain fatal. Never discard an accepted trading day for ETA.
+                    state['timing_error']=type(timing_error).__name__+': '+str(timing_error)
+                    state['timing_failed_day']=day
+                    print(json.dumps(dict(cell=cell,timing_error=state['timing_error'],
+                        completed=len(engine.completed),effect='ETA unavailable; accounting continues')),flush=True)
+                    day_observer=None
+                    write_status()
             if state['status']!='RUNNING':break
         if engine.remaining_sessions() and state['status']=='RUNNING':state['status']='PAUSED_SAVED'
         if (checkpoint_publisher is not None and checkpoint.exists()

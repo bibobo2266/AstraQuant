@@ -119,3 +119,22 @@ def test_runner_threshold_and_open_positions(tmp_path, monkeypatch, tail, flag):
         assert row['open_count']==1 and row['closed_count']==0
         assert row['net_win_rate'] is None and row['avg_loss'] is None
         assert len(pd.read_csv(output/'A1/open_positions.csv'))==1
+
+
+def test_timing_failure_keeps_backtest_and_all_ledgers_equal(tmp_path,monkeypatch):
+    import sys
+    monkeypatch.syspath_prepend(str(Path(__file__).resolve().parents[1]/'scripts'))
+    runner,output,scope,_=runner_fixture(tmp_path,monkeypatch,(104.,101.,99.),'A')
+    baseline=runner.run_s3_diagnostic_a(workspace=tmp_path,output_dir=output/'baseline',cell_names={'A2'})
+    (output/'timing_failure').mkdir()
+    (output/'timing_failure/progress.json').write_text(json.dumps(baseline))
+    def failed_measurement(*args):raise OSError('controlled timing storage failure')
+    actual=runner.run_s3_diagnostic_a(workspace=tmp_path,output_dir=output/'timing_failure',cell_names={'A2'},day_observer=failed_measurement)
+    state=actual['cells']['A2']
+    assert state['status']=='COMPLETE_DIAGNOSTIC_PENDING_REVIEW'
+    assert state['completed']==len(scope)
+    assert state['timing_error']=='OSError: controlled timing storage failure'
+    for name in ('checkpoint.json','diagnostic_metrics.json'):
+        assert (output/'baseline/A2'/name).read_bytes()==(output/'timing_failure/A2'/name).read_bytes()
+    for path in (output/'baseline/A2/tables').glob('*.csv'):
+        assert path.read_bytes()==(output/'timing_failure/A2/tables'/path.name).read_bytes()

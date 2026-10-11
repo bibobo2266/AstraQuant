@@ -124,7 +124,11 @@ def bootstrap(workspace):
         for directory in sorted((ROOT / rnd).glob(rnd + '[1-4]')):
             if (directory / 'transport.json').exists():
                 restore_s3_evidence_transport(directory)
-                align_timing_to_checkpoint(directory)
+                try:
+                    align_timing_to_checkpoint(directory)
+                except Exception as error:
+                    print(json.dumps(dict(cell=directory.name,timing_error=type(error).__name__+': '+str(error),
+                        effect='ETA unavailable; accepted checkpoint/accounting continues')),flush=True)
     write_json(ROOT / 'actions_sources_verified.json', {'files': verified, 'source_refresh': False})
 
 
@@ -319,12 +323,21 @@ def observe_day(rnd, cell, row):
 
 
 def timing_summary(cells):
+    try:
+        return _timing_summary(cells)
+    except Exception as error:
+        return {cell:dict(remaining_seconds=None,timing_error=type(error).__name__+': '+str(error),
+                         estimate_scope='measurement failure; accounting/save continues') for cell in cells}
+
+
+def _timing_summary(cells):
     reports = {}
     for cell, state in cells.items():
         path = ROOT/cell[0]/cell/'day_timing.json'
         rows = json.loads(path.read_text())['records'] if path.exists() else []
-        contiguous = len(rows) == 100 and all(b['completed'] == a['completed'] + 1
+        contiguous = (len(rows) == 100 and rows[-1]['completed']==state['completed'] and all(b['completed'] == a['completed'] + 1
                                              for a, b in zip(rows, rows[1:]))
+                      )
         totals = {key: sum(row[key] for row in rows) for key in
                   ['wall_seconds', 'calculation', 'validation', 'local_save', 'remote_save', 'other_seconds']}
         reports[cell] = dict(measured_days=len(rows), last_measured_day=rows[-1]['day'] if rows else None,

@@ -252,3 +252,13 @@ def test_restore_timing_keeps_unpersisted_days_as_history(tmp_path):
     saved=(tmp_path/'day_timing.json').read_bytes()
     module.align_timing_to_checkpoint(tmp_path)
     assert (tmp_path/'day_timing.json').read_bytes()==saved
+
+
+def test_corrupt_timing_summary_has_no_estimate_and_does_not_raise(tmp_path,monkeypatch):
+    module=actions_module()
+    monkeypatch.setattr(module,'ROOT',tmp_path)
+    directory=tmp_path/'A/A2';directory.mkdir(parents=True)
+    (directory/'day_timing.json').write_text('broken timing JSON')
+    report=module.timing_summary({'A2':{'completed':1460,'frozen':False}})['A2']
+    assert report['remaining_seconds'] is None
+    assert report['timing_error'].startswith('JSONDecodeError:')
