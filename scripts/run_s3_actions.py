@@ -269,15 +269,20 @@ def pilot(workspace):
 def segment(workspace, seconds):
     deadline = time.monotonic() + seconds
     states = {}
+    prior = json.loads(CONTROL.read_text())
+    blocked = set(prior.get('blocked_cells', []))
+    cells = inventory()
     for rnd in IDS:
         if time.monotonic() >= deadline:
             break
+        selected = {cell for cell, state in cells.items() if cell.startswith(rnd)
+                    and cell not in blocked and not state.get('frozen') and state['completed'] < 1468}
+        if not selected:
+            continue
         status = run_s3_diagnostic_a(workspace=workspace, output_dir=ROOT / rnd, round_name=rnd,
             checkpoint_publisher=publisher(rnd), stop_requested=lambda: time.monotonic() >= deadline,
-            stop_on_failure=True)
+            cell_names=selected, stop_on_failure=False)
         states[rnd] = status
-        if any(s['status'] in FAILURES for s in status['cells'].values()):
-            raise RuntimeError('runner stop: ' + json.dumps(status, ensure_ascii=False))
     return states
 
 
@@ -343,7 +348,8 @@ def execute(workspace, chain_id, index):
         raise ValueError('72-segment budget exhausted')
     run_id = os.environ['GITHUB_RUN_ID']
     control = dict(chain_id=chain_id, segment=index, next_segment=index, status='ACTIVE',
-                   owner_run_id=run_id, code_commit=os.environ['GITHUB_SHA'], jobs_started=prior.get('jobs_started',0)+1)
+                   owner_run_id=run_id, code_commit=os.environ['GITHUB_SHA'], jobs_started=prior.get('jobs_started',0)+1,
+                   blocked_cells=prior.get('blocked_cells', []))
     write_json(CONTROL, control)
     persist(api, [CONTROL], f'Claim S3 hosted segment {index} run {run_id}')
     before = {str(p.relative_to(REPO)): sha(p.read_bytes()) for p in ROOT.rglob('*') if p.is_file()}
@@ -364,15 +370,19 @@ def execute(workspace, chain_id, index):
             if seconds <= 0:raise TimeoutError('setup exhausted60-minute soft budget')
             states = segment(workspace, seconds)
     final = inventory()
+    blocked = set(control['blocked_cells'])
+    blocked.update(cell for cell, state in final.items() if state.get('frozen'))
+    for status in states.values():
+        blocked.update(cell for cell, state in status.get('cells', {}).items()
+                       if state.get('status') in FAILURES)
+    runnable = [cell for cell, state in final.items() if cell not in blocked and state['completed'] < 1468]
     advanced = sum(v['completed'] for v in final.values()) - sum(v['completed'] for v in initial.values())
-    if advanced <= 0:
+    if advanced <= 0 and runnable:
         raise ValueError('zero completed-day progress; no automatic retry')
-    complete = all(v['completed'] == 1468 for v in final.values())
-    if any(v.get('frozen') for v in final.values()):
-        raise RuntimeError('frozen cell; continuation refused')
+    complete = all(v['completed'] == 1468 and not v.get('frozen') for v in final.values())
     if complete:final_metrics()
     control.update(status='SAVED', next_segment=index + 1, complete=complete, advanced=advanced,
-                   requires_artifact_success=True)
+                   requires_artifact_success=True, blocked_cells=sorted(blocked), runnable_cells=runnable)
     receipt = dict(chain_id=chain_id, segment=index, actions_run_id=run_id,
         initial_cells=initial, cells=final, advanced=advanced, complete=complete,
         elapsed_seconds=time.monotonic() - started, states=states,
@@ -402,7 +412,7 @@ def continue_chain(chain_id, index, artifact_id):
     if artifact['name'] != expected or artifact['expired'] or artifact['workflow_run']['id'] != int(os.environ['GITHUB_RUN_ID']):
         raise ValueError('uploaded artifact identity mismatch')
     control['artifact_id'] = artifact_id
-    control['status'] = 'COMPLETE' if control['complete'] else ('BUDGET_EXHAUSTED' if index + 1 >= MAX_SEGMENTS or control['jobs_started'] >= MAX_SEGMENTS else 'READY')
+    control['status'] = 'COMPLETE' if control['complete'] else ('BUDGET_EXHAUSTED' if index + 1 >= MAX_SEGMENTS or control['jobs_started'] >= MAX_SEGMENTS else ('WAITING_EVIDENCE' if not control.get('runnable_cells', [True]) else 'READY'))
     write_json(CONTROL, control)
     persist(api, [CONTROL], f'Confirm S3 segment {index} artifact and continuation boundary')
     if control['status'] != 'READY':

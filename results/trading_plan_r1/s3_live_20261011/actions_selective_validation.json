@@ -1,0 +1,11 @@
+{
+  "tests": "17 passed in 8.04s",
+  "source_strategy_changes": false,
+  "worker_count": 1,
+  "blocked_cells": [
+    "A1"
+  ],
+  "next_segment": 2,
+  "approval": "2026-10-11T17:41:31+08:00",
+  "ordering": "A2-A4 then B1-B4; blocked cells saved and skipped, no previous-day replay"
+}

@@ -119,3 +119,26 @@ def test_failure_preserves_original_error_and_respects_worker_ownership(tmp_path
     else:
         assert control == original
         assert saved == []
+
+
+def test_segment_skips_blocked_cell_and_continues_other_round(tmp_path, monkeypatch):
+    module = actions_module()
+    control = tmp_path/'chain.json'
+    control.write_text(json.dumps({'blocked_cells': ['A1', 'A2']}))
+    monkeypatch.setattr(module, 'CONTROL', control)
+    monkeypatch.setattr(module, 'ROOT', tmp_path)
+    cells = {r+str(i): {'completed': 0, 'frozen': False} for r in 'AB' for i in range(1,5)}
+    cells['A1'].update(completed=634, frozen=True)
+    cells['A4']['completed'] = 1468
+    monkeypatch.setattr(module, 'inventory', lambda: cells)
+    monkeypatch.setattr(module, 'publisher', lambda rnd: None)
+    calls = []
+    def runner(**kwargs):
+        calls.append(kwargs)
+        return {'cells': {c: {'status': 'INCOMPLETE'} for c in kwargs['cell_names']}}
+    monkeypatch.setattr(module, 'run_s3_diagnostic_a', runner)
+    states = module.segment(tmp_path, 60)
+    assert list(states) == ['A', 'B']
+    assert calls[0]['cell_names'] == {'A3'}
+    assert calls[1]['cell_names'] == {'B1', 'B2', 'B3', 'B4'}
+    assert all(c['stop_on_failure'] is False for c in calls)
