@@ -237,3 +237,18 @@ def test_cell_delivery_pins_eight_columns_four_ledgers_and_is_idempotent(tmp_pat
     assert (tmp_path/'s3-action-artifact/A2_ledgers.tar.gz').exists()
     module.deliver_cell(pub, 'A2', directory, {})
     assert len(saves) == len(messages) == 1
+
+
+def test_restore_timing_keeps_unpersisted_days_as_history(tmp_path):
+    module=actions_module()
+    (tmp_path/'checkpoint.json').write_text(json.dumps({'completed':['saved-day']*1460}))
+    rows=[{'completed':n,'day':str(n)} for n in range(1368,1468)]
+    (tmp_path/'day_timing.json').write_text(json.dumps({'records':rows}))
+    module.align_timing_to_checkpoint(tmp_path)
+    data=json.loads((tmp_path/'day_timing.json').read_text())
+    assert data['records']==rows[:93]
+    assert data['superseded_records']==rows[93:]
+    assert data['restored_checkpoint_completed']==1460
+    saved=(tmp_path/'day_timing.json').read_bytes()
+    module.align_timing_to_checkpoint(tmp_path)
+    assert (tmp_path/'day_timing.json').read_bytes()==saved

@@ -124,7 +124,24 @@ def bootstrap(workspace):
         for directory in sorted((ROOT / rnd).glob(rnd + '[1-4]')):
             if (directory / 'transport.json').exists():
                 restore_s3_evidence_transport(directory)
+                align_timing_to_checkpoint(directory)
     write_json(ROOT / 'actions_sources_verified.json', {'files': verified, 'source_refresh': False})
+
+
+def align_timing_to_checkpoint(directory):
+    """Retain lost-worker measurements as history, never as accepted progress."""
+    path=directory/'day_timing.json'
+    if not path.exists():return
+    head=json.loads((directory/'checkpoint.json').read_text())
+    count=len(head['completed'])
+    data=json.loads(path.read_text())
+    stale=[row for row in data['records'] if row['completed']>count]
+    if not stale:return
+    data.setdefault('superseded_records',[]).extend(stale)
+    data['records']=[row for row in data['records'] if row['completed']<=count]
+    data['restored_checkpoint_completed']=count
+    data['superseded_reason']='measurements beyond latest accepted restored checkpoint; necessary rebuild only'
+    write_json(path,data)
 
 
 def inventory():
