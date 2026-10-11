@@ -1,13 +1,13 @@
 {
-  "actions_run_id": "38140649667",
-  "artifact_id": 11704576678,
+  "actions_run_id": "38145630113",
+  "artifact_id": 11706062029,
   "uploads": [
     {
-      "job_id": 114476271036,
+      "job_id": 114488252784,
       "step": "Upload S3 receipts and new immutable checkpoint parts",
-      "started_at": "2026-10-11T14:02:57Z",
-      "completed_at": "2026-10-11T14:03:12Z",
-      "seconds": 15.0
+      "started_at": "2026-10-11T15:07:16Z",
+      "completed_at": "2026-10-11T15:07:29Z",
+      "seconds": 13.0
     }
   ],
   "measurement_error": null,
