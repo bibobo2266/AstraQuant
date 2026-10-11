@@ -1,0 +1,41 @@
+{
+  "A": {
+    "run_id": "s3-A-20261011T045203Z-A1",
+    "completed_sessions": 100,
+    "last_completed_day": "2016-06-03",
+    "holdings": 0,
+    "fills": 0,
+    "checkpoint_sha256": "65e99feae26baa667609b21bfcb979188b48a642545ac2e88b8c1da465ab02be",
+    "transport_sha256": "3ece7200659006827cd2b2bbe45582d5a4ac2c9a43a7744821063d722821d45e",
+    "lock": "available_in_current_environment",
+    "restored_files": 201,
+    "verified_parts": 306,
+    "state_digest_verified": true,
+    "unique_completed_dates": true,
+    "duplicate_decision_rows": 0,
+    "duplicate_fill_rows": 0
+  },
+  "B": {
+    "run_id": "s3-B-20261011T045202Z-B1",
+    "completed_sessions": 1,
+    "last_completed_day": "2016-01-04",
+    "holdings": 0,
+    "fills": 0,
+    "checkpoint_sha256": "47de2319a8437762f072cd7ace298e25106d983aa408b8fe37ac2da161aa20d7",
+    "transport_sha256": "9fc4a68d5c5e51bc1adb59ad2207f4d10e33e6dcd830754d1561e6b143ce4626",
+    "lock": "available_in_current_environment",
+    "restored_files": 3,
+    "verified_parts": 4,
+    "state_digest_verified": true,
+    "unique_completed_dates": true,
+    "duplicate_decision_rows": 0,
+    "duplicate_fill_rows": 0
+  },
+  "elapsed_seconds": 0.32866040599947155,
+  "pinned_commit": "4c63f97827c11a278ccb29f2156453bd7824ec99",
+  "local120_present": false,
+  "necessary_rebuild": "A1 sessions101-120; sessions1-100 preserved",
+  "worker_started": false,
+  "source_inputs_present": false,
+  "scope": "All transport parts, compressed and restored files and head state_digest verified; no trading days recomputed; no claim of worker liveness in another environment."
+}
