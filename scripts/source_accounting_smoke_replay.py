@@ -922,7 +922,11 @@ def run_s3_diagnostic_a(*, workspace, output_dir, round_name="A", measure=False,
                 day_observer(cell, clock.row(day, len(engine.completed), day_started, prior_timing))
             if state['status']!='RUNNING':break
         if engine.remaining_sessions() and state['status']=='RUNNING':state['status']='PAUSED_SAVED'
-        if checkpoint_publisher is not None and checkpoint.exists() and state['status']=='PAUSED_SAVED' and stop_requested is not None:
+        if (checkpoint_publisher is not None and checkpoint.exists()
+                and (state['status'] in {'ERROR','INCOMPLETE'}
+                     or (state['status']=='PAUSED_SAVED' and stop_requested is not None))):
+            # The atomic head is the last successfully reconciled saved state;
+            # do not publish the failed day's mutable forensic engine state.
             state['external_checkpoint']=checkpoint_publisher(checkpoint, force=True)
         write_status()
         if cell_finished is not None and len(engine.completed)==len(m['probe_sessions']) and not engine.frozen and state['status']!='ERROR':

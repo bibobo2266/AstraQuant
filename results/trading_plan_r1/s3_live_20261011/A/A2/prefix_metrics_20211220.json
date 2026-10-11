@@ -1,0 +1,22 @@
+{
+  "cell": "A2",
+  "full_period_complete": false,
+  "completed_days": 1460,
+  "last_day": "2021-12-20",
+  "checkpoint_commit": "582effe29c19680968b2e4a8363f9bc62504fb9c",
+  "checkpoint_sha256": "20c9e560965df2f95d81494926286b0b96f43ea55f3ec9f68102a1ef6ba2f148",
+  "metrics": {
+    "closed_count": 88,
+    "net_win_rate": 0.3636363636,
+    "avg_win": 0.188052037,
+    "avg_loss": 0.0613062302,
+    "payoff_ratio": 3.0674213088,
+    "expectancy": 0.0293695033,
+    "median_holding_sessions": 10.5,
+    "capital_occupied_position_days": 1165.0
+  },
+  "open_count": 0,
+  "threshold_review": false,
+  "evidence": "head/state digest, all required equity transport pieces/raw chunks verified; metrics use saved fills/decisions/equity; zero trading days replayed",
+  "remaining_error": "2021-12-30: S3 source calendar lacks T+2 settlement sessions"
+}

@@ -54,6 +54,27 @@ def test_accounting_stop_blocks_other_cells(tmp_path, monkeypatch):
     assert all(v['status'] == 'QUEUED' for k,v in result['cells'].items() if k != 'A1')
 
 
+def test_error_force_saves_last_valid_prefix_and_other_cells_continue(tmp_path, monkeypatch):
+    runner,output,scope,engine=runner_fixture(tmp_path,monkeypatch,(104.,101.,99.),'A')
+    original=engine.prepare
+    def fail_second(self,day):
+        if len(self.completed)==1:raise ValueError('S3 source calendar lacks T+2 settlement sessions')
+        return original(self,day)
+    monkeypatch.setattr(engine,'prepare',fail_second)
+    saved=[]
+    def pub(path,force=False):
+        h=json.loads(Path(path).read_text())
+        saved.append((Path(path).parent.name,h['completed'],force))
+        return {'saved_completed_sessions':len(h['completed']),'readback_verified':True}
+    result=runner.run_s3_diagnostic_a(workspace=tmp_path,output_dir=output,
+        cell_names={'A1','A2'},checkpoint_publisher=pub,stop_on_failure=False)
+    for cell in ['A1','A2']:
+        assert (cell,scope[:1],True) in saved
+        assert result['cells'][cell]['status']=='ERROR'
+        assert result['cells'][cell]['external_checkpoint']['saved_completed_sessions']==1
+        assert result['cells'][cell]['error']=='S3 source calendar lacks T+2 settlement sessions'
+
+
 def test_artifact_budget_stops_before_upload(tmp_path, monkeypatch):
     module = actions_module()
     monkeypatch.setattr(module, 'REPO', tmp_path)
