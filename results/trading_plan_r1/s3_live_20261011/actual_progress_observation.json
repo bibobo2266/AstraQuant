@@ -20,7 +20,7 @@
     "commit": "487e32a33a0b7b6951634670ab936eb98e27f4c2",
     "repo": "bibobo2266/AstraQuant",
     "path": "results/trading_plan_r1/s3_live_20261011/B/B1/transport.json",
-    "transport_sha256": "ec4a96e21dbd04fed008ed142c3df1ca5f4bfe9b1fbe14ca946f660e832c867e",
+    "transport_sha256": "9fc4a68d5c5e51bc1adb59ad2207f4d10e33e6dcd830754d1561e6b143ce4626",
     "checkpoint_sha256": "47de2319a8437762f072cd7ace298e25106d983aa408b8fe37ac2da161aa20d7",
     "saved_completed_day": "2016-01-04",
     "saved_completed_sessions": 1,
@@ -29,9 +29,13 @@
     "remote_interval_sessions": 20,
     "publisher_sha256": "3dd7b481231eadb69d6b1d326d7ad147d512c2d1269d367dfdd24e8c07b59a64",
     "pinned_parts_verified": 4,
-    "pinned_restored_files_verified": 3
+    "pinned_restored_files_verified": 3,
+    "transport_bytes": 2162,
+    "transport_git_blob_sha": "25398868bcb1c9f6ac64887cd6101f3d0d371719",
+    "correction_reason": "prior manual apply_patch readback added final LF; canonical pinned remote original has no final LF",
+    "supersedes_transport_sha256": "ec4a96e21dbd04fed008ed142c3df1ca5f4bfe9b1fbe14ca946f660e832c867e"
   },
-  "service_sha256": "81640b58e9b46cc46090f8340d260558dde86d3a9a4c64e190e31b87a12c7dcf",
+  "service_sha256": "a9bf5308ab7a469637ba71fa159a1bb179c38df0a3290fe05982ad892706174d",
   "worker_session": 17861,
   "continuation": "same engine publishes every20 days and continues; sequential A then B",
   "other_cells": "0 days, queued"

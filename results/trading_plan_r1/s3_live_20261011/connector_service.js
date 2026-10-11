@@ -32,32 +32,30 @@ while(true){
  let r;
  if(q.method==="GET" && q.path.startsWith("contents/")){
  const [p,query]=q.path.slice(9).split("?ref=");
- const f=await tools.mcp__codex_apps__github_fetch_file({repository_full_name:repo,ref:query,path:decodeURIComponent(p)});
- if(f.isError)throw Error(JSON.stringify(f));
- const c=f.structuredContent.content;
- const chars="ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";let b="";
- for(let i=0;i<c.length;i+=3){const a=c.charCodeAt(i),v=i+1<c.length?c.charCodeAt(i+1):0,w=i+2<c.length?c.charCodeAt(i+2):0;if(a>127||v>127||w>127)throw Error("transport content not ASCII");const n=(a<<16)|(v<<8)|w;b+=chars[(n>>18)&63]+chars[(n>>12)&63]+(i+1<c.length?chars[(n>>6)&63]:"=")+(i+2<c.length?chars[n&63]:"=");}
- r={structuredContent:{encoding:"base64",content:b}};
+ r=await tools.mcp__codex_apps__github_fetch_file({repository_full_name:repo,ref:query,path:decodeURIComponent(p),encoding:"base64"});
+ if(r.isError||r.structuredContent?.encoding!=="base64")throw Error("exact base64 readback absent");
  }else if(q.method==="GET"){
   r=await tools.mcp__codex_apps__github_fetch({url:"https://api.github.com/repos/"+repo+"/"+q.path});
  }else if(q.method==="POST" && q.path==="git/trees"){
   
- const entries=[],cache=load("bridge_blob_cache")||{};
- for(let ix=0;ix<q.body.tree.length;ix++){
-  const e=q.body.tree[ix];
-  let blob=e.uploaded?e.expected_blob:cache[e.expected_blob];
+
+ const cache=load("bridge_blob_cache")||{},entries=[];
+ async function upload(ix){
+  const e=q.body.tree[ix];let blob=e.uploaded?e.expected_blob:cache[e.expected_blob];
   if(!blob){
-   let content="";
-   for(let offset=0;offset<e.content_bytes;offset+=16000){
-    const part=await tools.exec_command({cmd:"python - <<'PY'\nimport json\nfrom pathlib import Path\nq=json.loads(Path('/workspace/scratch/678885238d72/github_checkpoint_queue/"+id+".request.json').read_text())\ns=q['body']['tree']["+ix+"]['content']\nprint(json.dumps(s["+offset+":"+Math.min(offset+16000,e.content_bytes)+"]))\nPY",max_output_tokens:20000});
-    content+=JSON.parse(part.output);
-   }
+   const offsets=[];for(let n=0;n<e.content_bytes;n+=16000)offsets.push(n);
+   const reads=await Promise.allSettled(offsets.map(offset=>tools.exec_command({cmd:"python - <<'PY'\nimport json\nfrom pathlib import Path\nq=json.loads(Path('/workspace/scratch/678885238d72/github_checkpoint_queue/"+id+".request.json').read_text())\ns=q['body']['tree']["+ix+"]['content']\nprint(json.dumps(s["+offset+":"+Math.min(offset+16000,e.content_bytes)+"]))\nPY",max_output_tokens:20000})));
+   let content="";for(const read of reads){if(read.status!=="fulfilled")throw Error(String(read.reason));content+=JSON.parse(read.value.output);}
    const br=unwrap(await tools.mcp__codex_apps__github_create_blob({repository_full_name:repo,encoding:"utf-8",content}));
    if(br.sha!==e.expected_blob)throw Error("connector blob SHA mismatch "+e.path);
    blob=br.sha;cache[blob]=blob;store("bridge_blob_cache",cache);
- await tools.apply_patch("*** Begin Patch\n*** Add File: /workspace/scratch/678885238d72/github_checkpoint_queue/blob-"+blob+".saved\n+"+blob+"\n*** End Patch");
+   await tools.apply_patch("*** Begin Patch\n*** Add File: /workspace/scratch/678885238d72/github_checkpoint_queue/blob-"+blob+".saved\n+"+blob+"\n*** End Patch");
   }
-  entries.push({path:e.path,mode:e.mode,type:e.type,sha:blob});
+  return {path:e.path,mode:e.mode,type:e.type,sha:blob};
+ }
+ for(let start=0;start<q.body.tree.length;start+=4){
+  const group=await Promise.allSettled(q.body.tree.slice(start,start+4).map((_,i)=>upload(start+i)));
+  for(const g of group){if(g.status!=="fulfilled")throw g.reason;entries.push(g.value);}
  }
  r=await tools.mcp__codex_apps__github_create_tree({repository_full_name:repo,base_tree_sha:q.body.base_tree,tree_elements:entries});
  }else if(q.method==="POST" && q.path==="git/commits"){
