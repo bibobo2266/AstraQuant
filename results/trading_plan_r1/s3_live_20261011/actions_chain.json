@@ -2,8 +2,19 @@
   "chain_id": "s3-actions-20261011",
   "segment": 1,
   "next_segment": 1,
-  "status": "ACTIVE",
+  "status": "BLOCKED",
   "owner_run_id": "38123562697",
   "code_commit": "2f69bc01c760e1fef68bddc1b66776dd9255b195",
-  "jobs_started": 2
+  "jobs_started": 2,
+  "automatic_retry": false,
+  "failure": {
+    "type": "RuntimeError",
+    "error": "8436:unresolved_ca: normalized fractional-share terms are UNKNOWN",
+    "actions_run_id": "38123562697",
+    "saved_day": "2018-08-06",
+    "saved_sessions": 634,
+    "frozen": true,
+    "checkpoint_commit": "6305a580ceb158a50e28c9264996ac4839c6e0e0",
+    "failure_artifact_id": 11696901584
+  }
 }

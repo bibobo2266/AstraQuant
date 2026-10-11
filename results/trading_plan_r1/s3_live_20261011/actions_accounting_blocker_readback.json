@@ -1,0 +1,23 @@
+{
+  "pinned_commit": "6305a580ceb158a50e28c9264996ac4839c6e0e0",
+  "checkpoint_sha256": "0775cd352c3241d5422515608aae75153e414bde97a1f8af565f00da3ef78eb4",
+  "head_readback_verified": true,
+  "completed": 634,
+  "day": "2018-08-06",
+  "fills": 66,
+  "holdings": 2,
+  "frozen": true,
+  "error": [
+    {
+      "kind": "unresolved_ca",
+      "ticker": "8436",
+      "day": "2018-08-06",
+      "trade_id": "s3-A-20261011T045203Z-A1:trade:2018-08-03:8436",
+      "old_quantity": 123,
+      "old_stop": 571.02,
+      "reason": "normalized fractional-share terms are UNKNOWN",
+      "binding": "d9d8315a76c06e27cb6012d21396a623ac318d1975cbef691c8d15691503ce51"
+    }
+  ],
+  "completed_at": "2026-10-11T08:33:48Z"
+}

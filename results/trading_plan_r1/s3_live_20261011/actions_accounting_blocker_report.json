@@ -1,0 +1,26 @@
+{
+  "checked_at": "2026-10-11T09:29:24.860578+00:00",
+  "run_id": 38123562697,
+  "status": "BLOCKED",
+  "checkpoint_commit": "6305a580ceb158a50e28c9264996ac4839c6e0e0",
+  "checkpoint_sha256": "0775cd352c3241d5422515608aae75153e414bde97a1f8af565f00da3ef78eb4",
+  "completed_recorded_sessions": 634,
+  "frozen_day": "2018-08-06",
+  "fills": 66,
+  "holdings": 2,
+  "valid_full_period_result": false,
+  "raw_error_excerpt_lines": [
+    "2026-10-11T08:37:17.6271310Z Traceback (most recent call last):",
+    "2026-10-11T08:37:17.7125181Z RuntimeError: runner stop: {\"execution_id\": \"s3-A-20261011T045203Z\", \"started_at\": \"2026-10-11T08:06:21.602986+00:00\", \"program_sha\": null, \"program_base_sha\": \"2f69bc01c760e1fef68bddc1b66776dd9255b195\", \"manifest_sha256\": \"faefc556dc641c3f56d40564b3ef787ac6af7a09bd05ac8a6fb146266ca16dba\", \"formal_performance_unlocked\": false, \"round\": \"A\", \"cells\": {\"A1\": {\"entry_mode\": \"close\", \"exit_mode\": \"sma20\", \"status\": \"INCOMPLETE\", \"completed\": 634, \"resumed\": true, \"current_date\": \"2018-08-06\", \"holdings\": [\"8436\", \"8942\"], \"frozen\": true, \"external_checkpoint\": {\"commit\": \"6305a580ceb158a50e28c9264996ac4839c6e0e0\", \"repo\": \"bibobo2266/AstraQuant\", \"path\": \"results/trading_plan_r1/s3_live_20261011/A/A1/transport.json\", \"transport_sha256\": \"aa007b1ce58dfbae94b24e349f2073cdcbe3f2430496a42f464a20d6b5af7b81\", \"checkpoint_sha256\": \"0775cd352c3241d5422515608aae75153e414b",
+    "2026-10-11T08:37:19.2094029Z Artifact s3-error-38123562697.zip successfully finalized. Artifact ID 11696901584"
+  ],
+  "full_error_artifact_id": 11696901584,
+  "fixed_source_verified": true,
+  "source_refresh": false,
+  "test_result": "16 passed in 7.67s",
+  "repair": "Failure saves BLOCKED durably with original error; stale worker cannot change another owner control state",
+  "recommended_solution": "Event-only reviewed official fractional-share terms for 8436 effective 2018-08-06. Keep archive immutable; reviewed evidence overlay. Do not infer rounding/cash-out or change strategy. Demonstrate recovery boundary before dispatch.",
+  "owner_scope_needed": "Acquire/review official fractional-share treatment and settlement amount/date for this event; authorize event evidence overlay and minimum recovery rebuild if required. No blanket source refresh, universe change, or new workflow.",
+  "time_estimate": "After evidence obtained: estimated 1-3 hours for accounting implementation and recovery parity checks; full-period ETA suspended",
+  "incremental_storage_cost": "Tiny text evidence, within US$5 cap; no new Actions run consumed"
+}

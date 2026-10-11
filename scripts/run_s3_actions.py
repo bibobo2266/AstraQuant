@@ -414,6 +414,21 @@ def continue_chain(chain_id, index, artifact_id):
     issue(api, f'段{index} artifact {artifact_id}核存在，已排同workflow段{index + 1}；單worker接最新已存日，不等核准。')
 
 
+def record_failure(api, error):
+    failure = {'type': type(error).__name__, 'error': str(error),
+               'actions_run_id': os.environ['GITHUB_RUN_ID']}
+    error_path = ROOT / 'actions_error.json'
+    write_json(error_path, failure)
+    if not CONTROL.exists():
+        return
+    control = json.loads(CONTROL.read_text())
+    if str(control.get('owner_run_id')) != os.environ['GITHUB_RUN_ID']:
+        return  # A stale job must never replace another worker's control state.
+    control.update(status='BLOCKED', failure=failure, automatic_retry=False)
+    write_json(CONTROL, control)
+    persist(api, [CONTROL, error_path], 'Save blocked S3 worker and original failure')
+
+
 def main():
     p = argparse.ArgumentParser()
     p.add_argument('--phase', choices=['execute', 'continue', 'child', 'failure'], required=True)
@@ -435,7 +450,12 @@ def main():
         try:
             execute(args.workspace.resolve(), args.chain, args.segment)
         except Exception as error:
-            write_json(ROOT / 'actions_error.json', {'type': type(error).__name__, 'error': str(error)})
+            try:
+                record_failure(client(), error)
+            except Exception as save_error:
+                write_json(ROOT / 'actions_failure_save_error.json',
+                           {'type': type(save_error).__name__, 'error': str(save_error),
+                            'original_error': str(error)})
             issue(client(), 'Actions具體錯誤：' + type(error).__name__ + ': ' + str(error)[:3500]
                   + '；run ' + os.environ['GITHUB_RUN_ID'] + '；停止，未自動重啟。')
             raise

@@ -68,7 +68,7 @@ def test_artifact_budget_stops_before_upload(tmp_path, monkeypatch):
         module.stage_artifact({},False)
 
 
-@pytest.mark.parametrize('status', ['ACTIVE', 'READY', 'COMPLETE', 'ERROR'])
+@pytest.mark.parametrize('status', ['ACTIVE', 'READY', 'COMPLETE', 'ERROR', 'BLOCKED'])
 def test_duplicate_or_unverified_continuation_never_dispatches(tmp_path, monkeypatch, status):
     module = actions_module()
     control = tmp_path/'chain.json'
@@ -94,3 +94,28 @@ def test_wrong_uploaded_artifact_never_dispatches(tmp_path, monkeypatch):
     monkeypatch.setattr(module,'client',lambda:API())
     with pytest.raises(ValueError, match='identity mismatch'):
         module.continue_chain('chain',0,123)
+
+
+@pytest.mark.parametrize('owner', ['42', 'newer-worker'])
+def test_failure_preserves_original_error_and_respects_worker_ownership(tmp_path, monkeypatch, owner):
+    module = actions_module()
+    monkeypatch.setattr(module, 'ROOT', tmp_path)
+    monkeypatch.setattr(module, 'CONTROL', tmp_path/'actions_chain.json')
+    monkeypatch.setenv('GITHUB_RUN_ID', '42')
+    original = {'owner_run_id': owner, 'status': 'ACTIVE', 'next_segment': 1}
+    module.CONTROL.write_text(json.dumps(original))
+    saved = []
+    monkeypatch.setattr(module, 'persist', lambda api, paths, message: saved.append(paths))
+    module.record_failure(object(), RuntimeError('8436:unresolved_ca'))
+    error = json.loads((tmp_path/'actions_error.json').read_text())
+    assert error['error'] == '8436:unresolved_ca'
+    control = json.loads(module.CONTROL.read_text())
+    if owner == '42':
+        assert control['status'] == 'BLOCKED'
+        assert control['automatic_retry'] is False
+        assert control['failure'] == error
+        assert control['next_segment'] == 1
+        assert saved == [[module.CONTROL, tmp_path/'actions_error.json']]
+    else:
+        assert control == original
+        assert saved == []

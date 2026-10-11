@@ -1,0 +1,89 @@
+{
+  "source_sha256": "f0fa98a466923b25f15135aa7f67edf0633ff00720c034f79e1bfe3851f1a415",
+  "accepted_artifact": 11547312869,
+  "source_revision": "3e7c4b6d9cde3b18942710fa977db02f89bffa0d",
+  "source_refresh": false,
+  "actions": [
+    {
+      "ticker": "8436",
+      "effective_date": "2018-08-06",
+      "kind": "CASH_DIVIDEND",
+      "known_at": "2018-07-17 14:25:25",
+      "payment_at": "2018-08-31 00:00:00",
+      "cash_per_share": 2.68827842,
+      "share_multiplier": null,
+      "source_name": "FinMind TaiwanStockDividend",
+      "source_row": 17508,
+      "unit_semantics": "cash_per_pre_event_share"
+    },
+    {
+      "ticker": "8436",
+      "effective_date": "2018-08-06",
+      "kind": "STOCK_DIVIDEND",
+      "known_at": "2018-07-17 14:25:25",
+      "payment_at": null,
+      "cash_per_share": null,
+      "share_multiplier": 1.1493488,
+      "source_name": "FinMind TaiwanStockDividend",
+      "source_row": 17508,
+      "unit_semantics": "stock_dividend_currency_per_share_divided_by_10"
+    }
+  ],
+  "source_rows": [
+    {
+      "date": "2018-08-12",
+      "stock_id": "8436",
+      "year": "106年",
+      "StockEarningsDistribution": 1.493488,
+      "StockStatutorySurplus": 0.0,
+      "StockExDividendTradingDate": "2018-08-06",
+      "TotalEmployeeStockDividend": 0.0,
+      "TotalEmployeeStockDividendAmount": 0.0,
+      "RatioOfEmployeeStockDividendOfTotal": 0.0,
+      "RatioOfEmployeeStockDividend": 0.0,
+      "CashEarningsDistribution": 2.68827842,
+      "CashStatutorySurplus": 0.0,
+      "CashExDividendTradingDate": "2018-08-06",
+      "CashDividendPaymentDate": "2018-08-31",
+      "TotalEmployeeCashDividend": 0.0,
+      "TotalNumberOfCashCapitalIncrease": 0.0,
+      "CashIncreaseSubscriptionRate": 0.0,
+      "CashIncreaseSubscriptionpRrice": 0.0,
+      "RemunerationOfDirectorsAndSupervisors": 0.0,
+      "ParticipateDistributionOfTotalShares": 0.0,
+      "AnnouncementDate": "2018-07-17",
+      "AnnouncementTime": "14:25:25",
+      "available_date": "2018-07-17"
+    },
+    {
+      "date": "2018-08-12",
+      "stock_id": "8436",
+      "year": "106年",
+      "StockEarningsDistribution": 1.493488,
+      "StockStatutorySurplus": 0.0,
+      "StockExDividendTradingDate": "2018-08-06",
+      "TotalEmployeeStockDividend": 0.0,
+      "TotalEmployeeStockDividendAmount": 0.0,
+      "RatioOfEmployeeStockDividendOfTotal": 0.0,
+      "RatioOfEmployeeStockDividend": 0.0,
+      "CashEarningsDistribution": 2.68827842,
+      "CashStatutorySurplus": 0.0,
+      "CashExDividendTradingDate": "2018-08-06",
+      "CashDividendPaymentDate": "2018-08-31",
+      "TotalEmployeeCashDividend": 0.0,
+      "TotalNumberOfCashCapitalIncrease": 0.0,
+      "CashIncreaseSubscriptionRate": 0.0,
+      "CashIncreaseSubscriptionpRrice": 0.0,
+      "RemunerationOfDirectorsAndSupervisors": 0.0,
+      "ParticipateDistributionOfTotalShares": 0.0,
+      "AnnouncementDate": "2018-07-17",
+      "AnnouncementTime": "14:25:25",
+      "available_date": "2018-07-17"
+    }
+  ],
+  "held_quantity": 123,
+  "share_result": [
+    "141.3699024"
+  ],
+  "fractional_evidence_columns": []
+}
