@@ -1,0 +1,84 @@
+{
+  "checked_at": "2026-10-11T09:50:01.428529+00:00",
+  "authorized_event": {
+    "ticker": "8436",
+    "effective_day": "2018-08-06",
+    "only_supplement_this_event": true
+  },
+  "source": "Official MOPS filings for issuer8436; original handbook and approved AGM minutes",
+  "handbook": {
+    "file": "2018_8436_20180518F02.pdf",
+    "pdf_page": 7,
+    "printed_page": 5,
+    "uploaded_at": "2018-04-16T20:36:08+08:00"
+  },
+  "minutes": {
+    "file": "2018_8436_20180518F05.pdf",
+    "pdf_page": 4,
+    "uploaded_at": "2018-06-05T13:35:32+08:00",
+    "visually_verified_resolution_passed": true
+  },
+  "verified_terms": {
+    "par_value_twd": 10,
+    "combine_window": "five days from transfer closure start",
+    "remaining_fraction": "cash substitution at par value, calculated to whole TWD",
+    "agm_resolution": "approved",
+    "ratio_adjustment": "authorized due to changing outstanding shares"
+  },
+  "exact_source_quantity": 123,
+  "exact_fixed_source_multiplier": "1.1493488",
+  "exact_entitlement": "141.3699024",
+  "fraction": "0.3699024",
+  "unverified_fields": [
+    "fractional cash payment date",
+    "explicit direction of whole-TWD rounding for fractional payment"
+  ],
+  "not_assumed": [
+    "regular cash-dividend payment date 2018-08-31 is NOT proof of fractional cash payment date",
+    "no invented market-price cash-out",
+    "no combining with another shareholder"
+  ],
+  "a1_recovery_constraints": {
+    "checkpoint_commit": "6305a580ceb158a50e28c9264996ac4839c6e0e0",
+    "recorded_sessions": 634,
+    "all_prior_days_replay_forbidden": true,
+    "checkpoint_bytes_kept_unchanged": true,
+    "future_repair": "must be a checked saved-state event repair with original pre-event fills/history unchanged; no dispatch of A1 until source terms and accounting parity verified"
+  },
+  "other_cells": {
+    "engineering_commit": "d2c53c3627a8359ccfbf906ef5a0fc0c051f3725",
+    "actions_run": 38129411955,
+    "tests": "17 passed in 8.04s",
+    "policy": "skip blocked cell; continue unaffected cells single-worker"
+  },
+  "errors": {
+    "original": "normalized fractional-share terms are UNKNOWN",
+    "primary_retrieval": "MOPS PDFs obtained; public web PDF fetch failed but direct official retrieval succeeded; source broker old PDF returned HTTP404"
+  },
+  "files": {
+    "2018_8436_20180518F02.pdf": {
+      "sha256": "e9998582d11e0e55926bbbd53aeb4a5a745069e10109bd9e1b7f9e119d9ca861",
+      "bytes": 1877772
+    },
+    "2018_8436_20180518F05.pdf": {
+      "sha256": "809a8e7f42098621f8e64012a042384626192024ccca8c7e8ab9b58812b3fde7",
+      "bytes": 1227618
+    },
+    "mops_file_hashes.json": {
+      "sha256": "a476e9f6f27658db0bf028b14e40a1e1a0965525499f726ab4f516aa63292900",
+      "bytes": 511
+    },
+    "mops_8436_107_listing.html": {
+      "sha256": "ccd48c5d5a0ca3497ebd8fc4765f79f5d151fdc44707262d60f038c68fa398c8",
+      "bytes": 7057
+    },
+    "mops_107_08_announcements.html": {
+      "sha256": "cd22e3bebad91f8a3f6ee10c55ecacd709f393cb024a1415752d35f1e29375a3",
+      "bytes": 8428
+    },
+    "mops_107_09_announcements.html": {
+      "sha256": "2b6b6146073eaef89a068feec8404fe7681eb3b3b680f130961ec62cf1abdee3",
+      "bytes": 7762
+    }
+  }
+}
