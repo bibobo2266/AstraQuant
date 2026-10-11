@@ -1,6 +1,7 @@
 """Checkpoint encoding/transport changes retain bytes, integrity and resume."""
 import inspect
 import json
+import sys
 from pathlib import Path
 
 import numpy as np
@@ -8,6 +9,7 @@ import pandas as pd
 
 import astraquant.research.trading_plan_r1 as r1
 import astraquant.research.trading_plan_r1_s3 as s3
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'scripts'))
 from source_accounting_smoke_replay import package_checkpoint_transport, restore_s3_evidence_transport
 from test_trading_plan_r1_s3 import bundle
 
