@@ -17,9 +17,25 @@
       "entry_mode": "next_open",
       "exit_mode": "sma20",
       "status": "RUNNING",
-      "completed": 0,
+      "completed": 19,
       "resumed": false,
-      "current_date": "2016-01-04"
+      "current_date": "2016-01-29",
+      "holdings": [],
+      "frozen": false,
+      "external_checkpoint": {
+        "commit": "ad2aa4def829cf9764b53887e44204fd716d013c",
+        "repo": "bibobo2266/AstraQuant",
+        "path": "results/trading_plan_r1/s3_live_20261011/A/A2/transport.json",
+        "transport_sha256": "67776f09ac2524032a1d31ece85fc09a1f3e8747f4b0556a49187de0a99fc44c",
+        "checkpoint_sha256": "b6c3e36b03147364dbc940eff2bf842826e05d310d7d5c72f8688c920c961874",
+        "saved_completed_day": "2016-01-04",
+        "saved_completed_sessions": 1,
+        "local_completed_sessions": 1,
+        "readback_verified": true,
+        "remote_interval_sessions": 20,
+        "publisher_sha256": "eaf434ea0b2545d9ca9fcb51f87cc57c668219d2a7e9d9db73cedf23e6983d4d"
+      },
+      "first_day_readback_exact": true
     },
     "A3": {
       "entry_mode": "close",
