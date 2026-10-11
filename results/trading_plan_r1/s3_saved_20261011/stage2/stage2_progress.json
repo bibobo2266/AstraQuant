@@ -1,0 +1,53 @@
+{
+  "stage": 2,
+  "run_id": "s3-stage2-A1-20261011T044358Z",
+  "pid": 5,
+  "phase": "VERIFIED",
+  "started_at": "2026-10-11T04:43:58.235700+00:00",
+  "remote_root": "results/trading_plan_r1/s3_saved_20261011/stage2",
+  "elapsed_seconds": 313.89407829100037,
+  "binding": "d9d8315a76c06e27cb6012d21396a623ac318d1975cbef691c8d15691503ce51",
+  "saved_day": "2016-01-04",
+  "next_day": "2016-01-05",
+  "remote_checkpoint": {
+    "commit": "3994a25452d2d9aed1ce5f386e9ea42c507c8b3c",
+    "repo": "bibobo2266/AstraQuant",
+    "path": "results/trading_plan_r1/s3_saved_20261011/stage2/A1/transport.json",
+    "transport_sha256": "1084db97c79fe4b0d1299a41aed565b78e4850a1681dd2da27595f692bf8f55a",
+    "checkpoint_sha256": "3cef99f9b26ac90dac323682d9de3784cf1bc989df7f57c9cf4c581816bf9f99",
+    "saved_completed_day": "2016-01-04",
+    "saved_completed_sessions": 1,
+    "local_completed_sessions": 1,
+    "readback_verified": true,
+    "remote_interval_sessions": 20,
+    "publisher_sha256": "3dd7b481231eadb69d6b1d326d7ad147d512c2d1269d367dfdd24e8c07b59a64"
+  },
+  "local_latest_day": "2016-01-05",
+  "local_latest_sha256": "6774486d73fe2c05662b2f5c5d7d613fbd5821a069bba6bfca8ff6e3772ae995",
+  "evidence_commit": "6ef476e2d3969633ada2075575d1ad8655359902",
+  "evidence": [
+    {
+      "cell": "A1",
+      "remote_checkpoint": {
+        "commit": "3994a25452d2d9aed1ce5f386e9ea42c507c8b3c",
+        "repo": "bibobo2266/AstraQuant",
+        "path": "results/trading_plan_r1/s3_saved_20261011/stage2/A1/transport.json",
+        "transport_sha256": "1084db97c79fe4b0d1299a41aed565b78e4850a1681dd2da27595f692bf8f55a",
+        "checkpoint_sha256": "3cef99f9b26ac90dac323682d9de3784cf1bc989df7f57c9cf4c581816bf9f99",
+        "saved_completed_day": "2016-01-04",
+        "saved_completed_sessions": 1,
+        "local_completed_sessions": 1,
+        "readback_verified": true,
+        "remote_interval_sessions": 20,
+        "publisher_sha256": "3dd7b481231eadb69d6b1d326d7ad147d512c2d1269d367dfdd24e8c07b59a64"
+      },
+      "next_day": "2016-01-05",
+      "compared_saved_day": "2016-01-04",
+      "compared_checkpoint_sha256": "3cef99f9b26ac90dac323682d9de3784cf1bc989df7f57c9cf4c581816bf9f99",
+      "next_day_state_sha256": "cd4cb54e1f14f5f1140d9f3dfca133333a09f2b6b063522f37469a4f5fdd5d66",
+      "exact_state_equal": true
+    }
+  ],
+  "filled": 0,
+  "closed": 0
+}
