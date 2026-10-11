@@ -1,0 +1,23 @@
+[
+  {
+    "cell": "A1",
+    "remote_checkpoint": {
+      "commit": "3994a25452d2d9aed1ce5f386e9ea42c507c8b3c",
+      "repo": "bibobo2266/AstraQuant",
+      "path": "results/trading_plan_r1/s3_saved_20261011/stage2/A1/transport.json",
+      "transport_sha256": "1084db97c79fe4b0d1299a41aed565b78e4850a1681dd2da27595f692bf8f55a",
+      "checkpoint_sha256": "3cef99f9b26ac90dac323682d9de3784cf1bc989df7f57c9cf4c581816bf9f99",
+      "saved_completed_day": "2016-01-04",
+      "saved_completed_sessions": 1,
+      "local_completed_sessions": 1,
+      "readback_verified": true,
+      "remote_interval_sessions": 20,
+      "publisher_sha256": "3dd7b481231eadb69d6b1d326d7ad147d512c2d1269d367dfdd24e8c07b59a64"
+    },
+    "next_day": "2016-01-05",
+    "compared_saved_day": "2016-01-04",
+    "compared_checkpoint_sha256": "3cef99f9b26ac90dac323682d9de3784cf1bc989df7f57c9cf4c581816bf9f99",
+    "next_day_state_sha256": "cd4cb54e1f14f5f1140d9f3dfca133333a09f2b6b063522f37469a4f5fdd5d66",
+    "exact_state_equal": true
+  }
+]
