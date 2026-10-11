@@ -15,7 +15,8 @@ if frozen.exists():
     cp = json.loads(frozen.read_text())
 else:
     assert len(cp['completed']) == 40
-    frozen.write_text(json.dumps(cp))
+    frozen.write_bytes((cell / 'checkpoint.json').read_bytes())
+assert hashlib.sha256(frozen.read_bytes()).hexdigest() == '7756212de0edf4ce29202f1c26147e8a84da007ca83a0fee40d6624c7c8f02cb'
 eligibility = []
 for chunk in cp['checkpoint_storage']['chunks']:
     if chunk['table'] == 'eligibility':
@@ -77,7 +78,7 @@ def sample(key):
         trigger=er['condition_values']['trigger'], available_date=er['available_date'])
 positive = next((k for k, r in lookup.items() if r['condition_passes']['source_eligible'] and r['condition_passes']['available'] and r['condition_passes']['valid']), None)
 result = dict(pinned_checkpoint_commit='0397af3925429c37ae0ac5d90779c108176b2277', completed=40,
-    checkpoint_sha256=hashlib.sha256((cell/'checkpoint.json').read_bytes()).hexdigest(),
+    checkpoint_sha256=hashlib.sha256(frozen.read_bytes()).hexdigest(),
     panel_sha256=hashlib.sha256(panel_path.read_bytes()).hexdigest(), panel_native_dtype=native_dtype,
     panel_native_value_types=native_types, panel_total_true=int(panel.eligibility.fillna(False).astype(bool).sum()),
     panel_A40_true=int(p40.eligibility.fillna(False).astype(bool).sum()), eligibility_rows_checked=len(eligibility),
@@ -88,6 +89,17 @@ result = dict(pinned_checkpoint_commit='0397af3925429c37ae0ac5d90779c108176b2277
     price_geometry_rejections=sum(r['reject_reason']=='invalid_geometry' for r in cp['tables']['decisions']),
     warning='If no S1 true rows exist in A40, the available sample proves quote/date availability only, not an eligible buy.',
     trades_replayed=False)
+true_A = panel[panel.eligibility & ~panel.stock.astype(str).isin(m['diagnostic_overlay']['excluded_stocks'])].sort_values(['date_key', 'stock_key'])
+first = true_A.iloc[0]
+year = pd.Timestamp(first.date).year
+raw_path = next(f['path'] for f in m['files'] if f['role']=='raw' and f'_{year}.' in f['path'])
+future_raw = pd.read_parquet(raw_path, columns=['date', 'stock_id', 'close'])
+match = future_raw[(pd.to_datetime(future_raw.date)==pd.Timestamp(first.date)) & (future_raw.stock_id.astype(str)==first.stock_key)]
+assert len(match)==1 and pd.Timestamp(first.available_date)<=pd.Timestamp(first.date)
+result['A_population_s1_true_by_year'] = true_A.groupby(pd.to_datetime(true_A.date).dt.year).size().to_dict()
+result['earliest_A_population_true_source_sample'] = dict(date=first.date_key,stock=first.stock_key,source_native_bool=bool(first.eligibility),available_date=pd.Timestamp(first.available_date).strftime('%Y-%m-%d'),raw_key_exists=True,raw_close=float(match.iloc[0].close),period='outside first40; source join check only, future ledger not run')
+result['rejected1942_ledger_RS_missing'] = sum(lookup[(r['date'],r['stock'])]['condition_values']['rs'] is None for r in rejected)
+result['zero_trade_explanation_scope'] = 'Fixed S1 itself has zero true flags in first40; exact S1/RAW/ledger date and bool joins agree; upstream S1 rule unchanged.'
 out = root.parent / 'A40_rejection_audit.json'
 out.write_text(json.dumps(result, indent=2)+'\n')
 pd.DataFrame(rows).to_csv(root.parent/'A40_rejection_classification.csv', index=False)

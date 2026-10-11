@@ -59,6 +59,14 @@
   "price_geometry_rejections": 3,
   "warning": "If no S1 true rows exist in A40, the available sample proves quote/date availability only, not an eligible buy.",
   "trades_replayed": false,
+  "A_population_s1_true_by_year": {
+    "2016": 635,
+    "2017": 1820,
+    "2018": 1426,
+    "2019": 920,
+    "2020": 2800,
+    "2021": 2479
+  },
   "earliest_A_population_true_source_sample": {
     "date": "2016-07-11",
     "stock": "2489",
@@ -68,14 +76,6 @@
     "raw_close": 23.35,
     "period": "outside first40; source join check only, future ledger not run"
   },
-  "A_population_s1_true_by_year": {
-    "2016": 635,
-    "2017": 1820,
-    "2018": 1426,
-    "2019": 920,
-    "2020": 2800,
-    "2021": 2479
-  },
   "rejected1942_ledger_RS_missing": 1942,
-  "zero_trade_explanation_scope": "Fixed S1 itself has zero true flags in first40; earliest true A-population key2016-07-11. Exact S1/RAW/ledger date and bool joins agree. Upstream S1 rule unchanged; does not claim eligibility on prior dates."
+  "zero_trade_explanation_scope": "Fixed S1 itself has zero true flags in first40; exact S1/RAW/ledger date and bool joins agree; upstream S1 rule unchanged."
 }

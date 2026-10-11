@@ -1,0 +1,33 @@
+{
+  "pinned_commit": "4793b0319030e5b9b817a88951d72bfa5233f7fe",
+  "manifest_sha256": "6baca6b7ebb02f9f6ebdcbbcd522745be48008c3c7ba4cdd7b76dc63a3e78b8e",
+  "checkpoint_sha256": "1e90aeeb93c958fa2bdca23b1d30db02d971c527d64cb2cb68afab8bf94d609d",
+  "head_sha_and_size_verified": true,
+  "state_digest_verified": true,
+  "completed": 60,
+  "last_completed_day": "2016-04-07",
+  "filled": 0,
+  "closed": 0,
+  "positions": 0,
+  "frozen": false,
+  "local_after_remote_save": {
+    "completed": 80,
+    "last_day": "2016-05-06"
+  },
+  "worker_session": 84898,
+  "worker_elapsed_seconds": 433.251117,
+  "recovery": "environment reverted; restored all123parts/81files from pinned40; rebuilt missing41-60; days1-40 were not rerun",
+  "scope": "pinned manifest/head; remaining new checkpoint chunks verified by Git blob during publication, not all re-downloaded in this head check",
+  "full_period_extrapolation": "not estimated from cold recovery and transport waits",
+  "program_sha": null,
+  "program_base_sha": "79cded999d5b348727e6342ae29f8154e134c5b7",
+  "approved_runner_reference": "fd0d6113ca471af144ae5fcfbefca199ef14c210",
+  "executed_code_sha256": {
+    "AstraQuant-checkout/scripts/source_accounting_smoke_replay.py": "9cb1fa99aeeeb69d6e426eb794155d0e34b1cb66d8844bef04790b6977be7c77",
+    "AstraQuant-checkout/scripts/run_s3_ab_saved.py": "3dd7b481231eadb69d6b1d326d7ad147d512c2d1269d367dfdd24e8c07b59a64",
+    "github_checkpoint_bridge.py": "3d1bc4b1369ba2568d27c65f75509ef112b912afb8ffdc80b9e9ff2b9080171a",
+    "AstraQuant-checkout/src/astraquant/research/trading_plan_r1_s3.py": "68cd6e0b42a3e5d3743cad4fcf0a849cf194aa849b3856496875c4b82ae8cd50"
+  },
+  "core_git_blob_matches_approved_fd0d611": true,
+  "core_git_blob_sha": "6af2215f91b0b9a9c4a05a7447df14c90b86a8f8"
+}
