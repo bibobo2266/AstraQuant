@@ -379,7 +379,7 @@ def execute(workspace, chain_id, index):
     advanced = sum(v['completed'] for v in final.values()) - sum(v['completed'] for v in initial.values())
     if advanced <= 0 and runnable:
         raise ValueError('zero completed-day progress; no automatic retry')
-    complete = all(v['completed'] == 1468 and not v.get('frozen') for v in final.values())
+    complete = not blocked and all(v['completed'] == 1468 and not v.get('frozen') for v in final.values())
     if complete:final_metrics()
     control.update(status='SAVED', next_segment=index + 1, complete=complete, advanced=advanced,
                    requires_artifact_success=True, blocked_cells=sorted(blocked), runnable_cells=runnable)
