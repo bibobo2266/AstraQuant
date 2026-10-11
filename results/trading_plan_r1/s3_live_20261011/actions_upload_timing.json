@@ -1,0 +1,15 @@
+{
+  "actions_run_id": "38133062523",
+  "artifact_id": 11701885172,
+  "uploads": [
+    {
+      "job_id": 114451225015,
+      "step": "Upload S3 receipts and new immutable checkpoint parts",
+      "started_at": "2026-10-11T11:46:32Z",
+      "completed_at": "2026-10-11T11:46:40Z",
+      "seconds": 8.0
+    }
+  ],
+  "measurement_error": null,
+  "scope": "Actions API completed upload step; seconds resolution; empty means unmeasured"
+}
