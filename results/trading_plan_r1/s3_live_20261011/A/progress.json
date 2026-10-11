@@ -1,8 +1,8 @@
 {
   "execution_id": "s3-A-20261011T045203Z",
-  "started_at": "2026-10-11T05:02:36.599965+00:00",
-  "program_sha": "fd0d6113ca471af144ae5fcfbefca199ef14c210",
-  "program_base_sha": "fd0d6113ca471af144ae5fcfbefca199ef14c210",
+  "started_at": "2026-10-11T06:18:09.947153+00:00",
+  "program_sha": null,
+  "program_base_sha": "79cded999d5b348727e6342ae29f8154e134c5b7",
   "manifest_sha256": "faefc556dc641c3f56d40564b3ef787ac6af7a09bd05ac8a6fb146266ca16dba",
   "formal_performance_unlocked": false,
   "round": "A",
@@ -11,25 +11,26 @@
       "entry_mode": "close",
       "exit_mode": "sma20",
       "status": "RUNNING",
-      "completed": 39,
-      "resumed": false,
-      "current_date": "2016-03-08",
+      "completed": 59,
+      "resumed": true,
+      "current_date": "2016-04-07",
       "holdings": [],
       "frozen": false,
       "external_checkpoint": {
-        "commit": "6ccf5cd88e89277c35493c3b948ca270cf658a14",
+        "commit": "0397af3925429c37ae0ac5d90779c108176b2277",
         "repo": "bibobo2266/AstraQuant",
         "path": "results/trading_plan_r1/s3_live_20261011/A/A1/transport.json",
-        "transport_sha256": "e4c83cb31eb0c0bab50d178ceaf45a1f6179b617079f413d5bfd40f0aae8ae6c",
-        "checkpoint_sha256": "f4ecc342317e44751c77942d383968894ae359b262c6e20046899084da25c612",
-        "saved_completed_day": "2016-01-29",
-        "saved_completed_sessions": 20,
-        "local_completed_sessions": 20,
+        "transport_sha256": "f61dd603cbda2346eac73f358ae648d20f0f66a7b38ff83a4c9edbcfafb6d2b1",
+        "checkpoint_sha256": "7756212de0edf4ce29202f1c26147e8a84da007ca83a0fee40d6624c7c8f02cb",
+        "saved_completed_day": "2016-03-08",
+        "saved_completed_sessions": 40,
+        "local_completed_sessions": 40,
         "readback_verified": true,
         "remote_interval_sessions": 20,
-        "publisher_sha256": "3dd7b481231eadb69d6b1d326d7ad147d512c2d1269d367dfdd24e8c07b59a64"
-      },
-      "first_day_readback_exact": true
+        "publisher_sha256": "3dd7b481231eadb69d6b1d326d7ad147d512c2d1269d367dfdd24e8c07b59a64",
+        "all_restored_files_verified": 81,
+        "all_parts_verified": 123
+      }
     },
     "A2": {
       "entry_mode": "next_open",
@@ -50,7 +51,7 @@
       "completed": 0
     }
   },
-  "peak_rss_kib": 4473612,
+  "peak_rss_kib": 4548856,
   "input_binding": "d9d8315a76c06e27cb6012d21396a623ac318d1975cbef691c8d15691503ce51",
   "expected_sessions": 1468
 }
