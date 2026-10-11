@@ -29,23 +29,22 @@
       "entry_mode": "next_open",
       "exit_mode": "sma20_or_rsi13_lt50",
       "status": "RUNNING",
-      "completed": 1379,
+      "completed": 1399,
       "resumed": true,
-      "current_date": "2021-08-25",
+      "current_date": "2021-09-24",
       "holdings": [
-        "3003",
-        "3675"
+        "3036"
       ],
       "frozen": false,
       "external_checkpoint": {
-        "commit": "b3c4df93e5a9786d8abb2c928c83511dcebeb48b",
+        "commit": "67bcd1fe7ad74c7533df0efd298875c728c39db8",
         "repo": "bibobo2266/AstraQuant",
         "path": "results/trading_plan_r1/s3_live_20261011/A/A4/transport.json",
-        "transport_sha256": "53ee7bb5b85a8a71b0516b64e6491e0317219528e6bde4b6ff3c7a136d1e4feb",
-        "checkpoint_sha256": "c3b00a58d70d865da7987d4876a641bbf7b220d29d788e7eee25149365ec116b",
-        "saved_completed_day": "2021-07-28",
-        "saved_completed_sessions": 1360,
-        "local_completed_sessions": 1360,
+        "transport_sha256": "c7aa085e246722c485a43543107d655dc5772b629f2f5c22f24bbe2b164cc2d8",
+        "checkpoint_sha256": "d1a49b18b984f99532576468747691e1e002582d1117d99be7127e4a287b85ea",
+        "saved_completed_day": "2021-08-25",
+        "saved_completed_sessions": 1380,
+        "local_completed_sessions": 1380,
         "readback_verified": true,
         "remote_interval_sessions": 20,
         "publisher_sha256": "eaf434ea0b2545d9ca9fcb51f87cc57c668219d2a7e9d9db73cedf23e6983d4d"
