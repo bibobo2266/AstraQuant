@@ -2,19 +2,12 @@
   "chain_id": "s3-actions-20261011",
   "segment": 5,
   "next_segment": 5,
-  "status": "READY",
+  "status": "ACTIVE",
   "owner_run_id": "38140649667",
   "code_commit": "3d676f58c47cb9d5e973e3009b1eb1a5c1efc9f6",
-  "jobs_started": 6,
+  "jobs_started": 7,
   "blocked_cells": [
     "A1",
     "A3"
-  ],
-  "failure": {
-    "type": "ValueError",
-    "error": "duplicate measured completed day",
-    "actions_run_id": "38140649667"
-  },
-  "automatic_retry": false,
-  "repair_evidence": "actions_timing_boundary_repair.json"
+  ]
 }
