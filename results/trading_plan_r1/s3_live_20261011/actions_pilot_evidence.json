@@ -1,0 +1,60 @@
+{
+  "full_state_equal": true,
+  "all_tables_equal": true,
+  "state_sha256": "4754f75ea91684e855ea8a696b9ab5d1e2044800d62b3196ab1f26627af604cb",
+  "table_sha256": {
+    "s3_decisions.csv": "fe7c55eb6de090510be8b0597966c413674b0f89a0a5934c4fa7cd3bc4f19640",
+    "s3_eligibility.csv": "ea83c4e3f1890442ff7f0efb6e96b8f06dbc6d6d04963ebb02d7080527fba5ab",
+    "s3_equity.csv": "858995cf4206b78f44c4b5a131e406083de6b04e94c2ca5dab5058a612851e2b",
+    "s3_fills.csv": "ef2874eee139b858ddcc317db1938a08af2d2259a8b377efdfad64b1ede99264"
+  },
+  "real_sigkill": [
+    {
+      "action": "baseline",
+      "actual_exit": 0,
+      "expected_exit": 0
+    },
+    {
+      "action": "interrupt",
+      "actual_exit": -9,
+      "expected_exit": -9
+    },
+    {
+      "action": "resume",
+      "actual_exit": 0,
+      "expected_exit": 0
+    }
+  ],
+  "start_completed": 100,
+  "saved_after_interrupt": 101,
+  "completed": 102,
+  "next_completed_days": [
+    "2016-06-04",
+    "2016-06-06"
+  ],
+  "remote_checkpoint": {
+    "commit": "f259cb884b91a585f5ebba935b98155000c88db9",
+    "repo": "bibobo2266/AstraQuant",
+    "path": "results/trading_plan_r1/s3_live_20261011/A/A1/transport.json",
+    "transport_sha256": "c26578f65caee7f2e1acf7161ba77e9b6c8f6838927ce88dbbbeec454a92753f",
+    "checkpoint_sha256": "4754f75ea91684e855ea8a696b9ab5d1e2044800d62b3196ab1f26627af604cb",
+    "saved_completed_day": "2016-06-06",
+    "saved_completed_sessions": 102,
+    "local_completed_sessions": 102,
+    "readback_verified": true,
+    "remote_interval_sessions": 20,
+    "publisher_sha256": "eaf434ea0b2545d9ca9fcb51f87cc57c668219d2a7e9d9db73cedf23e6983d4d"
+  },
+  "duplicates": {
+    "eligibility": 0,
+    "decisions": 0,
+    "fills": 0,
+    "equity": 0
+  },
+  "fills": 0,
+  "holdings": 0,
+  "baseline_seconds": 89.56389813899999,
+  "resume_seconds": 87.86726658399999,
+  "total_seconds": 254.01600027,
+  "scope": "same fixed real A1 data and original run ID; empty holdings if reported; not a claim of new holding/event coverage"
+}
