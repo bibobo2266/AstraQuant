@@ -1,0 +1,24 @@
+{
+  "pinned_commit": "f259cb884b91a585f5ebba935b98155000c88db9",
+  "all_transport_parts_verified": 313,
+  "restored_files_verified": 205,
+  "completed": 102,
+  "saved_day": "2016-06-06",
+  "fills": 0,
+  "holdings": 0,
+  "state_digest_verified": true,
+  "row_counts": {
+    "eligibility": 163219,
+    "equity": 102,
+    "decisions": 3776,
+    "fills": 3776
+  },
+  "duplicates": {
+    "eligibility": 0,
+    "equity": 0,
+    "decisions": 0,
+    "fills": 0
+  },
+  "elapsed_seconds": 9.842821628999445,
+  "scope": "Independent fixed Git object bytes restored; all compressed/restored hashes and head/chunk digests verified; no trading sessions rerun"
+}

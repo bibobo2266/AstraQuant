@@ -1,0 +1,14 @@
+{
+  "observed_at": "2026-10-11T08:12:44.290413+00:00",
+  "pinned_commit": "f53e223e63b31beecd1d15eed2d4e550496f387a",
+  "commit_time": "2026-10-11T08:12:03Z",
+  "completed": 240,
+  "saved_day": "2016-12-26",
+  "fills": 13,
+  "holdings": 1,
+  "checkpoint_sha256": "ff055acf9c7e78d2a0bbd221c05463a579fc2850be8412ed9775d9f291d6ed35",
+  "head_transport_verified": true,
+  "state_digest_verified": true,
+  "run_id": 38123562697,
+  "scope": "Current saved head and parts verified; not unsaved worker memory"
+}
