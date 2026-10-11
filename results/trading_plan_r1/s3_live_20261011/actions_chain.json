@@ -2,12 +2,18 @@
   "chain_id": "s3-actions-20261011",
   "segment": 7,
   "next_segment": 7,
-  "status": "ACTIVE",
+  "status": "BLOCKED",
   "owner_run_id": "38149978647",
   "code_commit": "a20a91fd6cc2ec0bbb72cc8ec52cdbf47840bae7",
   "jobs_started": 9,
   "blocked_cells": [
     "A1",
     "A3"
-  ]
+  ],
+  "failure": {
+    "type": "ValueError",
+    "error": "remote blob hash mismatch: results/trading_plan_r1/s3_live_20261011/B/progress.json",
+    "actions_run_id": "38149978647"
+  },
+  "automatic_retry": false
 }
