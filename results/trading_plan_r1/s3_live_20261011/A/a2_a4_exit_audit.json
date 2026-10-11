@@ -1,0 +1,38 @@
+{
+  "source_commit": "18368a5a9c03be4f48e6fe1a7af1a13cac37a2d6",
+  "A2_exit_mode": "sma20",
+  "A4_exit_mode": "sma20_or_rsi13_lt50",
+  "filled_rows_equal_on": [
+    "date",
+    "stock",
+    "side",
+    "fill_price",
+    "quantity",
+    "commission",
+    "slippage",
+    "tax",
+    "reason"
+  ],
+  "all_filled_rows_equal": true,
+  "A2_sell_reasons": {
+    "sma20_next_open": 57,
+    "stop_price_assumption": 26,
+    "stop_gap_open": 5
+  },
+  "A4_sell_reasons": {
+    "sma20_next_open": 57,
+    "stop_price_assumption": 26,
+    "stop_gap_open": 5
+  },
+  "A4_close_signal_reasons": {
+    "sma20_next_open": 57
+  },
+  "rsi_min": 50.049448896447686,
+  "rsi_max": 92.54531677392781,
+  "persisted_holding_day_observations": {
+    "holding_end_of_day_observations": 1198,
+    "rsi_finite": 1198
+  },
+  "elapsed_seconds": 78.11165598699995,
+  "scope": "saved table audit only; no dates or sources replayed; no strategy efficacy claim"
+}
