@@ -18560,21 +18560,27 @@
       "entry_mode": "next_open",
       "exit_mode": "sma20_or_rsi13_lt50",
       "status": "RUNNING",
-      "completed": 479,
+      "completed": 499,
       "resumed": true,
-      "current_date": "2017-12-15",
-      "holdings": [],
+      "current_date": "2018-01-15",
+      "holdings": [
+        "1314",
+        "3236",
+        "6182"
+      ],
       "frozen": false,
       "external_checkpoint": {
-        "commit": "8a7cde0e6aea90346391a0caca6c05f727a4b793",
+        "commit": "e4d5cb357865490a055ecbf66a6a18e832870326",
         "repo": "bibobo2266/AstraQuant",
         "path": "results/trading_plan_r1/s3_live_20261011/A/A4/transport.json",
-        "transport_sha256": "91724ba71f1d2226224a4f8893f809aeed2c45ddf596034d790a4d9eaad091b5",
-        "checkpoint_sha256": "08147f9c7438a81eeadb778034a81ef76fa83f9252dda9bdc3858dc6d8ee1e45",
-        "saved_completed_day": "2017-11-17",
-        "saved_completed_sessions": 460,
-        "local_completed_sessions": 460,
-        "readback_verified": true
+        "transport_sha256": "889cff2bc55313f67abbd56ca11f02abe336a7bc63b09324a2cff515ddcbf511",
+        "checkpoint_sha256": "d24a51b5ed82f0766605725041624618a3a9ff3c0fd003288f8f64996d719af2",
+        "saved_completed_day": "2017-12-15",
+        "saved_completed_sessions": 480,
+        "local_completed_sessions": 480,
+        "readback_verified": true,
+        "remote_interval_sessions": 20,
+        "publisher_sha256": "eaf434ea0b2545d9ca9fcb51f87cc57c668219d2a7e9d9db73cedf23e6983d4d"
       }
     }
   },
