@@ -1,0 +1,132 @@
+{
+  "status": "NEEDS_OWNER_APPROVAL_FOR_WORKFLOW_SCOPE_EXPANSION",
+  "workflow_path": ".github/workflows/source_pit_feature_matrix_layer1.yml",
+  "reviewed_workflow_sha256": "b69decadeae463000e1f7635b40e11d547be479e8dbb29bd8722531626171761",
+  "workflow_activated": false,
+  "workflow_dispatched": false,
+  "existing_scope": {
+    "stages": [
+      "s1",
+      "s3_source_preflight",
+      "s3_limit_inputs",
+      "s3_accounting_inputs"
+    ],
+    "job_timeout_minutes": 90,
+    "permissions": {
+      "contents": "read"
+    },
+    "s3_execution_entry_present": false,
+    "artifact_upload_always": true,
+    "artifact_retention_days": 90
+  },
+  "recommended_change": {
+    "new_stage_in_same_workflow": "s3_resume",
+    "no_new_workflow": true,
+    "job": "s3_resume (original build job excluded only for this stage)",
+    "branch": "research/trading-plan-r1",
+    "worker_order": [
+      "A1",
+      "A2",
+      "A3",
+      "A4",
+      "B1",
+      "B2",
+      "B3",
+      "B4"
+    ],
+    "execution_ids": {
+      "A": "s3-A-20261011T045203Z",
+      "B": "s3-B-20261011T045202Z"
+    },
+    "hard_timeout_minutes": 90,
+    "soft_execution_budget_minutes": 60,
+    "setup_and_save_reserve_minutes": 30,
+    "max_continuation_jobs": 72,
+    "continuation_requires": [
+      "successful segment finish",
+      "forced remote checkpoint at segment boundary",
+      "pinned readback SHA verified",
+      "artifact upload success",
+      "no error/frozen/review stop",
+      "remaining sessions",
+      "chain budget not exhausted"
+    ],
+    "continuation_trigger": "workflow_dispatch of same workflow/stage/branch using job-scoped GITHUB_TOKEN; not a new workflow",
+    "job_permissions": {
+      "contents": "write",
+      "actions": "write",
+      "issues": "write"
+    },
+    "concurrency": "single workflow concurrency group, cancel-in-progress=false; no simultaneous A/B processes",
+    "failure_policy": "Stop and report original error on issue6; never silently restart frozen/error/review-stopped cells; manual recovery only from validated durable head; no repeat days already remotely saved",
+    "pilot": "First launch is a2-next-session proof segment only; no automatic chain until restart/equality evidence and independently observed post-chat progress are recorded. Once passed, same authorized stage continues without another approval.",
+    "zero_progress": "Stop with raw reason after a segment makes0new completed sessions; no automatic retry loop"
+  },
+  "inputs": {
+    "frozen_artifact_downloads": [
+      {
+        "run_id": 37708776526,
+        "artifact_id": 11520573912,
+        "panel_sha256": "2fc9680a3cbb74b15d690edbeb02ed03457b26c74dd682a877b1c6e93f8dc38e"
+      },
+      {
+        "run_id": 37769333701,
+        "artifact_id": 11547312869,
+        "inner_zip_sha256": "79a45e098fb55f9c358c2c8a67e58365d07277b5ba706e2768d1842d11902867"
+      }
+    ],
+    "download_method": "actions/download-artifact@v4 with fixed run/artifact IDs; restore existing artifacts, never rerun S1/source export or refresh source snapshot",
+    "source_validation": "retain exact 21-file hashes in stage1 environment receipt and manifest binding; recreate canonical paths without symlink source/ prefix",
+    "checkpoint_start": {
+      "A1": "latest valid pinned remote head, initially4c63f978 A100",
+      "B1": "latest valid pinned remote head, initially4c63f978 B1"
+    },
+    "local_missing_rebuild": "A1 sessions101-120 only; no days1-100 replay",
+    "active_other_worker_prohibition": "GH in_progress/queued checked0; old external worker cannot be proved dead from local /proc absence. Before activation, establish one-owner cutover; do not claim local flock coordinates separate hosts"
+  },
+  "implementation_before_dispatch": [
+    "Add stop_requested callback to existing diagnostic runner; check before next prepare; force publication of most recent saved checkpoint at soft deadline even off20-day interval; break whole A/B worker after safe boundary, not merely current cell",
+    "Preserve first-day/every20-day/frozen/final publication and daily atomic local checkpoints; publisher executes native API without chat queue bridge",
+    "Bootstrap workspace from fixed artifacts and pinned transports; restore source files and all checkpoint chunks; seed publisher known blob inventory to avoid retransmitting saved chunks",
+    "Bound large manifest readback using Git blob/raw API when contents API omits body; verify SHA/size; never treat empty content as successful readback",
+    "Always upload checkpoint/progress/errors and final tables; S3 artifact retention7days, final90days, original panel/source upload paths retained unchanged",
+    "Only after successful artifact upload, queue next segment with parent segment ID/checkpoint commit; durable chain state prevents duplicate enqueue and detects zero-day progress",
+    "Final export all four metric rows per A/B with eight requested columns and complete ledgers, open positions separate; existing red-flag/accounting stop retained"
+  ],
+  "validation_required": {
+    "engineering": "existing real-entry runner fixture tests: stop boundary, off-interval forced save, final-only export, errors/frozen/review stops cannot auto-dispatch, duplicate chain request rejected",
+    "same_frozen_real_data": "fixed saved state versus uninterrupted baseline over small next-day window; exact complete state/table bytes equal; completed dates and fills/decisions row IDs unique; existing2019-09 holding+event short-window validation reused and necessary new orchestration check isolated",
+    "chat_closed": "dispatch first small S3 segment, end chat response, then independently inspect later GitHub job logs and a newer saved completed-day commit; RUNNING/run ID alone insufficient",
+    "claim_limit": "No real-data new-day execution, new continuity tests, or post-chat survival was performed during this handoff; stage1 verifies restoration only"
+  },
+  "estimate": {
+    "remaining_cell_sessions": 11643,
+    "observed_prior_20_session_seconds": 165.56,
+    "linear_only_hours": 26.77,
+    "planning_window": "1-3 days after activation; first60-minute hosted segment recalibrates. Larger ledgers, accounting events, transport and runner differences may exceed this; not a completion promise",
+    "engineering_and_validation": "approximately2-4 hours after approval, then pilot before chain",
+    "repo_visibility_verified": "public",
+    "standard_public_runner_compute_usd": 0,
+    "artifact_storage": "Not promised free; account remaining allowance unverified. Retain intermediate7days and final90days. Read usage/quota before chain; report projected bytes and any paid storage before exceeding allowance. No fixed host purchase",
+    "sources": [
+      "https://docs.github.com/en/actions/reference/limits",
+      "https://docs.github.com/en/actions/concepts/security/github_token",
+      "https://docs.github.com/en/billing/concepts/product-billing/github-actions"
+    ],
+    "incremental_artifact_storage_budget_usd": 5,
+    "artifact_cost_bound": "Candidate caps intermediate artifact payload at512MiB/job, max72jobs, retention7days; final artifact cap2GiB, retention90days. Gross incremental cost bound aboutUSD3.60 atUSD0.25/GiB-month before allowance; USD5 requested ceiling. If caps cannot hold, stop/report before upload; do not enlarge budget automatically."
+  },
+  "owner_approval_exact_scope": [
+    "Extend source_pit_feature_matrix_layer1.yml from no-effects input export to fixed S3 A/B E1 diagnostic execution via s3_resume stage",
+    "Allow same-workflow self workflow_dispatch continuation, max72 segments of90-minute hard limit, single worker",
+    "Allow job-scoped contents/actions/issues write for checkpoint commits, same-workflow continuation and issue6 receipts",
+    "Allow bounded real-data interruption/restore/continuous comparison and post-chat hosted-run verification; keep all strategy/data/cost/period/universe/gates fixed",
+    "Approve incremental artifact storage up toUSD5; enforce512MiB/segment and2GiB final payload caps, otherwise stop/report; existing source artifact retention unchanged"
+  ],
+  "original_errors_observed": [
+    "ps: Error, do this: mount -t proc proc /proc",
+    "Native fixed artifact ZIP redirect: HTTP Error401: Server failed to authenticate the request. Please refer to the information in the www-authenticate header.",
+    "Runtime import: ModuleNotFoundError: No module named pyarrow (outside-workspace pip installation did not persist into another exec environment; no trading day ran)"
+  ],
+  "workaround": "Use hosted job dependency install and fixed Actions artifact download; do not rely on chat exec process/runtime persistence or chat-side connector queue."
+}
