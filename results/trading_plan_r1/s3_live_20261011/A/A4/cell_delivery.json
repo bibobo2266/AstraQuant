@@ -1,0 +1,51 @@
+{
+  "cell": "A4",
+  "metrics": {
+    "closed_count": 88,
+    "net_win_rate": 0.3636363636,
+    "avg_win": 0.188052037,
+    "avg_loss": 0.0613062302,
+    "payoff_ratio": 3.0674213088,
+    "expectancy": 0.0293695033,
+    "median_holding_sessions": 10.5,
+    "capital_occupied_position_days": 1165.0
+  },
+  "open_count": 1,
+  "threshold_review": false,
+  "threshold_ledger_check": null,
+  "checkpoint": {
+    "commit": "da14dfab88320dd3ed4b791bf5ed4a66b2f2b9d7",
+    "repo": "bibobo2266/AstraQuant",
+    "path": "results/trading_plan_r1/s3_live_20261011/A/A4/transport.json",
+    "transport_sha256": "88a90f0acd412a8805d5d2c0b09a52eb6053ae88aedb2718c74a1c76ab2db83a",
+    "checkpoint_sha256": "c98d688e8bb44ae1760ccd8d9e1f9fa3226381f959d3cec5fb579142192f5c50",
+    "saved_completed_day": "2021-12-30",
+    "saved_completed_sessions": 1468,
+    "local_completed_sessions": 1468,
+    "readback_verified": true,
+    "remote_interval_sessions": 20,
+    "publisher_sha256": "eaf434ea0b2545d9ca9fcb51f87cc57c668219d2a7e9d9db73cedf23e6983d4d"
+  },
+  "tables": {
+    "s3_decisions.csv": {
+      "bytes": 44730822,
+      "sha256": "b637826f90b98ce077056929af3d56cf8ebc0aaeb9e8d0b1f052569252f21e1c"
+    },
+    "s3_eligibility.csv": {
+      "bytes": 2038316531,
+      "sha256": "33468c664ad1c7b09913a037a614f76b597252ceb2c569d684e378a3dba4f569"
+    },
+    "s3_equity.csv": {
+      "bytes": 1026130,
+      "sha256": "44b3ce9c0a9e33cdf903f25f5738f96c1eab1fabcd1b782ccc6e9f1e47d7bd91"
+    },
+    "s3_fills.csv": {
+      "bytes": 47404797,
+      "sha256": "f6693fbd847aa2413b438fa0238ca72f6995c26957823eef39086f49e12580d9"
+    }
+  },
+  "csv_archive_sha256": "b3136fb50b849a6108d97edc54ceec295904064b07c7a58547c25fd71b93820d",
+  "csv_artifact": "uploaded at segment boundary",
+  "actions_run_id": "38145630113",
+  "closed_scope": "closed filled exits only; open positions excluded"
+}
