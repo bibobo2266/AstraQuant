@@ -1,18 +1,6 @@
 {
   "records": [
     {
-      "day": "2021-08-09",
-      "completed": 1368,
-      "wall_seconds": 6.533829013000286,
-      "calculation": 0.11755998699891279,
-      "validation": 0.5783778490008444,
-      "local_save": 4.714654249999967,
-      "remote_save": 1.1224340869998741,
-      "other_seconds": 0.0008028400006878655,
-      "artifact_upload_seconds": null,
-      "actions_run_id": "38133062523"
-    },
-    {
       "day": "2021-08-10",
       "completed": 1369,
       "wall_seconds": 6.572514621999744,
@@ -1119,6 +1107,105 @@
     {
       "day": "2021-12-21",
       "completed": 1461,
+      "wall_seconds": 5.542767647000005,
+      "calculation": 0.12727136000000883,
+      "validation": 0.5992617730000234,
+      "local_save": 3.6938260630000173,
+      "remote_save": 1.1213519180000162,
+      "other_seconds": 0.0010565329999394635,
+      "artifact_upload_seconds": null,
+      "actions_run_id": "38140649667"
+    },
+    {
+      "day": "2021-12-22",
+      "completed": 1462,
+      "wall_seconds": 5.523558926000021,
+      "calculation": 0.10611071900012803,
+      "validation": 0.5944180469998628,
+      "local_save": 3.673910299000056,
+      "remote_save": 1.1480818399999748,
+      "other_seconds": 0.0010380209999993895,
+      "artifact_upload_seconds": null,
+      "actions_run_id": "38140649667"
+    },
+    {
+      "day": "2021-12-23",
+      "completed": 1463,
+      "wall_seconds": 5.337837763000039,
+      "calculation": 0.11020405199997185,
+      "validation": 0.5954519209999489,
+      "local_save": 3.693612199000029,
+      "remote_save": 0.9375046330000032,
+      "other_seconds": 0.0010649580000858805,
+      "artifact_upload_seconds": null,
+      "actions_run_id": "38140649667"
+    },
+    {
+      "day": "2021-12-24",
+      "completed": 1464,
+      "wall_seconds": 5.516710320000016,
+      "calculation": 0.11674187200003416,
+      "validation": 0.5957813910000027,
+      "local_save": 3.841294196999968,
+      "remote_save": 0.9618251559999749,
+      "other_seconds": 0.0010677040000359739,
+      "artifact_upload_seconds": null,
+      "actions_run_id": "38140649667"
+    },
+    {
+      "day": "2021-12-27",
+      "completed": 1465,
+      "wall_seconds": 5.531348826999988,
+      "calculation": 0.11819702700006474,
+      "validation": 0.6071264609999503,
+      "local_save": 3.852854504999982,
+      "remote_save": 0.952134368999964,
+      "other_seconds": 0.0010364650000269648,
+      "artifact_upload_seconds": null,
+      "actions_run_id": "38140649667"
+    },
+    {
+      "day": "2021-12-28",
+      "completed": 1466,
+      "wall_seconds": 5.565281444999982,
+      "calculation": 0.1214450019999731,
+      "validation": 0.5980791930000464,
+      "local_save": 3.8811810779999405,
+      "remote_save": 0.9635367620000466,
+      "other_seconds": 0.00103940999997576,
+      "artifact_upload_seconds": null,
+      "actions_run_id": "38140649667"
+    },
+    {
+      "day": "2021-12-29",
+      "completed": 1467,
+      "wall_seconds": 5.547764573999984,
+      "calculation": 0.11918798600004266,
+      "validation": 0.5952686210000024,
+      "local_save": 3.8609847629999194,
+      "remote_save": 0.9713362890000212,
+      "other_seconds": 0.0009869149999985893,
+      "artifact_upload_seconds": null,
+      "actions_run_id": "38140649667"
+    },
+    {
+      "day": "2021-12-30",
+      "completed": 1468,
+      "wall_seconds": 455.03958806500003,
+      "calculation": 0.1314401980000639,
+      "validation": 196.41210834299994,
+      "local_save": 7.5702112209999655,
+      "remote_save": 54.92125920600006,
+      "other_seconds": 196.004569097,
+      "artifact_upload_seconds": null,
+      "actions_run_id": "38140649667"
+    }
+  ],
+  "scope": "exclusive engine phases; remote_save includes pinned readback/issue; artifact upload not measured here",
+  "superseded_records": [
+    {
+      "day": "2021-12-21",
+      "completed": 1461,
       "wall_seconds": 6.628819818000011,
       "calculation": 0.11907338999986905,
       "validation": 0.5697491660001219,
@@ -1201,5 +1288,6 @@
       "actions_run_id": "38136811065"
     }
   ],
-  "scope": "exclusive engine phases; remote_save includes pinned readback/issue; artifact upload not measured here"
+  "restored_checkpoint_completed": 1460,
+  "superseded_reason": "measurements beyond latest accepted restored checkpoint; necessary rebuild only"
 }
