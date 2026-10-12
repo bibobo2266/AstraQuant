@@ -1,8 +1,8 @@
 {
   "execution_id": "s3-B-20261011T045202Z",
-  "started_at": "2026-10-12T02:39:07.682483+00:00",
+  "started_at": "2026-10-12T03:40:44.454957+00:00",
   "program_sha": null,
-  "program_base_sha": "91f5cd7fa1bc70adbbd78beb36891dd8ef88807a",
+  "program_base_sha": "896c2071288a181e5c969b92a64b5ee6687e998b",
   "manifest_sha256": "352f5e02bd5f3c11c479a2c88b58252423b1d7ef4423a5541fcbe22362495cd2",
   "formal_performance_unlocked": false,
   "round": "B",
@@ -17,32 +17,21 @@
       "entry_mode": "next_open",
       "exit_mode": "sma20",
       "status": "RUNNING",
-      "completed": 1439,
+      "completed": 1459,
       "resumed": true,
-      "current_date": "2021-11-22",
-      "holdings": [
-        "4721"
-      ],
+      "current_date": "2021-12-20",
+      "holdings": [],
       "frozen": false,
       "external_checkpoint": {
-        "commit": "408b9fc78030ee3072205d489e21d0e6027c7323",
+        "commit": "896c2071288a181e5c969b92a64b5ee6687e998b",
         "repo": "bibobo2266/AstraQuant",
         "path": "results/trading_plan_r1/s3_live_20261011/B/B2/transport.json",
-        "transport_sha256": "b0ab7ef97a1cc37e4be2e49dc4fb0f9cf814ca36973c9693fe6ed9fcb6e12b8b",
-        "checkpoint_sha256": "e6548af666fc1c6ea58a422e45028b3bdebbddc741de20721d154e1a02281828",
-        "saved_completed_day": "2021-10-25",
-        "saved_completed_sessions": 1420,
-        "local_completed_sessions": 1420,
-        "readback_verified": true,
-        "remote_interval_sessions": 20,
-        "publication_api_requests": 145,
-        "rate_wait_seconds": 0.0,
-        "rate_status": {
-          "x-ratelimit-limit": "5000",
-          "x-ratelimit-remaining": "2214",
-          "x-ratelimit-reset": "1791776305"
-        },
-        "publisher_sha256": "7720f43d1c9901792c3bdba84960ff50c3b4b03d21254d6d7684d5f586cdce63"
+        "transport_sha256": "0e1656392ec4cbc97b8b9d7d2778b12d10d1a65c04fedd14ae34944f47a999fa",
+        "checkpoint_sha256": "99b3d8b36efd0ac86a77c9df21d1fd3f9cd53fd26153978c506887c41c1164f7",
+        "saved_completed_day": "2021-11-22",
+        "saved_completed_sessions": 1440,
+        "local_completed_sessions": 1440,
+        "readback_verified": true
       }
     },
     "B3": {
@@ -58,7 +47,7 @@
       "completed": 0
     }
   },
-  "peak_rss_kib": 5202868,
+  "peak_rss_kib": 5509588,
   "input_binding": "90e896b29fd5f0dad18b72ab34b59cd92fc782bf1e308d4ef67e92a6a46e2b15",
   "expected_sessions": 1468
 }
