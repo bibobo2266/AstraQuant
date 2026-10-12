@@ -1,0 +1,52 @@
+{
+  "schema_version": "s3_exact_transport_v1",
+  "files": [
+    {
+      "parts": [
+        {
+          "file": "transport/fcad1fd04b4995bfc2895fc1f88310845a083687abd99311555c506757c9127b/part-000.b64",
+          "bytes": 7237,
+          "sha256": "f0e2b9040d1a4071c29ccb1c900609cf8481fda7546a2b5d3275e11b264ffa48"
+        }
+      ],
+      "compressed_bytes": 5427,
+      "compressed_sha256": "fcad1fd04b4995bfc2895fc1f88310845a083687abd99311555c506757c9127b",
+      "decoded_file": "checkpoint.json",
+      "decoded_bytes": 39500,
+      "decoded_sha256": "7f145963d78eda336a0080401822efdce0d1b222a0825af523d8b7e7f20576c0"
+    },
+    {
+      "parts": [
+        {
+          "file": "transport/8ca95203e472a249edfb400bcbaf807d0ec912971cabd109ed62f838825e911d/part-000.b64",
+          "bytes": 65537,
+          "sha256": "2f3600ef9f89d7b9ff62e0b57242c23657450fd2a7f6c6a1d7664cd941ec8b59"
+        },
+        {
+          "file": "transport/8ca95203e472a249edfb400bcbaf807d0ec912971cabd109ed62f838825e911d/part-001.b64",
+          "bytes": 62457,
+          "sha256": "330da0c19ae8556e9379b3262024152c0a0928a202dcc65d5b80355fe751bbb9"
+        }
+      ],
+      "compressed_bytes": 95993,
+      "compressed_sha256": "8ca95203e472a249edfb400bcbaf807d0ec912971cabd109ed62f838825e911d",
+      "decoded_file": "checkpoint_chunks/7c6ecc23c85ae3ca5cc8b0423d98a900781c37361efad1fd71c3a7dd063ec440.json.gz",
+      "decoded_bytes": 96236,
+      "decoded_sha256": "9bcb406f3fbd367709e0bf08971f33daa320964e228c6dbbc3c56c5b5c02add5"
+    },
+    {
+      "parts": [
+        {
+          "file": "transport/7b01ad8953027e8241972f0b32b243a2c9cd916de3a7a50b52404d080f44b32a/part-000.b64",
+          "bytes": 553,
+          "sha256": "be56b25763eb0c6d2648c87e4f22b43b7104b1afb33d21fd4dd310872f98dcc2"
+        }
+      ],
+      "compressed_bytes": 413,
+      "compressed_sha256": "7b01ad8953027e8241972f0b32b243a2c9cd916de3a7a50b52404d080f44b32a",
+      "decoded_file": "checkpoint_chunks/1ac2a869a7cf6af1381098a3f7edf1795abb660e8de415b1afc982f039416404.json.gz",
+      "decoded_bytes": 390,
+      "decoded_sha256": "252905aeeb5c8a5ae745068cf75e540102841a9ec329e41bb718d587f50800cb"
+    }
+  ]
+}
