@@ -1,8 +1,8 @@
 {
   "execution_id": "s3-B-20261011T045202Z",
-  "started_at": "2026-10-12T05:43:40.809874+00:00",
+  "started_at": "2026-10-12T06:46:14.253710+00:00",
   "program_sha": null,
-  "program_base_sha": "56bbe4b61191c3a44a120e1f679da88673fb7971",
+  "program_base_sha": "3d740bed2e13dab13e5c4eeb12db7be37c0a6fd7",
   "manifest_sha256": "352f5e02bd5f3c11c479a2c88b58252423b1d7ef4423a5541fcbe22362495cd2",
   "formal_performance_unlocked": false,
   "round": "B",
@@ -29,38 +29,31 @@
       "entry_mode": "next_open",
       "exit_mode": "sma20_or_rsi13_lt50",
       "status": "RUNNING",
-      "completed": 1202,
+      "completed": 1219,
       "resumed": true,
-      "current_date": "2020-12-01",
+      "current_date": "2020-12-25",
       "holdings": [
-        "3047",
-        "6187",
-        "6208"
+        "1590",
+        "2481",
+        "2609",
+        "3034",
+        "6477"
       ],
       "frozen": false,
       "external_checkpoint": {
-        "commit": "1198f7f25dc096f239a214ad23b6e6f39234a795",
+        "commit": "3d740bed2e13dab13e5c4eeb12db7be37c0a6fd7",
         "repo": "bibobo2266/AstraQuant",
         "path": "results/trading_plan_r1/s3_live_20261011/B/B4/transport.json",
-        "transport_sha256": "fb4c237f34ef24f3535458275b09625d3124239d4ce3bf129095c5f2635d614d",
-        "checkpoint_sha256": "43cb26faf90e88aa1ebb33cebb779210f859b3df76f4a073fcdd977d785ded41",
-        "saved_completed_day": "2020-11-27",
-        "saved_completed_sessions": 1200,
-        "local_completed_sessions": 1200,
-        "readback_verified": true,
-        "remote_interval_sessions": 20,
-        "publication_api_requests": 129,
-        "rate_wait_seconds": 0.0,
-        "rate_status": {
-          "x-ratelimit-limit": "5000",
-          "x-ratelimit-remaining": "2540",
-          "x-ratelimit-reset": "1791787367"
-        },
-        "publisher_sha256": "7720f43d1c9901792c3bdba84960ff50c3b4b03d21254d6d7684d5f586cdce63"
+        "transport_sha256": "15f78f563c765d91fb4924dbb1a20dd94460112ea28fd3586d378db244c65bde",
+        "checkpoint_sha256": "ef40d344225aa0d627e3edfa7720d768fb5676c373fb47bebf96827796cd198a",
+        "saved_completed_day": "2020-12-01",
+        "saved_completed_sessions": 1202,
+        "local_completed_sessions": 1202,
+        "readback_verified": true
       }
     }
   },
-  "peak_rss_kib": 5019212,
+  "peak_rss_kib": 5376108,
   "input_binding": "90e896b29fd5f0dad18b72ab34b59cd92fc782bf1e308d4ef67e92a6a46e2b15",
   "expected_sessions": 1468
 }
