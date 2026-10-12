@@ -1,0 +1,1397 @@
+{
+  "source_commit": "b14bda4d37c628bb6589677e7379f5c76d7731c0",
+  "A4_head_sha256": "c98d688e8bb44ae1760ccd8d9e1f9fa3226381f959d3cec5fb579142192f5c50",
+  "A2_exit_mode": "sma20",
+  "A4_exit_mode": "sma20_or_rsi13_lt50",
+  "filled_rows_compared": 177,
+  "comparison_fields": [
+    "fill_date",
+    "date",
+    "stock",
+    "side",
+    "fill_price",
+    "quantity",
+    "commission",
+    "slippage",
+    "tax",
+    "reason",
+    "pnl",
+    "net_return"
+  ],
+  "all_filled_rows_equal": true,
+  "closed_trades_compared": 88,
+  "open_trades_compared": 1,
+  "sell_reason_counts": {
+    "sma20_next_open": 57,
+    "stop_price_assumption": 26,
+    "stop_gap_open": 5
+  },
+  "counts": {
+    "inclusive_holding_stock_days": 1254,
+    "end_of_day_still_held": 1166,
+    "exit_day": 88,
+    "rsi_below50_all_inclusive_holding_days": 48,
+    "rsi_below50_exit_day": 31,
+    "rsi_below50_end_of_day_still_held": 17
+  },
+  "min_RSI_inclusive_holding": 39.57777198527023,
+  "RSI_below50_observations": [
+    {
+      "day": "2016-08-09",
+      "stock": "3260",
+      "rsi13": 45.56475669800446,
+      "close": 42.3,
+      "sma20": 43.845,
+      "trade_id": "s3-A-20261011T045203Z-A4:trade:2016-07-21:3260",
+      "exit_today": true,
+      "exit_reason": "sma20_next_open",
+      "entry_today": false
+    },
+    {
+      "day": "2016-08-11",
+      "stock": "6138",
+      "rsi13": 48.317256299569365,
+      "close": 28.1,
+      "sma20": 28.8675,
+      "trade_id": "s3-A-20261011T045203Z-A4:trade:2016-08-08:6138",
+      "exit_today": true,
+      "exit_reason": "stop_price_assumption",
+      "entry_today": false
+    },
+    {
+      "day": "2016-11-04",
+      "stock": "5347",
+      "rsi13": 41.91819672153791,
+      "close": 61.2,
+      "sma20": 63.81,
+      "trade_id": "s3-A-20261011T045203Z-A4:trade:2016-10-18:5347",
+      "exit_today": false,
+      "exit_reason": "sma20_next_open",
+      "entry_today": false
+    },
+    {
+      "day": "2016-11-07",
+      "stock": "5347",
+      "rsi13": 39.57777198527023,
+      "close": 60.5,
+      "sma20": 63.835,
+      "trade_id": "s3-A-20261011T045203Z-A4:trade:2016-10-18:5347",
+      "exit_today": true,
+      "exit_reason": "sma20_next_open",
+      "entry_today": false
+    },
+    {
+      "day": "2017-02-16",
+      "stock": "3005",
+      "rsi13": 47.269081336738004,
+      "close": 44.0,
+      "sma20": 45.7825,
+      "trade_id": "s3-A-20261011T045203Z-A4:trade:2017-01-09:3005",
+      "exit_today": true,
+      "exit_reason": "sma20_next_open",
+      "entry_today": false
+    },
+    {
+      "day": "2017-04-12",
+      "stock": "4956",
+      "rsi13": 48.40918316167017,
+      "close": 23.25,
+      "sma20": 23.607499999999998,
+      "trade_id": "s3-A-20261011T045203Z-A4:trade:2017-04-05:4956",
+      "exit_today": true,
+      "exit_reason": "stop_price_assumption",
+      "entry_today": false
+    },
+    {
+      "day": "2017-06-23",
+      "stock": "4974",
+      "rsi13": 49.440575348861664,
+      "close": 50.3,
+      "sma20": 50.935,
+      "trade_id": "s3-A-20261011T045203Z-A4:trade:2017-05-23:4974",
+      "exit_today": false,
+      "exit_reason": "sma20_next_open",
+      "entry_today": false
+    },
+    {
+      "day": "2017-06-26",
+      "stock": "4974",
+      "rsi13": 47.470673178283796,
+      "close": 49.95,
+      "sma20": 51.019999999999996,
+      "trade_id": "s3-A-20261011T045203Z-A4:trade:2017-05-23:4974",
+      "exit_today": true,
+      "exit_reason": "sma20_next_open",
+      "entry_today": false
+    },
+    {
+      "day": "2017-11-29",
+      "stock": "2344",
+      "rsi13": 46.59009776146231,
+      "close": 27.25,
+      "sma20": 27.8,
+      "trade_id": "s3-A-20261011T045203Z-A4:trade:2017-11-27:2344",
+      "exit_today": true,
+      "exit_reason": "stop_price_assumption",
+      "entry_today": false
+    },
+    {
+      "day": "2017-12-04",
+      "stock": "2360",
+      "rsi13": 49.95525463466,
+      "close": 159.0,
+      "sma20": 163.525,
+      "trade_id": "s3-A-20261011T045203Z-A4:trade:2017-11-21:2360",
+      "exit_today": true,
+      "exit_reason": "stop_price_assumption",
+      "entry_today": false
+    },
+    {
+      "day": "2017-12-05",
+      "stock": "3016",
+      "rsi13": 47.369806438904845,
+      "close": 32.9,
+      "sma20": 34.1875,
+      "trade_id": "s3-A-20261011T045203Z-A4:trade:2017-11-21:3016",
+      "exit_today": true,
+      "exit_reason": "stop_price_assumption",
+      "entry_today": false
+    },
+    {
+      "day": "2017-12-05",
+      "stock": "3167",
+      "rsi13": 48.569921430651235,
+      "close": 48.15,
+      "sma20": 48.74999999999999,
+      "trade_id": "s3-A-20261011T045203Z-A4:trade:2017-11-21:3167",
+      "exit_today": false,
+      "exit_reason": "sma20_next_open",
+      "entry_today": false
+    },
+    {
+      "day": "2017-12-06",
+      "stock": "3167",
+      "rsi13": 49.980724469381926,
+      "close": 48.5,
+      "sma20": 48.86,
+      "trade_id": "s3-A-20261011T045203Z-A4:trade:2017-11-21:3167",
+      "exit_today": true,
+      "exit_reason": "sma20_next_open",
+      "entry_today": false
+    },
+    {
+      "day": "2018-01-18",
+      "stock": "1314",
+      "rsi13": 49.681249770858244,
+      "close": 15.55,
+      "sma20": 15.6,
+      "trade_id": "s3-A-20261011T045203Z-A4:trade:2018-01-10:1314",
+      "exit_today": false,
+      "exit_reason": "sma20_next_open",
+      "entry_today": false
+    },
+    {
+      "day": "2018-01-19",
+      "stock": "1314",
+      "rsi13": 49.681249770858244,
+      "close": 15.55,
+      "sma20": 15.61,
+      "trade_id": "s3-A-20261011T045203Z-A4:trade:2018-01-10:1314",
+      "exit_today": true,
+      "exit_reason": "sma20_next_open",
+      "entry_today": false
+    },
+    {
+      "day": "2018-02-05",
+      "stock": "8261",
+      "rsi13": 43.81605665768078,
+      "close": 31.0,
+      "sma20": 31.884999999999998,
+      "trade_id": "s3-A-20261011T045203Z-A4:trade:2018-01-29:8261",
+      "exit_today": true,
+      "exit_reason": "stop_gap_open",
+      "entry_today": false
+    },
+    {
+      "day": "2018-04-24",
+      "stock": "6488",
+      "rsi13": 48.82757758830492,
+      "close": 475.0,
+      "sma20": 480.575,
+      "trade_id": "s3-A-20261011T045203Z-A4:trade:2018-04-13:6488",
+      "exit_today": false,
+      "exit_reason": "sma20_next_open",
+      "entry_today": false
+    },
+    {
+      "day": "2018-04-25",
+      "stock": "6488",
+      "rsi13": 48.99983274100147,
+      "close": 475.5,
+      "sma20": 481.75,
+      "trade_id": "s3-A-20261011T045203Z-A4:trade:2018-04-13:6488",
+      "exit_today": true,
+      "exit_reason": "sma20_next_open",
+      "entry_today": false
+    },
+    {
+      "day": "2018-04-26",
+      "stock": "3236",
+      "rsi13": 44.46576931644454,
+      "close": 51.1,
+      "sma20": 53.21,
+      "trade_id": "s3-A-20261011T045203Z-A4:trade:2018-03-27:3236",
+      "exit_today": false,
+      "exit_reason": "sma20_next_open",
+      "entry_today": false
+    },
+    {
+      "day": "2018-08-07",
+      "stock": "8942",
+      "rsi13": 48.90973245848744,
+      "close": 87.9,
+      "sma20": 89.56,
+      "trade_id": "s3-A-20261011T045203Z-A4:trade:2018-07-12:8942",
+      "exit_today": false,
+      "exit_reason": "sma20_next_open",
+      "entry_today": false
+    },
+    {
+      "day": "2018-08-08",
+      "stock": "8942",
+      "rsi13": 48.02063905852379,
+      "close": 87.5,
+      "sma20": 89.85,
+      "trade_id": "s3-A-20261011T045203Z-A4:trade:2018-07-12:8942",
+      "exit_today": true,
+      "exit_reason": "sma20_next_open",
+      "entry_today": false
+    },
+    {
+      "day": "2018-12-10",
+      "stock": "3511",
+      "rsi13": 47.95648338799774,
+      "close": 23.0,
+      "sma20": 23.5975,
+      "trade_id": "s3-A-20261011T045203Z-A4:trade:2018-12-04:3511",
+      "exit_today": true,
+      "exit_reason": "stop_price_assumption",
+      "entry_today": false
+    },
+    {
+      "day": "2019-07-30",
+      "stock": "1515",
+      "rsi13": 48.3270663050411,
+      "close": 87.0,
+      "sma20": 88.22,
+      "trade_id": "s3-A-20261011T045203Z-A4:trade:2019-07-09:1515",
+      "exit_today": false,
+      "exit_reason": "sma20_next_open",
+      "entry_today": false
+    },
+    {
+      "day": "2019-08-06",
+      "stock": "2732",
+      "rsi13": 49.15084100290784,
+      "close": 163.5,
+      "sma20": 169.8,
+      "trade_id": "s3-A-20261011T045203Z-A4:trade:2019-07-12:2732",
+      "exit_today": true,
+      "exit_reason": "sma20_next_open",
+      "entry_today": false
+    },
+    {
+      "day": "2019-09-19",
+      "stock": "3380",
+      "rsi13": 48.656473443721474,
+      "close": 24.15,
+      "sma20": 24.589999999999996,
+      "trade_id": "s3-A-20261011T045203Z-A4:trade:2019-08-27:3380",
+      "exit_today": false,
+      "exit_reason": "sma20_next_open",
+      "entry_today": false
+    },
+    {
+      "day": "2019-10-08",
+      "stock": "3293",
+      "rsi13": 49.41692455055972,
+      "close": 389.5,
+      "sma20": 390.35,
+      "trade_id": "s3-A-20261011T045203Z-A4:trade:2019-10-03:3293",
+      "exit_today": true,
+      "exit_reason": "stop_price_assumption",
+      "entry_today": false
+    },
+    {
+      "day": "2020-06-09",
+      "stock": "2368",
+      "rsi13": 49.811724250583936,
+      "close": 33.9,
+      "sma20": 34.675,
+      "trade_id": "s3-A-20261011T045203Z-A4:trade:2020-03-31:2368",
+      "exit_today": true,
+      "exit_reason": "sma20_next_open",
+      "entry_today": false
+    },
+    {
+      "day": "2020-07-30",
+      "stock": "6269",
+      "rsi13": 48.059809629435804,
+      "close": 137.0,
+      "sma20": 142.725,
+      "trade_id": "s3-A-20261011T045203Z-A4:trade:2020-07-01:6269",
+      "exit_today": false,
+      "exit_reason": "sma20_next_open",
+      "entry_today": false
+    },
+    {
+      "day": "2020-08-20",
+      "stock": "3042",
+      "rsi13": 46.62985196248474,
+      "close": 76.1,
+      "sma20": 79.28999999999999,
+      "trade_id": "s3-A-20261011T045203Z-A4:trade:2020-06-30:3042",
+      "exit_today": false,
+      "exit_reason": "sma20_next_open",
+      "entry_today": false
+    },
+    {
+      "day": "2020-08-21",
+      "stock": "3042",
+      "rsi13": 47.11826365699673,
+      "close": 76.3,
+      "sma20": 79.35,
+      "trade_id": "s3-A-20261011T045203Z-A4:trade:2020-06-30:3042",
+      "exit_today": true,
+      "exit_reason": "sma20_next_open",
+      "entry_today": false
+    },
+    {
+      "day": "2020-09-11",
+      "stock": "2417",
+      "rsi13": 46.65292877236791,
+      "close": 58.3,
+      "sma20": 64.27000000000001,
+      "trade_id": "s3-A-20261011T045203Z-A4:trade:2020-08-04:2417",
+      "exit_today": false,
+      "exit_reason": "sma20_next_open",
+      "entry_today": false
+    },
+    {
+      "day": "2020-09-25",
+      "stock": "2353",
+      "rsi13": 47.02251199033042,
+      "close": 24.0,
+      "sma20": 24.665,
+      "trade_id": "s3-A-20261011T045203Z-A4:trade:2020-09-09:2353",
+      "exit_today": true,
+      "exit_reason": "sma20_next_open",
+      "entry_today": false
+    },
+    {
+      "day": "2020-10-30",
+      "stock": "3498",
+      "rsi13": 48.70667089888389,
+      "close": 50.0,
+      "sma20": 52.2475,
+      "trade_id": "s3-A-20261011T045203Z-A4:trade:2020-10-08:3498",
+      "exit_today": false,
+      "exit_reason": "sma20_next_open",
+      "entry_today": false
+    },
+    {
+      "day": "2020-12-07",
+      "stock": "5309",
+      "rsi13": 47.36991447060344,
+      "close": 45.15,
+      "sma20": 47.775,
+      "trade_id": "s3-A-20261011T045203Z-A4:trade:2020-12-02:5309",
+      "exit_today": true,
+      "exit_reason": "stop_price_assumption",
+      "entry_today": false
+    },
+    {
+      "day": "2020-12-07",
+      "stock": "3047",
+      "rsi13": 48.387549634830414,
+      "close": 14.65,
+      "sma20": 14.809999999999999,
+      "trade_id": "s3-A-20261011T045203Z-A4:trade:2020-11-16:3047",
+      "exit_today": false,
+      "exit_reason": "sma20_next_open",
+      "entry_today": false
+    },
+    {
+      "day": "2021-01-06",
+      "stock": "6477",
+      "rsi13": 45.957908605015945,
+      "close": 63.8,
+      "sma20": 65.535,
+      "trade_id": "s3-A-20261011T045203Z-A4:trade:2020-12-23:6477",
+      "exit_today": true,
+      "exit_reason": "stop_price_assumption",
+      "entry_today": false
+    },
+    {
+      "day": "2021-01-21",
+      "stock": "2481",
+      "rsi13": 47.845768544429035,
+      "close": 51.0,
+      "sma20": 53.45,
+      "trade_id": "s3-A-20261011T045203Z-A4:trade:2020-12-23:2481",
+      "exit_today": true,
+      "exit_reason": "sma20_next_open",
+      "entry_today": false
+    },
+    {
+      "day": "2021-01-29",
+      "stock": "1590",
+      "rsi13": 42.64526766210352,
+      "close": 1000.0,
+      "sma20": 1075.35,
+      "trade_id": "s3-A-20261011T045203Z-A4:trade:2020-12-08:1590",
+      "exit_today": false,
+      "exit_reason": "sma20_next_open",
+      "entry_today": false
+    },
+    {
+      "day": "2021-02-01",
+      "stock": "1590",
+      "rsi13": 42.64526766210352,
+      "close": 1000.0,
+      "sma20": 1079.65,
+      "trade_id": "s3-A-20261011T045203Z-A4:trade:2020-12-08:1590",
+      "exit_today": true,
+      "exit_reason": "sma20_next_open",
+      "entry_today": false
+    },
+    {
+      "day": "2021-09-02",
+      "stock": "3003",
+      "rsi13": 47.88151430737992,
+      "close": 92.6,
+      "sma20": 93.82,
+      "trade_id": "s3-A-20261011T045203Z-A4:trade:2021-08-23:3003",
+      "exit_today": false,
+      "exit_reason": "sma20_next_open",
+      "entry_today": false
+    },
+    {
+      "day": "2021-09-03",
+      "stock": "3003",
+      "rsi13": 49.3693509158747,
+      "close": 93.5,
+      "sma20": 93.905,
+      "trade_id": "s3-A-20261011T045203Z-A4:trade:2021-08-23:3003",
+      "exit_today": true,
+      "exit_reason": "sma20_next_open",
+      "entry_today": false
+    },
+    {
+      "day": "2021-09-08",
+      "stock": "8150",
+      "rsi13": 44.2605410131778,
+      "close": 53.6,
+      "sma20": 56.265,
+      "trade_id": "s3-A-20261011T045203Z-A4:trade:2021-09-03:8150",
+      "exit_today": true,
+      "exit_reason": "stop_price_assumption",
+      "entry_today": false
+    },
+    {
+      "day": "2021-09-23",
+      "stock": "5347",
+      "rsi13": 49.20427108723322,
+      "close": 152.0,
+      "sma20": 156.75,
+      "trade_id": "s3-A-20261011T045203Z-A4:trade:2021-09-03:5347",
+      "exit_today": true,
+      "exit_reason": "sma20_next_open",
+      "entry_today": false
+    },
+    {
+      "day": "2021-09-27",
+      "stock": "2383",
+      "rsi13": 48.148133680876605,
+      "close": 226.0,
+      "sma20": 229.55,
+      "trade_id": "s3-A-20261011T045203Z-A4:trade:2021-09-23:2383",
+      "exit_today": true,
+      "exit_reason": "stop_gap_open",
+      "entry_today": false
+    },
+    {
+      "day": "2021-09-28",
+      "stock": "3036",
+      "rsi13": 49.487936850990465,
+      "close": 61.7,
+      "sma20": 61.895,
+      "trade_id": "s3-A-20261011T045203Z-A4:trade:2021-09-10:3036",
+      "exit_today": false,
+      "exit_reason": "sma20_next_open",
+      "entry_today": false
+    },
+    {
+      "day": "2021-09-29",
+      "stock": "3036",
+      "rsi13": 42.59350078953135,
+      "close": 60.0,
+      "sma20": 61.915,
+      "trade_id": "s3-A-20261011T045203Z-A4:trade:2021-09-10:3036",
+      "exit_today": true,
+      "exit_reason": "sma20_next_open",
+      "entry_today": false
+    },
+    {
+      "day": "2021-10-01",
+      "stock": "3675",
+      "rsi13": 46.3663091133414,
+      "close": 173.0,
+      "sma20": 182.175,
+      "trade_id": "s3-A-20261011T045203Z-A4:trade:2021-09-24:3675",
+      "exit_today": true,
+      "exit_reason": "stop_gap_open",
+      "entry_today": false
+    },
+    {
+      "day": "2021-10-01",
+      "stock": "2606",
+      "rsi13": 46.95944969203912,
+      "close": 62.9,
+      "sma20": 63.565,
+      "trade_id": "s3-A-20261011T045203Z-A4:trade:2021-09-30:2606",
+      "exit_today": true,
+      "exit_reason": "stop_price_assumption",
+      "entry_today": true
+    }
+  ],
+  "trade_comparison": [
+    {
+      "stock": "3526",
+      "entry_date": "2016-07-13",
+      "entry_price": 46.0,
+      "exit_date": "2016-09-19",
+      "exit_price": 82.0,
+      "exit_reason": "sma20_next_open",
+      "net_return": 0.8058024624479718
+    },
+    {
+      "stock": "3260",
+      "entry_date": "2016-07-22",
+      "entry_price": 43.7,
+      "exit_date": "2016-08-09",
+      "exit_price": 44.2,
+      "exit_reason": "sma20_next_open",
+      "net_return": 0.002657070813399773
+    },
+    {
+      "stock": "6138",
+      "entry_date": "2016-08-09",
+      "entry_price": 30.3,
+      "exit_date": "2016-08-11",
+      "exit_price": 28.179000000000002,
+      "exit_reason": "stop_price_assumption",
+      "net_return": -0.07807723948128086
+    },
+    {
+      "stock": "5347",
+      "entry_date": "2016-10-19",
+      "entry_price": 64.0,
+      "exit_date": "2016-11-07",
+      "exit_price": 61.5,
+      "exit_reason": "sma20_next_open",
+      "net_return": -0.04740843797208957
+    },
+    {
+      "stock": "8358",
+      "entry_date": "2016-12-15",
+      "entry_price": 29.8,
+      "exit_date": "2017-03-13",
+      "exit_price": 54.8,
+      "exit_reason": "sma20_next_open",
+      "net_return": 0.8229547260022299
+    },
+    {
+      "stock": "3005",
+      "entry_date": "2017-01-10",
+      "entry_price": 41.4,
+      "exit_date": "2017-02-16",
+      "exit_price": 45.5,
+      "exit_reason": "sma20_next_open",
+      "net_return": 0.08948848380867797
+    },
+    {
+      "stock": "3706",
+      "entry_date": "2017-02-02",
+      "entry_price": 34.8,
+      "exit_date": "2017-02-16",
+      "exit_price": 33.9,
+      "exit_reason": "sma20_next_open",
+      "net_return": -0.03432265537064081
+    },
+    {
+      "stock": "4714",
+      "entry_date": "2017-02-09",
+      "entry_price": 15.85,
+      "exit_date": "2017-02-10",
+      "exit_price": 14.7405,
+      "exit_reason": "stop_price_assumption",
+      "net_return": -0.07807723948128092
+    },
+    {
+      "stock": "4974",
+      "entry_date": "2017-03-21",
+      "entry_price": 45.8,
+      "exit_date": "2017-03-29",
+      "exit_price": 45.0,
+      "exit_reason": "sma20_next_open",
+      "net_return": -0.0260007460360062
+    },
+    {
+      "stock": "4956",
+      "entry_date": "2017-04-06",
+      "entry_price": 25.0,
+      "exit_date": "2017-04-12",
+      "exit_price": 23.25,
+      "exit_reason": "stop_price_assumption",
+      "net_return": -0.07807723948128105
+    },
+    {
+      "stock": "2408",
+      "entry_date": "2017-05-05",
+      "entry_price": 49.9,
+      "exit_date": "2017-06-15",
+      "exit_price": 51.9,
+      "exit_reason": "sma20_next_open",
+      "net_return": 0.031046852218878967
+    },
+    {
+      "stock": "4974",
+      "entry_date": "2017-05-24",
+      "entry_price": 48.9,
+      "exit_date": "2017-06-26",
+      "exit_price": 50.6,
+      "exit_reason": "sma20_next_open",
+      "net_return": 0.07648870817374692
+    },
+    {
+      "stock": "4528",
+      "entry_date": "2017-08-16",
+      "entry_price": 77.8,
+      "exit_date": "2017-09-04",
+      "exit_price": 78.3,
+      "exit_reason": "sma20_next_open",
+      "net_return": 0.019474406994765017
+    },
+    {
+      "stock": "4739",
+      "entry_date": "2017-08-21",
+      "entry_price": 92.3,
+      "exit_date": "2017-09-26",
+      "exit_price": 117.0,
+      "exit_reason": "sma20_next_open",
+      "net_return": 0.2565962206070683
+    },
+    {
+      "stock": "6456",
+      "entry_date": "2017-08-29",
+      "entry_price": 353.0,
+      "exit_date": "2017-09-08",
+      "exit_price": 340.5,
+      "exit_reason": "sma20_next_open",
+      "net_return": -0.04378841890820966
+    },
+    {
+      "stock": "1590",
+      "entry_date": "2017-09-19",
+      "entry_price": 439.5,
+      "exit_date": "2017-09-27",
+      "exit_price": 428.0,
+      "exit_reason": "sma20_next_open",
+      "net_return": -0.03462404369087109
+    },
+    {
+      "stock": "6488",
+      "entry_date": "2017-10-20",
+      "entry_price": 360.0,
+      "exit_date": "2017-10-26",
+      "exit_price": 332.0,
+      "exit_reason": "stop_gap_open",
+      "net_return": -0.0857874656743886
+    },
+    {
+      "stock": "2360",
+      "entry_date": "2017-11-22",
+      "entry_price": 172.5,
+      "exit_date": "2017-12-04",
+      "exit_price": 160.425,
+      "exit_reason": "stop_price_assumption",
+      "net_return": -0.0780772394812809
+    },
+    {
+      "stock": "3016",
+      "entry_date": "2017-11-22",
+      "entry_price": 36.5,
+      "exit_date": "2017-12-05",
+      "exit_price": 33.945,
+      "exit_reason": "stop_price_assumption",
+      "net_return": -0.07807723948128101
+    },
+    {
+      "stock": "3167",
+      "entry_date": "2017-11-22",
+      "entry_price": 48.8,
+      "exit_date": "2017-12-06",
+      "exit_price": 48.05,
+      "exit_reason": "sma20_next_open",
+      "net_return": -0.023920574587421875
+    },
+    {
+      "stock": "2344",
+      "entry_date": "2017-11-28",
+      "entry_price": 30.15,
+      "exit_date": "2017-11-29",
+      "exit_price": 28.0395,
+      "exit_reason": "stop_price_assumption",
+      "net_return": -0.07807723948128084
+    },
+    {
+      "stock": "5457",
+      "entry_date": "2017-11-30",
+      "entry_price": 60.2,
+      "exit_date": "2017-12-01",
+      "exit_price": 55.986000000000004,
+      "exit_reason": "stop_price_assumption",
+      "net_return": -0.07807723948128091
+    },
+    {
+      "stock": "3236",
+      "entry_date": "2017-12-26",
+      "entry_price": 46.8,
+      "exit_date": "2018-01-26",
+      "exit_price": 47.5,
+      "exit_reason": "sma20_next_open",
+      "net_return": 0.00614215432035572
+    },
+    {
+      "stock": "6182",
+      "entry_date": "2018-01-05",
+      "entry_price": 47.0,
+      "exit_date": "2018-02-01",
+      "exit_price": 48.5,
+      "exit_reason": "sma20_next_open",
+      "net_return": 0.022952502520198467
+    },
+    {
+      "stock": "1314",
+      "entry_date": "2018-01-11",
+      "entry_price": 16.1,
+      "exit_date": "2018-01-19",
+      "exit_price": 15.6,
+      "exit_reason": "sma20_next_open",
+      "net_return": -0.03947137754010462
+    },
+    {
+      "stock": "8261",
+      "entry_date": "2018-01-30",
+      "entry_price": 33.4,
+      "exit_date": "2018-02-05",
+      "exit_price": 31.0,
+      "exit_reason": "stop_gap_open",
+      "net_return": -0.07991740467193698
+    },
+    {
+      "stock": "2360",
+      "entry_date": "2018-02-05",
+      "entry_price": 169.0,
+      "exit_date": "2018-02-06",
+      "exit_price": 157.17000000000002,
+      "exit_reason": "stop_price_assumption",
+      "net_return": -0.0780772394812807
+    },
+    {
+      "stock": "3030",
+      "entry_date": "2018-02-05",
+      "entry_price": 48.0,
+      "exit_date": "2018-03-12",
+      "exit_price": 53.1,
+      "exit_reason": "sma20_next_open",
+      "net_return": 0.0966419933589602
+    },
+    {
+      "stock": "3236",
+      "entry_date": "2018-03-28",
+      "entry_price": 51.2,
+      "exit_date": "2018-04-27",
+      "exit_price": 52.9,
+      "exit_reason": "sma20_next_open",
+      "net_return": 0.02422954535114746
+    },
+    {
+      "stock": "6488",
+      "entry_date": "2018-04-16",
+      "entry_price": 498.0,
+      "exit_date": "2018-04-25",
+      "exit_price": 465.0,
+      "exit_reason": "sma20_next_open",
+      "net_return": -0.07437473843502104
+    },
+    {
+      "stock": "2376",
+      "entry_date": "2018-05-11",
+      "entry_price": 75.0,
+      "exit_date": "2018-05-31",
+      "exit_price": 80.4,
+      "exit_reason": "sma20_next_open",
+      "net_return": 0.06268946158716875
+    },
+    {
+      "stock": "4137",
+      "entry_date": "2018-07-02",
+      "entry_price": 295.0,
+      "exit_date": "2018-07-04",
+      "exit_price": 280.5,
+      "exit_reason": "sma20_next_open",
+      "net_return": -0.05741084627118393
+    },
+    {
+      "stock": "8942",
+      "entry_date": "2018-07-13",
+      "entry_price": 85.1,
+      "exit_date": "2018-08-08",
+      "exit_price": 87.9,
+      "exit_reason": "sma20_next_open",
+      "net_return": 0.023931499306260887
+    },
+    {
+      "stock": "3511",
+      "entry_date": "2018-12-05",
+      "entry_price": 25.0,
+      "exit_date": "2018-12-10",
+      "exit_price": 23.25,
+      "exit_reason": "stop_price_assumption",
+      "net_return": -0.078077239481281
+    },
+    {
+      "stock": "3338",
+      "entry_date": "2019-01-16",
+      "entry_price": 37.9,
+      "exit_date": "2019-01-21",
+      "exit_price": 35.247,
+      "exit_reason": "stop_price_assumption",
+      "net_return": -0.07807723948128095
+    },
+    {
+      "stock": "6278",
+      "entry_date": "2019-07-09",
+      "entry_price": 64.3,
+      "exit_date": "2019-08-08",
+      "exit_price": 72.7,
+      "exit_reason": "sma20_next_open",
+      "net_return": 0.14097798995376734
+    },
+    {
+      "stock": "1515",
+      "entry_date": "2019-07-10",
+      "entry_price": 88.0,
+      "exit_date": "2019-07-31",
+      "exit_price": 87.0,
+      "exit_reason": "sma20_next_open",
+      "net_return": -0.019950144609866043
+    },
+    {
+      "stock": "2732",
+      "entry_date": "2019-07-15",
+      "entry_price": 164.5,
+      "exit_date": "2019-08-06",
+      "exit_price": 154.0,
+      "exit_reason": "sma20_next_open",
+      "net_return": -0.07196061627033537
+    },
+    {
+      "stock": "2345",
+      "entry_date": "2019-08-08",
+      "entry_price": 145.0,
+      "exit_date": "2019-09-24",
+      "exit_price": 165.0,
+      "exit_reason": "sma20_next_open",
+      "net_return": 0.12804787160243725
+    },
+    {
+      "stock": "6426",
+      "entry_date": "2019-08-12",
+      "entry_price": 119.5,
+      "exit_date": "2019-08-15",
+      "exit_price": 111.0,
+      "exit_reason": "stop_gap_open",
+      "net_return": -0.07919713485780523
+    },
+    {
+      "stock": "2449",
+      "entry_date": "2019-08-19",
+      "entry_price": 34.65,
+      "exit_date": "2019-09-12",
+      "exit_price": 34.5,
+      "exit_reason": "sma20_next_open",
+      "net_return": -0.01297660978771405
+    },
+    {
+      "stock": "3479",
+      "entry_date": "2019-08-19",
+      "entry_price": 67.8,
+      "exit_date": "2019-10-01",
+      "exit_price": 80.0,
+      "exit_reason": "sma20_next_open",
+      "net_return": 0.16969297493414437
+    },
+    {
+      "stock": "3380",
+      "entry_date": "2019-08-28",
+      "entry_price": 25.4,
+      "exit_date": "2019-09-20",
+      "exit_price": 24.15,
+      "exit_reason": "sma20_next_open",
+      "net_return": -0.05747038072444903
+    },
+    {
+      "stock": "3029",
+      "entry_date": "2019-09-10",
+      "entry_price": 34.6,
+      "exit_date": "2019-09-19",
+      "exit_price": 33.5,
+      "exit_reason": "sma20_next_open",
+      "net_return": -0.04020099206361238
+    },
+    {
+      "stock": "2379",
+      "entry_date": "2019-09-27",
+      "entry_price": 235.0,
+      "exit_date": "2019-10-23",
+      "exit_price": 230.0,
+      "exit_reason": "sma20_next_open",
+      "net_return": -0.029777007918987058
+    },
+    {
+      "stock": "4551",
+      "entry_date": "2019-09-27",
+      "entry_price": 163.0,
+      "exit_date": "2019-09-27",
+      "exit_price": 151.59,
+      "exit_reason": "stop_price_assumption",
+      "net_return": -0.07807723948128102
+    },
+    {
+      "stock": "3293",
+      "entry_date": "2019-10-04",
+      "entry_price": 415.0,
+      "exit_date": "2019-10-08",
+      "exit_price": 385.95000000000005,
+      "exit_reason": "stop_price_assumption",
+      "net_return": -0.0780772394812809
+    },
+    {
+      "stock": "2345",
+      "entry_date": "2019-10-09",
+      "entry_price": 179.0,
+      "exit_date": "2019-10-31",
+      "exit_price": 183.0,
+      "exit_reason": "sma20_next_open",
+      "net_return": 0.013467082206557408
+    },
+    {
+      "stock": "3687",
+      "entry_date": "2019-10-23",
+      "entry_price": 43.1,
+      "exit_date": "2019-10-29",
+      "exit_price": 40.083000000000006,
+      "exit_reason": "stop_price_assumption",
+      "net_return": -0.07807723948128094
+    },
+    {
+      "stock": "6538",
+      "entry_date": "2020-01-10",
+      "entry_price": 225.5,
+      "exit_date": "2020-01-31",
+      "exit_price": 209.715,
+      "exit_reason": "stop_price_assumption",
+      "net_return": -0.07807723948128087
+    },
+    {
+      "stock": "2368",
+      "entry_date": "2020-04-01",
+      "entry_price": 24.7,
+      "exit_date": "2020-06-09",
+      "exit_price": 34.15,
+      "exit_reason": "sma20_next_open",
+      "net_return": 0.3705830077799944
+    },
+    {
+      "stock": "3545",
+      "entry_date": "2020-04-15",
+      "entry_price": 33.9,
+      "exit_date": "2020-04-20",
+      "exit_price": 31.527,
+      "exit_reason": "stop_price_assumption",
+      "net_return": -0.07807723948128087
+    },
+    {
+      "stock": "6104",
+      "entry_date": "2020-06-29",
+      "entry_price": 57.0,
+      "exit_date": "2020-08-04",
+      "exit_price": 75.2,
+      "exit_reason": "sma20_next_open",
+      "net_return": 0.3078398715526819
+    },
+    {
+      "stock": "3042",
+      "entry_date": "2020-07-01",
+      "entry_price": 63.3,
+      "exit_date": "2020-08-21",
+      "exit_price": 76.7,
+      "exit_reason": "sma20_next_open",
+      "net_return": 0.24054862073361952
+    },
+    {
+      "stock": "3413",
+      "entry_date": "2020-07-02",
+      "entry_price": 187.0,
+      "exit_date": "2020-07-29",
+      "exit_price": 205.0,
+      "exit_reason": "sma20_next_open",
+      "net_return": 0.10805865830593747
+    },
+    {
+      "stock": "6269",
+      "entry_date": "2020-07-02",
+      "entry_price": 126.5,
+      "exit_date": "2020-07-31",
+      "exit_price": 137.0,
+      "exit_reason": "sma20_next_open",
+      "net_return": 0.11281241604625887
+    },
+    {
+      "stock": "2421",
+      "entry_date": "2020-07-07",
+      "entry_price": 56.9,
+      "exit_date": "2020-07-07",
+      "exit_price": 52.917,
+      "exit_reason": "stop_price_assumption",
+      "net_return": -0.07807723948128081
+    },
+    {
+      "stock": "2417",
+      "entry_date": "2020-08-05",
+      "entry_price": 39.3,
+      "exit_date": "2020-09-14",
+      "exit_price": 59.0,
+      "exit_reason": "sma20_next_open",
+      "net_return": 0.4882334091385379
+    },
+    {
+      "stock": "8027",
+      "entry_date": "2020-08-06",
+      "entry_price": 60.8,
+      "exit_date": "2020-08-07",
+      "exit_price": 56.544,
+      "exit_reason": "stop_price_assumption",
+      "net_return": -0.07807723948128077
+    },
+    {
+      "stock": "5609",
+      "entry_date": "2020-09-03",
+      "entry_price": 71.0,
+      "exit_date": "2020-09-08",
+      "exit_price": 66.03,
+      "exit_reason": "stop_price_assumption",
+      "net_return": -0.07807723948128101
+    },
+    {
+      "stock": "2353",
+      "entry_date": "2020-09-10",
+      "entry_price": 25.4,
+      "exit_date": "2020-09-25",
+      "exit_price": 24.7,
+      "exit_reason": "sma20_next_open",
+      "net_return": -0.03600490285274902
+    },
+    {
+      "stock": "3498",
+      "entry_date": "2020-10-12",
+      "entry_price": 49.5,
+      "exit_date": "2020-11-02",
+      "exit_price": 50.1,
+      "exit_reason": "sma20_next_open",
+      "net_return": 0.003330733181010633
+    },
+    {
+      "stock": "3032",
+      "entry_date": "2020-10-14",
+      "entry_price": 49.9,
+      "exit_date": "2020-11-02",
+      "exit_price": 48.45,
+      "exit_reason": "sma20_next_open",
+      "net_return": -0.03749094431590171
+    },
+    {
+      "stock": "6187",
+      "entry_date": "2020-11-04",
+      "entry_price": 75.9,
+      "exit_date": "2020-12-08",
+      "exit_price": 84.7,
+      "exit_reason": "sma20_next_open",
+      "net_return": 0.10624984509804218
+    },
+    {
+      "stock": "6208",
+      "entry_date": "2020-11-12",
+      "entry_price": 39.25,
+      "exit_date": "2020-12-03",
+      "exit_price": 38.3,
+      "exit_reason": "sma20_next_open",
+      "net_return": -0.032678810276914216
+    },
+    {
+      "stock": "3047",
+      "entry_date": "2020-11-17",
+      "entry_price": 15.1,
+      "exit_date": "2020-12-08",
+      "exit_price": 14.55,
+      "exit_reason": "sma20_next_open",
+      "net_return": -0.044792696322198816
+    },
+    {
+      "stock": "5309",
+      "entry_date": "2020-12-03",
+      "entry_price": 50.3,
+      "exit_date": "2020-12-07",
+      "exit_price": 46.778999999999996,
+      "exit_reason": "stop_price_assumption",
+      "net_return": -0.07807723948128101
+    },
+    {
+      "stock": "3078",
+      "entry_date": "2020-12-04",
+      "entry_price": 46.5,
+      "exit_date": "2020-12-16",
+      "exit_price": 45.0,
+      "exit_reason": "sma20_next_open",
+      "net_return": -0.04066310039675437
+    },
+    {
+      "stock": "1590",
+      "entry_date": "2020-12-09",
+      "entry_price": 875.0,
+      "exit_date": "2021-02-01",
+      "exit_price": 1030.0,
+      "exit_reason": "sma20_next_open",
+      "net_return": 0.16691913159358604
+    },
+    {
+      "stock": "2609",
+      "entry_date": "2020-12-09",
+      "entry_price": 14.05,
+      "exit_date": "2021-01-14",
+      "exit_price": 24.75,
+      "exit_reason": "sma20_next_open",
+      "net_return": 0.7462662781034171
+    },
+    {
+      "stock": "3034",
+      "entry_date": "2020-12-10",
+      "entry_price": 324.0,
+      "exit_date": "2021-02-01",
+      "exit_price": 393.5,
+      "exit_reason": "sma20_next_open",
+      "net_return": 0.20395793928088396
+    },
+    {
+      "stock": "2481",
+      "entry_date": "2020-12-24",
+      "entry_price": 47.7,
+      "exit_date": "2021-01-21",
+      "exit_price": 52.3,
+      "exit_reason": "sma20_next_open",
+      "net_return": 0.08691328813888319
+    },
+    {
+      "stock": "6477",
+      "entry_date": "2020-12-24",
+      "entry_price": 68.4,
+      "exit_date": "2021-01-06",
+      "exit_price": 63.61200000000001,
+      "exit_reason": "stop_price_assumption",
+      "net_return": -0.07807723948128079
+    },
+    {
+      "stock": "3691",
+      "entry_date": "2021-01-08",
+      "entry_price": 222.0,
+      "exit_date": "2021-01-21",
+      "exit_price": 214.0,
+      "exit_reason": "sma20_next_open",
+      "net_return": -0.04440825946427445
+    },
+    {
+      "stock": "2441",
+      "entry_date": "2021-07-15",
+      "entry_price": 85.1,
+      "exit_date": "2021-08-16",
+      "exit_price": 89.5,
+      "exit_reason": "sma20_next_open",
+      "net_return": 0.04256961533458883
+    },
+    {
+      "stock": "6138",
+      "entry_date": "2021-07-23",
+      "entry_price": 189.0,
+      "exit_date": "2021-07-23",
+      "exit_price": 175.77,
+      "exit_reason": "stop_price_assumption",
+      "net_return": -0.07807723948128074
+    },
+    {
+      "stock": "8367",
+      "entry_date": "2021-07-28",
+      "entry_price": 51.7,
+      "exit_date": "2021-07-28",
+      "exit_price": 48.081,
+      "exit_reason": "stop_price_assumption",
+      "net_return": -0.07807723948128087
+    },
+    {
+      "stock": "3003",
+      "entry_date": "2021-08-24",
+      "entry_price": 98.0,
+      "exit_date": "2021-09-03",
+      "exit_price": 93.5,
+      "exit_reason": "sma20_next_open",
+      "net_return": -0.0542047607142831
+    },
+    {
+      "stock": "3675",
+      "entry_date": "2021-08-24",
+      "entry_price": 175.0,
+      "exit_date": "2021-09-15",
+      "exit_price": 173.5,
+      "exit_reason": "sma20_next_open",
+      "net_return": -0.005786151964712134
+    },
+    {
+      "stock": "5347",
+      "entry_date": "2021-09-06",
+      "entry_price": 158.0,
+      "exit_date": "2021-09-23",
+      "exit_price": 156.5,
+      "exit_reason": "sma20_next_open",
+      "net_return": -0.018096420163471197
+    },
+    {
+      "stock": "8150",
+      "entry_date": "2021-09-06",
+      "entry_price": 60.2,
+      "exit_date": "2021-09-08",
+      "exit_price": 55.986000000000004,
+      "exit_reason": "stop_price_assumption",
+      "net_return": -0.07807723948128104
+    },
+    {
+      "stock": "3036",
+      "entry_date": "2021-09-13",
+      "entry_price": 63.7,
+      "exit_date": "2021-09-29",
+      "exit_price": 61.0,
+      "exit_reason": "sma20_next_open",
+      "net_return": -0.050703256331900697
+    },
+    {
+      "stock": "1773",
+      "entry_date": "2021-09-15",
+      "entry_price": 153.5,
+      "exit_date": "2021-09-17",
+      "exit_price": 142.755,
+      "exit_reason": "stop_price_assumption",
+      "net_return": -0.07807723948128108
+    },
+    {
+      "stock": "2383",
+      "entry_date": "2021-09-24",
+      "entry_price": 247.0,
+      "exit_date": "2021-09-27",
+      "exit_price": 226.5,
+      "exit_reason": "stop_gap_open",
+      "net_return": -0.09096031841239009
+    },
+    {
+      "stock": "3707",
+      "entry_date": "2021-09-24",
+      "entry_price": 121.5,
+      "exit_date": "2021-09-29",
+      "exit_price": 112.995,
+      "exit_reason": "stop_price_assumption",
+      "net_return": -0.07807723948128092
+    },
+    {
+      "stock": "3675",
+      "entry_date": "2021-09-27",
+      "entry_price": 198.0,
+      "exit_date": "2021-10-01",
+      "exit_price": 182.0,
+      "exit_reason": "stop_gap_open",
+      "net_return": -0.08879144990546937
+    },
+    {
+      "stock": "2606",
+      "entry_date": "2021-10-01",
+      "entry_price": 69.0,
+      "exit_date": "2021-10-01",
+      "exit_price": 64.17,
+      "exit_reason": "stop_price_assumption",
+      "net_return": -0.07807723948128086
+    },
+    {
+      "stock": "4721",
+      "entry_date": "2021-10-21",
+      "entry_price": 129.5,
+      "exit_date": "2021-11-23",
+      "exit_price": 162.0,
+      "exit_reason": "sma20_next_open",
+      "net_return": 0.24010036288481323
+    },
+    {
+      "stock": "1616",
+      "entry_date": "2021-12-30",
+      "entry_price": 12.6,
+      "exit_date": null,
+      "exit_price": null,
+      "exit_reason": null,
+      "net_return": null
+    }
+  ],
+  "definitions": {
+    "holding_interval": "actual fill_date entry through actual fill_date exit inclusive; final open trade through final session",
+    "close_RSI_applicable": "only position still held after fixed-engine opening/intraday exit processing",
+    "count": "stock-day observations; entry and exit day included, no outside-holding market observations",
+    "old_audit_correction": "prior1198 used fills.date which can be signal/intent date for next-open. Preserve old audit; this report uses actual fill_date; trading outputs unaffected"
+  },
+  "trading_dates_replayed": 0,
+  "minimal_rebuild_scope": "saved-table audit only; no trading rerun",
+  "analysis_elapsed_seconds": 40.565707894999946,
+  "RSI_overlap_explanation": {
+    "RSI_below50_while_still_held_at_close": 17,
+    "simultaneously_close_below_SMA20": 17,
+    "matching_saved_SMA20_exit_signal": 17,
+    "independent_RSI_only_close_signal": 0,
+    "RSI_below50_on_exit_day": 31,
+    "exit_day_reason_counts": {
+      "sma20_next_open": 17,
+      "stop_price_assumption": 11,
+      "stop_gap_open": 3
+    },
+    "actual_RSI_reason_filled_exits": 0,
+    "reason_precedence": "fixed source first returns SMA20 reason; RSI is evaluated for exit only if SMA20 reason empty",
+    "conclusion": "no additional RSI-only execution path in this saved sample; actual fills and all eight metrics equal",
+    "trading_code_change_required": false,
+    "minimal_trading_rerun_days": 0
+  }
+}
