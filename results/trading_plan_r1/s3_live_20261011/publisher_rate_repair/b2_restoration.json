@@ -1,0 +1,12 @@
+{
+  "cell": "B2",
+  "commit": "70a405364635aa85e09c4bcb25f6d2dd3760b655",
+  "completed": 240,
+  "last_day": "2016-12-26",
+  "head_sha256": "ef38691ec9a7beb992ac8f44e7d58c4206269b15e8473912f7629dc85a5dc15e",
+  "fills": 9,
+  "holdings": 1,
+  "verified_parts": 13,
+  "state_digest_verified": true,
+  "necessary_rebuild": "241\u2013260 unpersisted; never dates<=240"
+}

@@ -1,0 +1,29 @@
+{
+  "original_error": "HTTP403 installation API rate limit exceeded during _tree_path_sha; then ref GET also403",
+  "failed_run": 38149978647,
+  "failed_attempt": 2,
+  "verified_failed_owner": true,
+  "stale_control": "ACTIVE remained because failure persistence was also rate-limited",
+  "fixes": [
+    "per-candidate directory cache; keep all SHA checks",
+    "read reset/Retry-After; max3600 seconds accumulated wait and job80-minute ceiling",
+    "record per-publication API request count and rate headers",
+    "same credential type and workflow; no token change to bypass quota"
+  ],
+  "tests": 38,
+  "elapsed_seconds": 9.85,
+  "cache_test": {
+    "files": 100,
+    "directory_gets": 2,
+    "old_uncached_gets": 200
+  },
+  "restore": {
+    "cell": "B2",
+    "completed": 240,
+    "last_day": "2016-12-26",
+    "head_sha256": "ef38691ec9a7beb992ac8f44e7d58c4206269b15e8473912f7629dc85a5dc15e",
+    "necessary_rebuild": "241–260 not remotely saved; dates<=240 never replayed"
+  },
+  "jobs_started_preserved": 10,
+  "rate_reset_of_original_failure": "not in retained old log; new code captures server headers"
+}

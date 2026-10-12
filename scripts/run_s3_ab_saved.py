@@ -46,6 +46,34 @@ class GitHubCheckpointPublisher:
         prior=json.loads(self.state_path.read_text()) if self.state_path.exists() else {}
         self.known = prior.get('known',{})
         self.receipts = prior.get('receipts',{})
+        self.api_request_count = 0
+        self.rate_wait_seconds = 0.
+        self.rate_status = {}
+
+    def _rate_wait(self, status, headers, detail):
+        limited=status==429 or (status==403 and
+            (headers.get('x-ratelimit-remaining')=='0' or 'rate limit' in detail.lower()))
+        if not limited:return False
+        self.rate_status={k:headers.get(k) for k in
+            ('x-ratelimit-limit','x-ratelimit-remaining','x-ratelimit-reset','retry-after')}
+        retry=headers.get('retry-after')
+        reset=headers.get('x-ratelimit-reset')
+        try:
+            delay=float(retry) if retry is not None else max(1.,float(reset)-time.time()+5)
+        except (TypeError,ValueError):
+            # Missing server timing is not authorization to hammer the API.
+            raise RuntimeError('rate limit lacks usable reset/Retry-After: '+json.dumps(self.rate_status))
+        budget=3600-getattr(self,'rate_wait_seconds',0.)
+        epoch=os.environ.get('S3_JOB_EPOCH')
+        if epoch is not None:budget=min(budget,float(epoch)+4800-time.time())
+        if delay<0 or delay>budget:
+            raise RuntimeError('rate wait exceeds bounded job allowance: '+json.dumps(dict(delay=delay,budget=budget,headers=self.rate_status)))
+        print('RATE_LIMIT_DEFER '+json.dumps(dict(seconds=delay,headers=self.rate_status)),flush=True)
+        remaining=delay
+        while remaining>0:
+            step=min(60.,remaining);time.sleep(step);remaining-=step
+        self.rate_wait_seconds=getattr(self,'rate_wait_seconds',0.)+delay
+        return True
 
     def api(self, method, path, body=None):
         url='https://api.github.com/repos/'+REPO+'/'+path
@@ -56,11 +84,16 @@ class GitHubCheckpointPublisher:
         request=urllib.request.Request(url, data=data, headers=headers, method=method)
         for attempt in range(3):
             try:
+                self.api_request_count=getattr(self,'api_request_count',0)+1
                 with urllib.request.urlopen(request, timeout=45) as result:
+                    self.rate_status={k:result.headers.get(k) for k in
+                        ('x-ratelimit-limit','x-ratelimit-remaining','x-ratelimit-reset')}
                     raw=result.read()
                     return json.loads(raw) if raw else None
             except urllib.error.HTTPError as error:
                 detail=error.read().decode(errors='replace')[:500]
+                rate_headers={k.lower():v for k,v in error.headers.items()}
+                if attempt<2 and self._rate_wait(error.code,rate_headers,detail):continue
                 if error.code in {429,500,502,503,504} and attempt<2:
                     time.sleep(2*(attempt+1));continue
                 raise RuntimeError(f'GitHub {method} {path}: HTTP {error.code}: {detail}') from None
@@ -98,10 +131,11 @@ class GitHubCheckpointPublisher:
                     entries.append(dict(path=p,mode='100644',type='blob',content=b.decode('utf-8')))
             tree=self.api('POST','git/trees',dict(base_tree=commit['tree']['sha'],tree=entries))
             returned={x['path']:x['sha'] for x in tree['tree'] if x['type']=='blob'}
+            tree_cache={}
             for p,b in changed.items():
                 actual_sha=returned.get(p)
                 if actual_sha is None:
-                    actual_sha=self._tree_path_sha(tree['sha'],p)
+                    actual_sha=self._tree_path_sha(tree['sha'],p,tree_cache)
                 if actual_sha!=git_blob(b):
                     diagnostic=dict(path=p,expected_blob_sha=git_blob(b),returned_blob_sha=actual_sha,
                         tree_sha=tree['sha'],tree_truncated=tree.get('truncated'),input_bytes=len(b))
@@ -120,12 +154,14 @@ class GitHubCheckpointPublisher:
             return new['sha']
         raise RuntimeError('remote branch changed repeatedly')
 
-    def _tree_path_sha(self, tree_sha, path):
+    def _tree_path_sha(self, tree_sha, path, cache=None):
         """Walk bounded directories when a recursive tree listing omits a path."""
         components=path.split('/')
         current=tree_sha
+        cache={} if cache is None else cache
         for index,name in enumerate(components):
-            listing=self.api('GET','git/trees/'+current)
+            if current not in cache:cache[current]=self.api('GET','git/trees/'+current)
+            listing=cache[current]
             item=next((row for row in listing['tree'] if row['path']==name),None)
             if item is None:
                 raise ValueError('remote tree path absent: '+path)
@@ -145,6 +181,7 @@ class GitHubCheckpointPublisher:
             return self.receipts[cell]
         if cell in self.receipts and self.receipts[cell]['checkpoint_sha256']==sha(checkpoint.read_bytes()):
             return self.receipts[cell]
+        requests_before=getattr(self,'api_request_count',0)
         package_checkpoint_transport(checkpoint.parent)
         manifest=(checkpoint.parent/'transport.json').read_bytes();inventory=json.loads(manifest)
         remote=self.remote_root+'/'+cell
@@ -181,6 +218,9 @@ class GitHubCheckpointPublisher:
                      saved_completed_day=completed[-1],saved_completed_sessions=count,
                      local_completed_sessions=count,readback_verified=True,
                      remote_interval_sessions=self.interval,
+                     publication_api_requests=getattr(self,'api_request_count',0)-requests_before,
+                     rate_wait_seconds=getattr(self,'rate_wait_seconds',0.),
+                     rate_status=getattr(self,'rate_status',{}),
                      publisher_sha256=sha(Path(__file__).read_bytes()))
         self.receipts[cell]=receipt
         from astraquant.research.trading_plan_r1_s3 import _atomic_write
