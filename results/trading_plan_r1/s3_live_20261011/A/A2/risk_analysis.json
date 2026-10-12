@@ -1,0 +1,238 @@
+{
+  "cell": "A2",
+  "source_commit": "133bce48713d2f3009f32557aec7a38d3387aa39",
+  "checkpoint_sha256": "aac2240050f0fed74dbf1f640ebbe11ec3aace4c2bbce905d531430ed5873b84",
+  "source_period": [
+    "2016-01-04",
+    "2021-12-31"
+  ],
+  "completed_sessions": 1468,
+  "trading_dates_replayed": 0,
+  "initial_equity": 1000000.0,
+  "final_equity": 1183797.830242268,
+  "closed_count": 88,
+  "open_count": 1,
+  "baseline_expectancy": 0.02936950329948892,
+  "maximum_drawdown": {
+    "fraction": 0.0826928586190441,
+    "peak_date": "2021-01-04",
+    "trough_date": "2021-10-21",
+    "peak_equity": 1270991.1031021576,
+    "trough_equity": 1165889.215507268,
+    "recovery_date": null
+  },
+  "longest_drawdown": {
+    "peak_index": 412,
+    "start": "2017-09-11",
+    "peak_equity": 1135174.6822831878,
+    "end": "2020-07-23",
+    "recovered": true,
+    "trading_session_intervals": 699,
+    "underwater_observations": 698,
+    "calendar_days": 1046
+  },
+  "maximum_consecutive_losses": {
+    "count": 10,
+    "start_exit_date": "2021-09-03",
+    "end_exit_date": "2021-10-01",
+    "trade_ids": [
+      "s3-A-20261011T045203Z-A2:trade:2021-08-23:3003",
+      "s3-A-20261011T045203Z-A2:trade:2021-09-03:8150",
+      "s3-A-20261011T045203Z-A2:trade:2021-08-23:3675",
+      "s3-A-20261011T045203Z-A2:trade:2021-09-14:1773",
+      "s3-A-20261011T045203Z-A2:trade:2021-09-03:5347",
+      "s3-A-20261011T045203Z-A2:trade:2021-09-23:2383",
+      "s3-A-20261011T045203Z-A2:trade:2021-09-10:3036",
+      "s3-A-20261011T045203Z-A2:trade:2021-09-23:3707",
+      "s3-A-20261011T045203Z-A2:trade:2021-09-24:3675",
+      "s3-A-20261011T045203Z-A2:trade:2021-09-30:2606"
+    ]
+  },
+  "expectancy_after_removing_winners": {
+    "largest_net_profit_TWD": [
+      {
+        "remove_count": 1,
+        "remaining_closed": 87,
+        "expectancy": 0.020247834073020637,
+        "removed": [
+          {
+            "stock": "8358",
+            "exit_date": "2017-03-13",
+            "net_profit_TWD": 60329.246350999994,
+            "net_return": 0.8229547260022299,
+            "row_id": "s3-A-20261011T045203Z-A2:s3-A-20261011T045203Z-A2:trade:2016-12-14:8358:sell:2017-03-10:sma20_next_open"
+          }
+        ]
+      },
+      {
+        "remove_count": 3,
+        "remaining_closed": 85,
+        "expectancy": 0.0024646214564871365,
+        "removed": [
+          {
+            "stock": "8358",
+            "exit_date": "2017-03-13",
+            "net_profit_TWD": 60329.246350999994,
+            "net_return": 0.8229547260022299,
+            "row_id": "s3-A-20261011T045203Z-A2:s3-A-20261011T045203Z-A2:trade:2016-12-14:8358:sell:2017-03-10:sma20_next_open"
+          },
+          {
+            "stock": "2609",
+            "exit_date": "2021-01-14",
+            "net_profit_TWD": 59935.36320000001,
+            "net_return": 0.7462662781034171,
+            "row_id": "s3-A-20261011T045203Z-A2:s3-A-20261011T045203Z-A2:trade:2020-12-08:2609:sell:2021-01-13:sma20_next_open"
+          },
+          {
+            "stock": "3526",
+            "exit_date": "2016-09-19",
+            "net_profit_TWD": 56391.04553326999,
+            "net_return": 0.8058024624479718,
+            "row_id": "s3-A-20261011T045203Z-A2:s3-A-20261011T045203Z-A2:trade:2016-07-12:3526:sell:2016-09-14:sma20_next_open"
+          }
+        ]
+      },
+      {
+        "remove_count": 5,
+        "remaining_closed": 83,
+        "expectancy": -0.007823175820688262,
+        "removed": [
+          {
+            "stock": "8358",
+            "exit_date": "2017-03-13",
+            "net_profit_TWD": 60329.246350999994,
+            "net_return": 0.8229547260022299,
+            "row_id": "s3-A-20261011T045203Z-A2:s3-A-20261011T045203Z-A2:trade:2016-12-14:8358:sell:2017-03-10:sma20_next_open"
+          },
+          {
+            "stock": "2609",
+            "exit_date": "2021-01-14",
+            "net_profit_TWD": 59935.36320000001,
+            "net_return": 0.7462662781034171,
+            "row_id": "s3-A-20261011T045203Z-A2:s3-A-20261011T045203Z-A2:trade:2020-12-08:2609:sell:2021-01-13:sma20_next_open"
+          },
+          {
+            "stock": "3526",
+            "exit_date": "2016-09-19",
+            "net_profit_TWD": 56391.04553326999,
+            "net_return": 0.8058024624479718,
+            "row_id": "s3-A-20261011T045203Z-A2:s3-A-20261011T045203Z-A2:trade:2016-07-12:3526:sell:2016-09-14:sma20_next_open"
+          },
+          {
+            "stock": "2417",
+            "exit_date": "2020-09-14",
+            "net_profit_TWD": 38754.099948999996,
+            "net_return": 0.4882334091385379,
+            "row_id": "s3-A-20261011T045203Z-A2:s3-A-20261011T045203Z-A2:trade:2020-08-04:2417:sell:2020-09-11:sma20_next_open"
+          },
+          {
+            "stock": "2368",
+            "exit_date": "2020-06-09",
+            "net_profit_TWD": 27400.90675124999,
+            "net_return": 0.3705830077799944,
+            "row_id": "s3-A-20261011T045203Z-A2:s3-A-20261011T045203Z-A2:trade:2020-03-31:2368:sell:2020-06-08:sma20_next_open"
+          }
+        ]
+      }
+    ],
+    "largest_net_return": [
+      {
+        "remove_count": 1,
+        "remaining_closed": 87,
+        "expectancy": 0.020247834073020637,
+        "removed": [
+          {
+            "stock": "8358",
+            "exit_date": "2017-03-13",
+            "net_profit_TWD": 60329.246350999994,
+            "net_return": 0.8229547260022299,
+            "row_id": "s3-A-20261011T045203Z-A2:s3-A-20261011T045203Z-A2:trade:2016-12-14:8358:sell:2017-03-10:sma20_next_open"
+          }
+        ]
+      },
+      {
+        "remove_count": 3,
+        "remaining_closed": 85,
+        "expectancy": 0.0024646214564871365,
+        "removed": [
+          {
+            "stock": "8358",
+            "exit_date": "2017-03-13",
+            "net_profit_TWD": 60329.246350999994,
+            "net_return": 0.8229547260022299,
+            "row_id": "s3-A-20261011T045203Z-A2:s3-A-20261011T045203Z-A2:trade:2016-12-14:8358:sell:2017-03-10:sma20_next_open"
+          },
+          {
+            "stock": "3526",
+            "exit_date": "2016-09-19",
+            "net_profit_TWD": 56391.04553326999,
+            "net_return": 0.8058024624479718,
+            "row_id": "s3-A-20261011T045203Z-A2:s3-A-20261011T045203Z-A2:trade:2016-07-12:3526:sell:2016-09-14:sma20_next_open"
+          },
+          {
+            "stock": "2609",
+            "exit_date": "2021-01-14",
+            "net_profit_TWD": 59935.36320000001,
+            "net_return": 0.7462662781034171,
+            "row_id": "s3-A-20261011T045203Z-A2:s3-A-20261011T045203Z-A2:trade:2020-12-08:2609:sell:2021-01-13:sma20_next_open"
+          }
+        ]
+      },
+      {
+        "remove_count": 5,
+        "remaining_closed": 83,
+        "expectancy": -0.007823175820688262,
+        "removed": [
+          {
+            "stock": "8358",
+            "exit_date": "2017-03-13",
+            "net_profit_TWD": 60329.246350999994,
+            "net_return": 0.8229547260022299,
+            "row_id": "s3-A-20261011T045203Z-A2:s3-A-20261011T045203Z-A2:trade:2016-12-14:8358:sell:2017-03-10:sma20_next_open"
+          },
+          {
+            "stock": "3526",
+            "exit_date": "2016-09-19",
+            "net_profit_TWD": 56391.04553326999,
+            "net_return": 0.8058024624479718,
+            "row_id": "s3-A-20261011T045203Z-A2:s3-A-20261011T045203Z-A2:trade:2016-07-12:3526:sell:2016-09-14:sma20_next_open"
+          },
+          {
+            "stock": "2609",
+            "exit_date": "2021-01-14",
+            "net_profit_TWD": 59935.36320000001,
+            "net_return": 0.7462662781034171,
+            "row_id": "s3-A-20261011T045203Z-A2:s3-A-20261011T045203Z-A2:trade:2020-12-08:2609:sell:2021-01-13:sma20_next_open"
+          },
+          {
+            "stock": "2417",
+            "exit_date": "2020-09-14",
+            "net_profit_TWD": 38754.099948999996,
+            "net_return": 0.4882334091385379,
+            "row_id": "s3-A-20261011T045203Z-A2:s3-A-20261011T045203Z-A2:trade:2020-08-04:2417:sell:2020-09-11:sma20_next_open"
+          },
+          {
+            "stock": "2368",
+            "exit_date": "2020-06-09",
+            "net_profit_TWD": 27400.90675124999,
+            "net_return": 0.3705830077799944,
+            "row_id": "s3-A-20261011T045203Z-A2:s3-A-20261011T045203Z-A2:trade:2020-03-31:2368:sell:2020-06-08:sma20_next_open"
+          }
+        ]
+      }
+    ]
+  },
+  "definitions": {
+    "drawdown": "initial capital and saved end-of-session marked equity; no intraday claim",
+    "duration": "peak-to-recovery session intervals, or peak-to-last session if unrecovered; underwater observations also supplied",
+    "loss_streak": "closed filled sells by actual fill_date then canonical journal order; zero/positive return breaks streak",
+    "remove_winners": "primary rank net profit TWD pnl; secondary rank net_return; exclude saved closed rows, change denominator; no portfolio rerun",
+    "expectancy": "arithmetic mean of fixed ledger net_return after costs; open position excluded"
+  },
+  "analysis_elapsed_seconds": 5.326147862000084,
+  "independent_math_check": {
+    "pandas_running_max_drawdown_match": true,
+    "underwater_boolean_run_match": true,
+    "removed_return_sum_identity_match": true
+  }
+}
