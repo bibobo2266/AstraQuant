@@ -1,0 +1,116 @@
+{
+  "scope": {
+    "ticker": "8436",
+    "effective_day": "2018-08-06",
+    "only_this_authorized_event": true
+  },
+  "checked_retained_sources": [
+    {
+      "file": "2018_8436_20180518F02.pdf",
+      "bytes": 1877772,
+      "sha256": "e9998582d11e0e55926bbbd53aeb4a5a745069e10109bd9e1b7f9e119d9ca861",
+      "finding": "MOPS2018 AGM handbook; PDFpage7 printedpage5: fraction at par, whole TWD; no fractional cash payment day or explicit fractional rounding direction. Nearby regular cash dividend truncation is distinct clause."
+    },
+    {
+      "file": "2018_8436_20180518F05.pdf",
+      "bytes": 1227618,
+      "sha256": "809a8e7f42098621f8e64012a042384626192024ccca8c7e8ab9b58812b3fde7",
+      "finding": "MOPS2018 AGM minutes; prior verified approval onPDFpage4; no validated fractional cash payment day/direction."
+    },
+    {
+      "file": "mops_107_08_announcements.html",
+      "bytes": 8428,
+      "sha256": "cd22e3bebad91f8a3f6ee10c55ecacd709f393cb024a1415752d35f1e29375a3",
+      "finding": "official August107 announcement index reviewed; no dedicated fractional-payment title found; index absence is not proof no notice exists."
+    },
+    {
+      "file": "mops_107_09_announcements.html",
+      "bytes": 7762,
+      "sha256": "2b6b6146073eaef89a068feec8404fe7681eb3b3b680f130961ec62cf1abdee3",
+      "finding": "official September107 announcement index reviewed; no dedicated fractional-payment title found; no payment inference from unrelated notices."
+    },
+    {
+      "file": "mops_dividend_106_107.html",
+      "bytes": 9309,
+      "sha256": "ad2a1fdedf44a08cc1971184b87e07aad33c64fd7790f53704d6559d3ae1b05d",
+      "finding": "valid official distribution table; ordinary cash/stock dividends, no fractional cash payment rule/date."
+    },
+    {
+      "file": "mops_dividend_107.html",
+      "bytes": 2501,
+      "sha256": "b3c96267cf9aa06291e0ce4fa6e527c5e024a697d0400c69745ed1da8ad2074d",
+      "finding": "invalid query response says choose query conditions; excluded as evidence."
+    },
+    {
+      "file": "tci_2017_annual_report.pdf",
+      "bytes": 3732204,
+      "sha256": "648a58dab81dfd300239c056ac0927a449e4e81da3787689bcca16a5aedc3f0b",
+      "finding": "official prior marketing annualPDF retained; embedded-font text extraction garbled; excluded as proof of2018 fractional terms."
+    }
+  ],
+  "additional_searches": [
+    "site:tci-bio.com2018\u7578\u96f6\u80a1",
+    "site:mops.twse.com.tw8436/107\u7578\u96f6\u80a1",
+    "issuer2018 annual EnglishPDF indexed result"
+  ],
+  "retrieval_failures": [
+    {
+      "url": "https://www.tci-bio.com/wp-content/uploads/2022/02/2018-annual-report-en.pdf",
+      "raw_error": "400 Timeout fetching",
+      "status": "indexed stock dividend2018-09-14 snippet NOT accepted as fractional cash proof"
+    },
+    {
+      "url": "https://www.tci-bio.com/wp-content/uploads/2022/02/2018-annual-report-tw.pdf",
+      "raw_error": "URL is not accessible via this tool"
+    },
+    {
+      "url": "https://www.tci-bio.net/wp-content/uploads/2022/02/2018-annual-report-en.pdf",
+      "raw_error": "URL is not accessible via this tool"
+    }
+  ],
+  "verified_terms": [
+    "fractional residual cash substitution at parTWD10",
+    "combine window5days from transfer closure",
+    "wholeTWD stated",
+    "AGM resolution previously verified approved"
+  ],
+  "missing_fields": [
+    "fractional cash actual payment date for this2018 event",
+    "explicit rounding direction for fractional cash"
+  ],
+  "not_inferred": [
+    "ordinary cash-dividend date2018-08-31 is not fractional-cash payment date",
+    "ordinary cash-dividend rounding clause not transplanted to fractional clause",
+    "indexed stock-delivery2018-09-14 not sufficient for fractional cash payment date"
+  ],
+  "example": {
+    "old_shares": 123,
+    "fixed_multiplier": "1.1493488",
+    "exact_entitlement": "141.3699024",
+    "fraction": "0.3699024",
+    "unrounded_cash_at_par": "3.699024",
+    "possible_wholeTWD_if_floor_or_nearest": [
+      3,
+      4
+    ],
+    "rounding_difference_TWD": 1,
+    "note": "small amount does not prove no future sizing/cash-availability effect; no assumption applied"
+  },
+  "recommended_alternative": {
+    "option": "obtain official2018 stock/fractional-cash distribution notice or registrar written confirmation",
+    "requested_exact_fields": [
+      "fractional cash payment date",
+      "wholeTWD rounding direction",
+      "whether cash-in-lieu date equals stock delivery; attach event-specific clause"
+    ],
+    "owner_scope_if_external_contact": "explicit authorization to ask issuer/registrar only for these official terms; no external message sent",
+    "continuation": "preserve634 frozen result; validate event repair and replay parity of pre-event history; resume only after634, no prior dates rerun"
+  },
+  "secondary_alternative_requiring_owner_decision": {
+    "option": "separate sensitivity branch with explicitly authorized payment-date/rounding assumptions",
+    "impact": "assumptions change available cash and possibly integer sizing; not official fixed-source performance; original results remain",
+    "authorized_now": false,
+    "not_executed": true
+  },
+  "ongoing_work": "A2/A4/B2 completed; A1/A3/B1/B3 isolated; existing single Actions worker continues B4; no source refresh or strategy change"
+}
