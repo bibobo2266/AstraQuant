@@ -2,7 +2,7 @@
   "chain_id": "s3-actions-20261011",
   "segment": 10,
   "next_segment": 11,
-  "status": "SAVED",
+  "status": "READY",
   "owner_run_id": "38204657644",
   "code_commit": "7d00144e6a827d3ed7a97a18fb593d8e8ee4817a",
   "jobs_started": 14,
@@ -17,5 +17,6 @@
   "requires_artifact_success": true,
   "runnable_cells": [
     "B4"
-  ]
+  ],
+  "artifact_id": 11728965799
 }
