@@ -1,70 +1,8 @@
 {
   "chain_id": "s3-actions-20261011",
-  "segment": 7,
-  "actions_run_id": "38149978647",
+  "segment": 8,
+  "actions_run_id": "38196405290",
   "initial_cells": {
-    "A1": {
-      "completed": 634,
-      "last_day": "2018-08-06",
-      "fills": 66,
-      "holdings": 2,
-      "frozen": true,
-      "checkpoint_sha256": "0775cd352c3241d5422515608aae75153e414bde97a1f8af565f00da3ef78eb4"
-    },
-    "A2": {
-      "completed": 1468,
-      "last_day": "2021-12-30",
-      "fills": 177,
-      "holdings": 1,
-      "frozen": false,
-      "checkpoint_sha256": "aac2240050f0fed74dbf1f640ebbe11ec3aace4c2bbce905d531430ed5873b84"
-    },
-    "A3": {
-      "completed": 634,
-      "last_day": "2018-08-06",
-      "fills": 66,
-      "holdings": 2,
-      "frozen": true,
-      "checkpoint_sha256": "a1d8a72ec6ee0c0ea4c818fc8361dff883dbcece1594a1dadfe0521d98efcce1"
-    },
-    "A4": {
-      "completed": 1468,
-      "last_day": "2021-12-30",
-      "fills": 177,
-      "holdings": 1,
-      "frozen": false,
-      "checkpoint_sha256": "c98d688e8bb44ae1760ccd8d9e1f9fa3226381f959d3cec5fb579142192f5c50"
-    },
-    "B1": {
-      "completed": 634,
-      "last_day": "2018-08-06",
-      "fills": 66,
-      "holdings": 2,
-      "frozen": true,
-      "checkpoint_sha256": "3c3855c4750d5d308290a104eaf436888c4d18b9020835207d3cbf53fadfe9d6"
-    },
-    "B2": {
-      "completed": 240,
-      "last_day": "2016-12-26",
-      "fills": 9,
-      "holdings": 1,
-      "frozen": false,
-      "checkpoint_sha256": "ef38691ec9a7beb992ac8f44e7d58c4206269b15e8473912f7629dc85a5dc15e"
-    },
-    "B3": {
-      "completed": 0,
-      "last_day": null,
-      "fills": 0,
-      "holdings": 0
-    },
-    "B4": {
-      "completed": 0,
-      "last_day": null,
-      "fills": 0,
-      "holdings": 0
-    }
-  },
-  "cells": {
     "A1": {
       "completed": 634,
       "last_day": "2018-08-06",
@@ -126,15 +64,77 @@
       "holdings": 0
     }
   },
-  "advanced": 740,
+  "cells": {
+    "A1": {
+      "completed": 634,
+      "last_day": "2018-08-06",
+      "fills": 66,
+      "holdings": 2,
+      "frozen": true,
+      "checkpoint_sha256": "0775cd352c3241d5422515608aae75153e414bde97a1f8af565f00da3ef78eb4"
+    },
+    "A2": {
+      "completed": 1468,
+      "last_day": "2021-12-30",
+      "fills": 177,
+      "holdings": 1,
+      "frozen": false,
+      "checkpoint_sha256": "aac2240050f0fed74dbf1f640ebbe11ec3aace4c2bbce905d531430ed5873b84"
+    },
+    "A3": {
+      "completed": 634,
+      "last_day": "2018-08-06",
+      "fills": 66,
+      "holdings": 2,
+      "frozen": true,
+      "checkpoint_sha256": "a1d8a72ec6ee0c0ea4c818fc8361dff883dbcece1594a1dadfe0521d98efcce1"
+    },
+    "A4": {
+      "completed": 1468,
+      "last_day": "2021-12-30",
+      "fills": 177,
+      "holdings": 1,
+      "frozen": false,
+      "checkpoint_sha256": "c98d688e8bb44ae1760ccd8d9e1f9fa3226381f959d3cec5fb579142192f5c50"
+    },
+    "B1": {
+      "completed": 634,
+      "last_day": "2018-08-06",
+      "fills": 66,
+      "holdings": 2,
+      "frozen": true,
+      "checkpoint_sha256": "3c3855c4750d5d308290a104eaf436888c4d18b9020835207d3cbf53fadfe9d6"
+    },
+    "B2": {
+      "completed": 1440,
+      "last_day": "2021-11-22",
+      "fills": 177,
+      "holdings": 1,
+      "frozen": false,
+      "checkpoint_sha256": "99b3d8b36efd0ac86a77c9df21d1fd3f9cd53fd26153978c506887c41c1164f7"
+    },
+    "B3": {
+      "completed": 0,
+      "last_day": null,
+      "fills": 0,
+      "holdings": 0
+    },
+    "B4": {
+      "completed": 0,
+      "last_day": null,
+      "fills": 0,
+      "holdings": 0
+    }
+  },
+  "advanced": 460,
   "complete": false,
-  "elapsed_seconds": 3496.211128495,
+  "elapsed_seconds": 3500.5296488070003,
   "states": {
     "B": {
       "execution_id": "s3-B-20261011T045202Z",
-      "started_at": "2026-10-12T01:37:35.408619+00:00",
+      "started_at": "2026-10-12T02:39:07.682483+00:00",
       "program_sha": null,
-      "program_base_sha": "6eb4679436a2f8fea5262d36a23edf9cf43f91f8",
+      "program_base_sha": "91f5cd7fa1bc70adbbd78beb36891dd8ef88807a",
       "manifest_sha256": "352f5e02bd5f3c11c479a2c88b58252423b1d7ef4423a5541fcbe22362495cd2",
       "formal_performance_unlocked": false,
       "round": "B",
@@ -149,28 +149,30 @@
           "entry_mode": "next_open",
           "exit_mode": "sma20",
           "status": "PAUSED_SAVED",
-          "completed": 980,
+          "completed": 1440,
           "resumed": true,
-          "current_date": "2020-01-02",
-          "holdings": [],
+          "current_date": "2021-11-22",
+          "holdings": [
+            "4721"
+          ],
           "frozen": false,
           "external_checkpoint": {
-            "commit": "a76f9bca6bb85d263a4cbbfcb3dee220e96d05ea",
+            "commit": "450f5b4ee1852a0401738229167b1a4b86748114",
             "repo": "bibobo2266/AstraQuant",
             "path": "results/trading_plan_r1/s3_live_20261011/B/B2/transport.json",
-            "transport_sha256": "b2792a14447cc31c2a9be4926949f4b16897769dffab7a939431eacbd795d35f",
-            "checkpoint_sha256": "4386ed7d72db1135cb14d75e047dd198a83c450a26e9616fb0434766da070f5a",
-            "saved_completed_day": "2020-01-02",
-            "saved_completed_sessions": 980,
-            "local_completed_sessions": 980,
+            "transport_sha256": "0e1656392ec4cbc97b8b9d7d2778b12d10d1a65c04fedd14ae34944f47a999fa",
+            "checkpoint_sha256": "99b3d8b36efd0ac86a77c9df21d1fd3f9cd53fd26153978c506887c41c1164f7",
+            "saved_completed_day": "2021-11-22",
+            "saved_completed_sessions": 1440,
+            "local_completed_sessions": 1440,
             "readback_verified": true,
             "remote_interval_sessions": 20,
-            "publication_api_requests": 115,
+            "publication_api_requests": 147,
             "rate_wait_seconds": 0.0,
             "rate_status": {
               "x-ratelimit-limit": "5000",
-              "x-ratelimit-remaining": "1675",
-              "x-ratelimit-reset": "1791772615"
+              "x-ratelimit-remaining": "2071",
+              "x-ratelimit-reset": "1791776305"
             },
             "publisher_sha256": "7720f43d1c9901792c3bdba84960ff50c3b4b03d21254d6d7684d5f586cdce63"
           }
@@ -188,10 +190,10 @@
           "completed": 0
         }
       },
-      "peak_rss_kib": 4877628,
+      "peak_rss_kib": 5202868,
       "input_binding": "90e896b29fd5f0dad18b72ab34b59cd92fc782bf1e308d4ef67e92a6a46e2b15",
       "expected_sessions": 1468,
-      "finished_at": "2026-10-12T02:35:02.688113+00:00"
+      "finished_at": "2026-10-12T03:36:36.201252+00:00"
     }
   },
   "persistence": "hosted Actions; no chat-side service dependency",
@@ -274,17 +276,17 @@
     },
     "B2": {
       "measured_days": 100,
-      "last_measured_day": "2020-01-02",
+      "last_measured_day": "2021-11-22",
       "seconds": {
-        "wall_seconds": 613.4736117609991,
-        "calculation": 12.335610454999369,
-        "validation": 39.00700092499483,
-        "local_save": 239.7098440050022,
-        "remote_save": 322.3353519140005,
-        "other_seconds": 0.08580446200221559
+        "wall_seconds": 833.2454893969984,
+        "calculation": 13.232045843001288,
+        "validation": 64.63131346100181,
+        "local_save": 378.8681307719917,
+        "remote_save": 376.4299315799917,
+        "other_seconds": 0.08406774101194969
       },
       "artifact_upload_seconds": null,
-      "remaining_seconds": 2993.7512253936757,
+      "remaining_seconds": 233.30873703115955,
       "estimate_scope": "same-cell latest100 extrapolation; future blocks/setup/artifact upload excluded"
     },
     "B3": {
