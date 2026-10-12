@@ -1,0 +1,58 @@
+{
+  "cell": "B4",
+  "metrics": {
+    "closed_count": 89,
+    "net_win_rate": 0.3595505618,
+    "avg_win": 0.188052037,
+    "avg_loss": 0.0616004585,
+    "payoff_ratio": 3.0527700875,
+    "expectancy": 0.0281622365,
+    "median_holding_sessions": 10.0,
+    "capital_occupied_position_days": 1168.0
+  },
+  "open_count": 1,
+  "threshold_review": false,
+  "threshold_ledger_check": null,
+  "checkpoint": {
+    "commit": "99acc0f12bf8cd0ec595261bf1094c0f810a567a",
+    "repo": "bibobo2266/AstraQuant",
+    "path": "results/trading_plan_r1/s3_live_20261011/B/B4/transport.json",
+    "transport_sha256": "fbe10297996359accb25c31ddb57ae416ccb3abc76b02533ebdc2fb4daf2f080",
+    "checkpoint_sha256": "16df31a4d0d9beb8bace0485b27b49c46ece46db95f495d729eddb0b7c19cdea",
+    "saved_completed_day": "2021-12-30",
+    "saved_completed_sessions": 1468,
+    "local_completed_sessions": 1468,
+    "readback_verified": true,
+    "remote_interval_sessions": 20,
+    "publication_api_requests": 125,
+    "rate_wait_seconds": 0.0,
+    "rate_status": {
+      "x-ratelimit-limit": "5000",
+      "x-ratelimit-remaining": "3109",
+      "x-ratelimit-reset": "1791791111"
+    },
+    "publisher_sha256": "7720f43d1c9901792c3bdba84960ff50c3b4b03d21254d6d7684d5f586cdce63"
+  },
+  "tables": {
+    "s3_decisions.csv": {
+      "bytes": 45216248,
+      "sha256": "5ff1c87a7d37a049f76c06f7925bc98e10d3e3dc9562d128b485b53d48ab784d"
+    },
+    "s3_eligibility.csv": {
+      "bytes": 2061893509,
+      "sha256": "a1e1e652e77e4e44b1586b13ace9bf09cb571651ac8f7203da2b694d4211b093"
+    },
+    "s3_equity.csv": {
+      "bytes": 1026099,
+      "sha256": "c6a1e0d57e24090327f03e526ddd9bf6d6c606e26108d93f13c026de78b44752"
+    },
+    "s3_fills.csv": {
+      "bytes": 47920716,
+      "sha256": "2ca4475372a010d58901ea40f776fd7c8bac5f373bc4d2c387b1775e47ce706d"
+    }
+  },
+  "csv_archive_sha256": "f3293da3511ecb0463c33cddc018ba3139ec6d69f2402e06cfdf2476c2596bcb",
+  "csv_artifact": "uploaded at segment boundary",
+  "actions_run_id": "38213870056",
+  "closed_scope": "closed filled exits only; open positions excluded"
+}

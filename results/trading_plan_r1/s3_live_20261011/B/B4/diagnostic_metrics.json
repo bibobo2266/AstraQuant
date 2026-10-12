@@ -1,0 +1,35 @@
+[
+  {
+    "run_id":"s3-B-20261011T045202Z-B4",
+    "portfolio_id":"s3-r1",
+    "entry_mode":"next_open",
+    "closed_count":89,
+    "net_win_rate":0.3595505618,
+    "avg_win":0.188052037,
+    "avg_loss":0.0616004585,
+    "payoff_ratio":3.0527700875,
+    "expectancy":0.0281622365,
+    "median_holding_sessions":10.0,
+    "capital_occupied_position_days":1168.0,
+    "open_count":1,
+    "truncated_count":0,
+    "rejected_count":64412,
+    "pending_entry_count":0,
+    "reject_reason_counts":{
+      "not_eligible_or_not_available":62685,
+      "rs_unavailable":16196,
+      "base_too_short":20864,
+      "base_history_missing":2783,
+      "invalid_geometry":1337,
+      "unsupported_corporate_action":33,
+      "already_held_no_add":60,
+      "price_cap_exceeded":115,
+      "gap_up_over_5pct":11,
+      "limit_up":2,
+      "max_positions":4
+    },
+    "portfolio_frozen":false,
+    "final_equity":1177431.1234001326,
+    "metrics_scope":"diagnostic_B_subpopulation_pending_review"
+  }
+]
