@@ -1,22 +1,14 @@
 {
   "chain_id": "s3-actions-20261011",
-  "segment": 9,
+  "segment": 10,
   "next_segment": 10,
-  "status": "READY",
-  "owner_run_id": "38200471851",
-  "code_commit": "896c2071288a181e5c969b92a64b5ee6687e998b",
-  "jobs_started": 13,
+  "status": "ACTIVE",
+  "owner_run_id": "38204657644",
+  "code_commit": "7d00144e6a827d3ed7a97a18fb593d8e8ee4817a",
+  "jobs_started": 14,
   "blocked_cells": [
     "A1",
     "A3",
     "B1"
-  ],
-  "complete": false,
-  "advanced": 657,
-  "requires_artifact_success": true,
-  "runnable_cells": [
-    "B3",
-    "B4"
-  ],
-  "artifact_id": 11727121441
+  ]
 }
