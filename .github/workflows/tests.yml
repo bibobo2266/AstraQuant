@@ -1,9 +1,31 @@
 name: tests
 
 on:
+  # 只在真的動到程式時才跑。改 .md、改 private/ 底下的對帳資料、
+  # 改其他 workflow，都不該觸發整套 pytest。
   push:
     branches: [main]
+    paths:
+      - "src/**"
+      - "scripts/**"
+      - "tests/**"
+      - "configs/**"
+      - "pyproject.toml"
+      - ".github/workflows/tests.yml"
   pull_request:
+    paths:
+      - "src/**"
+      - "scripts/**"
+      - "tests/**"
+      - "configs/**"
+      - "pyproject.toml"
+      - ".github/workflows/tests.yml"
+  workflow_dispatch:
+
+# 連推數個 commit 時只留最後一次的結果，前面的自動取消。
+concurrency:
+  group: tests-${{ github.ref }}
+  cancel-in-progress: true
 
 permissions:
   contents: read
@@ -11,6 +33,8 @@ permissions:
 jobs:
   pytest:
     runs-on: ubuntu-latest
+    # 保險絲：實際平均約 2 分，留七倍餘裕。卡住時不會燒掉整天的額度。
+    timeout-minutes: 15
     steps:
       - name: Checkout AstraQuant
         uses: actions/checkout@v4

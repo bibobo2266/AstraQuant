@@ -1,9 +1,22 @@
 name: Legacy breakout NAV regression
 
 on:
+  workflow_dispatch:
+  # 這支是「拿舊版已確認的 NAV 當基準，確認改完還是同一個數」。
+  # 只有動到計算層才有意義，改文件或丟資料不需要重跑。
   push:
     branches: [main]
-  workflow_dispatch:
+    paths:
+      - "src/**"
+      - "scripts/**"
+      - "tests/**"
+      - "configs/**"
+      - "pyproject.toml"
+      - ".github/workflows/legacy_breakout_regression.yml"
+
+concurrency:
+  group: legacy-breakout-regression-${{ github.ref }}
+  cancel-in-progress: true
 
 permissions:
   contents: read
@@ -11,7 +24,8 @@ permissions:
 jobs:
   regression:
     runs-on: ubuntu-latest
-    timeout-minutes: 90
+    # 實際平均約 4.2 分；原本 90 分的保險絲太鬆。
+    timeout-minutes: 20
     steps:
       - name: Checkout AstraQuant
         uses: actions/checkout@v4
