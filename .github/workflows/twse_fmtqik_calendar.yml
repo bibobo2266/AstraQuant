@@ -34,6 +34,10 @@ on:
         description: "每次請求間隔秒數"
         required: false
         default: "4"
+      merge_existing:
+        description: "補取單一月份時設為 true，把結果併進既有 log 而不是整份覆寫"
+        required: false
+        default: "false"
 
 permissions:
   contents: write
@@ -57,9 +61,12 @@ jobs:
           START: ${{ inputs.start || '201601' }}
           END: ${{ inputs.end || '202112' }}
           INTERVAL: ${{ inputs.interval || '4' }}
+          MERGE: ${{ inputs.merge_existing || 'false' }}
         run: |
+          EXTRA=""
+          if [ "$MERGE" = "true" ]; then EXTRA="--merge-existing"; fi
           python scripts/fetch_twse_fmtqik.py \
-            --start "$START" --end "$END" --interval "$INTERVAL"
+            --start "$START" --end "$END" --interval "$INTERVAL" $EXTRA
 
       - name: Adjudicate against the authoritative record
         run: python scripts/adjudicate_calendar_authoritative.py

@@ -90,8 +90,8 @@
    "sessions": 22
   },
   "201710": {
-   "status": "UNKNOWN",
-   "detail": "BLOCKED: response looks like a block page (<html)"
+   "status": "OK",
+   "sessions": 19
   },
   "201711": {
    "status": "OK",
@@ -294,12 +294,14 @@
    "sessions": 22
   }
  },
- "months_ok": 71,
- "months_unknown": 1,
- "months_unknown_list": [
+ "merged_with_prior_run": true,
+ "this_run_months": [
   "201710"
  ],
- "total_sessions": 1449,
- "blocked_total": 1,
- "block_policy": "single block -> mark UNKNOWN, never retried; 2 consecutive or 3 cumulative -> stop the endpoint"
+ "months_ok": 72,
+ "months_unknown": 0,
+ "months_unknown_list": [],
+ "blocked_total": 0,
+ "block_policy": "single block -> mark UNKNOWN, never retried; 2 consecutive or 3 cumulative -> stop the endpoint",
+ "total_sessions": 1468
 }
