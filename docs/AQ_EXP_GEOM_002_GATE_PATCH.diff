@@ -1,0 +1,93 @@
+AQ-EXP-GEOM-002 — OHLC 幾何閘門的 producer patch
+
+目標 repo    : bibobo2266/tradestation
+目標檔案     : scripts/astraquant_aq_exp_data_001.py
+基準 revision: 20162dc7ad4014cfd5983d309ab3826167b69a71
+基準 blob    : fa6b2729e36351eb0cadc3097547fc1a66d0e33f
+基準 sha256  : 16a953aca36ba794b01121cd435c711af696dd1f854c16990edb1b9bf6140a5c
+
+本輪**不實際套用**。以下 diff 供 Owner 或後續輪次套用。
+
+插入點共三處：
+  1. 模組層：新增 `_passes_ohlc_geometry()`，與 `load_panel()` 同層，放在
+     `def load_panel` 之前即可。該函式**不讀 valid_ohlc**。
+  2. `add_universe()` 的 `current_valid`（原始第 119-124 行）。
+  3. `add_c_states()` 的 `valid_close`（原始第 141-146 行）。
+
+兩個判定都依賴 valid_ohlc，所以兩處都要接；只改一處會留下另一個單點。
+
+套用後預期：**所有既有量化結果不變**。原因是 AQ-EXP-GEOM-001 已量到
+母體內實際幾何違反為 0 列，閘門是把單點防線變兩點，不是去修正既有錯誤。
+若套用後有任何數字改變，那表示上游 flag 與幾何判定不一致，須先停下查明。
+
+--- a/scripts/astraquant_aq_exp_data_001.py
++++ b/scripts/astraquant_aq_exp_data_001.py
+@@ -75,6 +75,38 @@ def read_parquet_columns(path: Path, wanted: list[str]) -> pd.DataFrame:
+     return out
+ 
+ 
++def _passes_ohlc_geometry(x: pd.DataFrame) -> pd.Series:
++    """OHLC 幾何閘門：True 表示該列的 bar 幾何合格。
++
++    與上游 tradability.valid_ohlc **互相獨立**，本函式不讀該欄。
++    這條閘門的全部意義就是把幾何防線從單點變成兩點；若此處引用
++    valid_ohlc，等於沒做。
++
++    四條斷言：
++      high >= low
++      high >= max(open, close)
++      low  <= min(open, close)
++      open/high/low/close 皆為有限正值
++
++    fail-closed：任一條不成立、任一欄缺失或非數值（NaN/null/非數字字串），
++    一律判為不合格，不以推估或鄰列填補。
++    """
++    def num(col: str) -> pd.Series:
++        if col not in x.columns:
++            return pd.Series(np.nan, index=x.index, dtype="float64")
++        return pd.to_numeric(x[col], errors="coerce")
++
++    o, h, l, c = num("open"), num("max"), num("min"), num("close")
++    finite_positive = (
++        np.isfinite(o) & np.isfinite(h) & np.isfinite(l) & np.isfinite(c)
++        & o.gt(0) & h.gt(0) & l.gt(0) & c.gt(0)
++    )
++    bad = (
++        h.lt(l).where(finite_positive, True).fillna(True)
++        | h.lt(np.maximum(o, c)).where(finite_positive, True).fillna(True)
++        | l.gt(np.minimum(o, c)).where(finite_positive, True).fillna(True)
++        | ~finite_positive.fillna(False)
++    )
++    return ~bad.astype(bool)
++
++
+ def load_panel(source_root: Path, excluded: set[str]) -> pd.DataFrame:
+     wanted = [
+         "date", "stock_id", "open", "max", "min", "close",
+@@ -117,10 +149,11 @@ def add_universe(panel: pd.DataFrame) -> pd.DataFrame:
+ def add_universe(panel: pd.DataFrame) -> pd.DataFrame:
+     x = panel
+     current_valid = (
+         x["observed_trade"]
+         & x["valid_ohlc"]
++        & _passes_ohlc_geometry(x)
+         & x["close"].gt(0).fillna(False)
+         & x["Trading_money"].notna()
+     )
+@@ -139,10 +172,11 @@ def add_c_states(panel: pd.DataFrame) -> pd.DataFrame:
+ def add_c_states(panel: pd.DataFrame) -> pd.DataFrame:
+     x = panel
+     valid_close = (
+         x["observed_trade"]
+         & x["valid_ohlc"]
++        & _passes_ohlc_geometry(x)
+         & np.isfinite(x["close"])
+         & x["close"].gt(0)
+     )
+
+套用後的驗證步驟（屬另一輪，本輪不執行）：
+
+  1. 重建 panel，核對母體仍為 458,315 列 / 1,394 檔。
+  2. 核對四個 feature 的 numeric_computable 與四項交集 428,102 全部不變。
+  3. 跑 AstraQuant 的 scripts/merge_postcheck.py --strict，須維持 48 PASS。
+  4. 任一數字改變即停下回報，不得自行調整。
