@@ -1,6 +1,6 @@
 {
  "branches": {
-  "main": "92c5a0a7e3330b084f678e6dbde0c00a17bd0693",
+  "main": "2e52bda639f818cae08a12a79e640c9ab472f006",
   "sol4/aq-exp-data-001-r2": "2bc6925cf7313cc56045bf01507f4f0034bd4c63",
   "sol-ab-v2-b-20261004": "f56ec5a145d5edab8192229e1fa4ccdb42fc2cc6",
   "solb/baseline-60d-exit-state": "584bf75f5de556f86dcc665def33d65af0843b14",
@@ -39,7 +39,7 @@
    "title": "AQ-EXP-GEOM-002: producer 的獨立 OHLC 幾何閘門（規格＋測試＋patch，不套用）[no-effects]"
   }
  },
- "last_comment": 6958912108,
+ "last_comment": 6966970395,
  "flags": [],
- "checked_at": "2026-11-18T02:15:25Z"
+ "checked_at": "2026-11-18T10:33:57Z"
 }
