@@ -12,14 +12,13 @@ name: Night session public mirror (台指夜盤公開版)
 #
 # 排程：建議 cron-job.org 台北 07:55（UTC 23:55）觸發，
 # 在 night_session（07:40）之後、recap 產製（08:10）之前。
-# 下面的 GitHub cron 只是備援，內建 cron 是 best-effort，實測會延遲數小時。
+# 不設 GitHub 原生 cron（best-effort、實測延遲數小時，且 Owner 規定只用 cron-job.org）。
 #
 # minervini_picks 只被唯讀 checkout，不會被修改。
 
 on:
   workflow_dispatch:
-  schedule:
-    - cron: "55 23 * * 1-5"
+  # 2026-11-25 Owner 規定：排程只用 cron-job.org dispatch，不用 GitHub 原生 schedule。
 
 permissions:
   contents: write
