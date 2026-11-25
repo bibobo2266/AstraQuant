@@ -31,7 +31,7 @@ concurrency:
 jobs:
   mirror:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
 
@@ -41,13 +41,28 @@ jobs:
           repository: bibobo2266/minervini_picks
           token: ${{ secrets.MINERVINI_READ_TOKEN }}
           path: source
-          persist-credentials: false
+          persist-credentials: true
           sparse-checkout: out
           sparse-checkout-cone-mode: true
 
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
+
+      - name: Wait for today's source (max 20 min)
+        # 2026-11-25 事故：上游 07:42 才寫入當日檔，本支先跑、讀到前一天的檔，
+        # 公開檔寫成「未取得」，盤前報告因此開天窗。改成等到上游當日檔出現。
+        run: |
+          today=$(TZ=Asia/Taipei date +%Y-%m-%d)
+          for i in $(seq 1 20); do
+            if grep -q "資料日 $today" source/out/night_session.md 2>/dev/null; then
+              echo "來源檔已是今日（$today）"; exit 0
+            fi
+            echo "第 $i 次：來源檔還不是 $today，60 秒後重抓"
+            sleep 60
+            git -C source pull -q --ff-only || true
+          done
+          echo "等了 20 分鐘來源檔仍非今日，照實轉出未取得"
 
       - name: Filter
         run: python scripts/night_session_public.py
